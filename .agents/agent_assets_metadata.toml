@@ -1,0 +1,26 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "oUOvlIlfRu6PH4ydMRhpE"
+uri = "file://artifacts/factoriza-play/assets/images/icon.png"
+type = "image"
+title = "factoriza play app icon"
+
+[[generated]]
+id = "RyVhprb4vcjBPW1VjNMnQ"
+uri = "file://artifacts/factoriza-play/assets/images/hero_factoring.png"
+type = "image"
+title = "factoring concept hero"
+
+[[generated]]
+id = "Q-wRqJALn6HJGWLCYH1C0"
+uri = "file://artifacts/factoriza-play/assets/images/community_banner.png"
+type = "image"
+title = "community banner students"
+
+[[generated]]
+id = "xc53hz1VeYvLut2W4sE0n"
+uri = "file://artifacts/factoriza-play/assets/images/ranking_trophy.png"
+type = "image"
+title = "ranking trophy"

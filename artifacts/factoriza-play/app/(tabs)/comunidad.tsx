@@ -1,0 +1,198 @@
+import { Feather } from "@expo/vector-icons";
+import React from "react";
+import {
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
+import { Student } from "@/context/AppContext";
+
+export default function ComunidadScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { allStudents, currentStudent } = useApp();
+  const isWeb = Platform.OS === "web";
+
+  const sorted = [...allStudents].sort((a, b) => b.totalXP - a.totalXP);
+  const myRank = sorted.findIndex((s) => s.id === currentStudent.id) + 1;
+
+  const medalColors = [colors.gold, colors.silver, colors.bronze];
+  const medalIcons = ["🥇", "🥈", "🥉"];
+
+  return (
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: isWeb ? 67 + 16 : insets.top + 16,
+          paddingBottom: isWeb ? 34 + 80 : insets.bottom + 80,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[styles.title, { color: colors.foreground }]}>
+        Comunidad Grado 8°
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+        Comparte el progreso y motívense entre todos
+      </Text>
+
+      {/* Banner */}
+      <Image
+        source={require("@/assets/images/community_banner.png")}
+        style={styles.banner}
+        resizeMode="cover"
+      />
+
+      {/* My position */}
+      <View
+        style={[
+          styles.myPositionCard,
+          {
+            backgroundColor: colors.primary + "10",
+            borderColor: colors.primary + "30",
+          },
+        ]}
+      >
+        <Text style={[styles.myPosLabel, { color: colors.primary }]}>
+          Tu posición
+        </Text>
+        <Text style={[styles.myPosRank, { color: colors.primary }]}>
+          #{myRank > 0 ? myRank : "?"}
+        </Text>
+        <Text style={[styles.myPosXP, { color: colors.mutedForeground }]}>
+          {currentStudent.totalXP} XP
+        </Text>
+      </View>
+
+      {/* Ranking */}
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        Tabla de Posiciones
+      </Text>
+
+      {sorted.map((student, index) => {
+        const isMe = student.id === currentStudent.id;
+        const rank = index + 1;
+
+        return (
+          <View
+            key={student.id}
+            style={[
+              styles.rankRow,
+              {
+                backgroundColor: isMe
+                  ? colors.primary + "10"
+                  : colors.card,
+                borderColor: isMe ? colors.primary + "40" : colors.border,
+              },
+            ]}
+          >
+            <View style={styles.rankBadge}>
+              {rank <= 3 ? (
+                <Text style={styles.medalIcon}>{medalIcons[rank - 1]}</Text>
+              ) : (
+                <Text
+                  style={[styles.rankNum, { color: colors.mutedForeground }]}
+                >
+                  {rank}
+                </Text>
+              )}
+            </View>
+
+            <Text style={styles.avatarText}>{student.avatar}</Text>
+
+            <View style={styles.studentInfo}>
+              <Text
+                style={[
+                  styles.studentName,
+                  { color: isMe ? colors.primary : colors.foreground },
+                ]}
+              >
+                {student.name} {isMe && "(Tú)"}
+              </Text>
+              <Text
+                style={[styles.studentMeta, { color: colors.mutedForeground }]}
+              >
+                🔥 {student.streak} días · {student.completedModules.length} módulos
+              </Text>
+            </View>
+
+            <View style={styles.xpBadge}>
+              <Text style={[styles.xpText, { color: colors.accent }]}>
+                ⚡{student.totalXP}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+
+      {/* Trophy image */}
+      <Image
+        source={require("@/assets/images/ranking_trophy.png")}
+        style={styles.trophy}
+        resizeMode="contain"
+      />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20 },
+  title: { fontSize: 26, fontWeight: "800", marginBottom: 6 },
+  subtitle: { fontSize: 14, marginBottom: 16 },
+  banner: {
+    width: "100%",
+    height: 160,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  myPositionCard: {
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  myPosLabel: { fontSize: 13, fontWeight: "600", flex: 1 },
+  myPosRank: { fontSize: 28, fontWeight: "900" },
+  myPosXP: { fontSize: 13, fontWeight: "600" },
+  sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  rankRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    gap: 12,
+  },
+  rankBadge: {
+    width: 36,
+    alignItems: "center",
+  },
+  medalIcon: { fontSize: 22 },
+  rankNum: { fontSize: 16, fontWeight: "800" },
+  avatarText: { fontSize: 24 },
+  studentInfo: { flex: 1 },
+  studentName: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  studentMeta: { fontSize: 12 },
+  xpBadge: {},
+  xpText: { fontSize: 14, fontWeight: "800" },
+  trophy: {
+    width: 200,
+    height: 200,
+    alignSelf: "center",
+    marginTop: 8,
+    opacity: 0.8,
+  },
+});

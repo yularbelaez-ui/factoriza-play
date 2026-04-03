@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "FactorIzA-Play"
+version = "1.0.0"
+id = "artifacts/factoriza-play"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 23923
+
+[services.development]
+run = "pnpm --filter @workspace/factoriza-play run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/factoriza-play", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/factoriza-play", "run", "serve" ]
+
+[services.env]
+PORT = "23923"
+BASE_PATH = "/"
