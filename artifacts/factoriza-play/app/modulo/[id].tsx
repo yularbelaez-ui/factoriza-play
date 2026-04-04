@@ -167,6 +167,7 @@ export default function ModuloScreen() {
         const completed = isLevelCompleted(levelIdx);
         const { done, total } = getLevelProgress(levelIdx);
         const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        const levelOffset = exerciseLevels.slice(0, levelIdx).reduce((s, l) => s + l.length, 0);
 
         return (
           <View
@@ -287,7 +288,7 @@ export default function ModuloScreen() {
                         <Feather name="check" size={12} color="#fff" />
                       ) : (
                         <Text style={styles.exerciseNumText}>
-                          {levelIdx * 2 + exIdx + 1}
+                          {levelOffset + exIdx + 1}
                         </Text>
                       )}
                     </View>

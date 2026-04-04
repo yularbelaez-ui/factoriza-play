@@ -26,35 +26,59 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 const ERROR_HINTS: Record<string, { title: string; hint: string; tip: string; icon: string }> = {
-  arithmetic: {
+  operaciones: {
     icon: "🔢",
     title: "Error en operaciones aritméticas",
-    hint: "Revisa la ley de signos y las operaciones básicas que realizaste. Un signo incorrecto cambia todo el resultado.",
-    tip: "Recuerda: al multiplicar dos negativos el resultado es positivo. Al sumar números de distinto signo, resta y conserva el signo del mayor.",
+    hint: "Revisa las operaciones básicas: el MCD de los coeficientes o la división de monomios. Un cálculo incorrecto cambia todo el resultado.",
+    tip: "Al multiplicar monomios: multiplica coeficientes y suma exponentes. Al dividir: divide coeficientes y resta exponentes.",
+  },
+  ley_signos: {
+    icon: "➕➖",
+    title: "Error en la ley de signos",
+    hint: "Revisa los signos de cada término. Al sacar un factor común negativo, los signos dentro del paréntesis se invierten.",
+    tip: "Regla clave: (−)(−) = (+) y (−)(+) = (−). Verifica siempre multiplicando el factor por el paréntesis.",
   },
   variables: {
     icon: "🔤",
     title: "Error con variables y polinomios",
-    hint: "Verifica los exponentes de cada variable. Solo se pueden combinar términos semejantes (misma variable, mismo exponente).",
-    tip: "Recuerda: x² y x son términos distintos, no se suman como 2x. Revisa cada término por separado.",
+    hint: "Verifica los exponentes de cada variable. Para el factor variable usa la MENOR potencia entre todos los términos.",
+    tip: "Recuerda: x² y x son términos distintos. La menor potencia de x en {x³, x²} es x².",
   },
   equality: {
     icon: "⚖️",
     title: "Error al aplicar el signo igual",
-    hint: "Al factorizar, al expandir el resultado debes obtener exactamente la expresión original. Verifica multiplicando tu respuesta.",
-    tip: "Practica: si factorizas a(b+c), al distribuir debes obtener ab+ac. Siempre verifica expandiendo.",
+    hint: "En factorización, el = indica equivalencia. Expande tu respuesta para verificar que obtienes la expresión original.",
+    tip: "Para verificar: si factorizas a(b+c), distribuye → ab+ac y compara con la expresión original.",
   },
-  operations: {
-    icon: "➗",
-    title: "Error en operaciones con conjuntos numéricos",
-    hint: "Revisa si estás operando correctamente con fracciones, enteros o raíces. Cada conjunto tiene sus propias reglas.",
-    tip: "Al factorizar, los coeficientes deben ser exactos. Revisa el máximo común divisor.",
+  potenciacion: {
+    icon: "⚡",
+    title: "Error con propiedades de potenciación",
+    hint: "Revisa si el término es un cuadrado o cubo perfecto. El exponente debe ser par (para cuadrados) o divisible entre 3 (para cubos).",
+    tip: "Propiedad clave: (aⁿ)ᵐ = aⁿ·ᵐ. Para reconocer cuadrados perfectos: 1,4,9,16,25,36,49,64,81,100...",
+  },
+  radicacion: {
+    icon: "√",
+    title: "Error en radicación",
+    hint: "Para extraer la raíz cuadrada de un monomio: toma la raíz del coeficiente y divide el exponente entre 2. Para raíz cúbica, divide el exponente entre 3.",
+    tip: "√(16x⁴) = 4x² porque √16=4 y x⁴÷2=x². Verifica: (4x²)² = 16x⁴ ✓.",
+  },
+  arithmetic: {
+    icon: "🔢",
+    title: "Error en operaciones aritméticas",
+    hint: "Revisa las operaciones básicas que realizaste. Un cálculo incorrecto cambia todo el resultado.",
+    tip: "Comprueba el MCD de los coeficientes y la potencia más baja de cada variable.",
   },
   powers: {
     icon: "⚡",
     title: "Error con potencias y radicación",
-    hint: "Recuerda las propiedades de potencias: (aⁿ)ᵐ = aⁿᵐ y √(a²) = |a|. Verifica cada exponente.",
-    tip: "a² significa a×a. Para factorizar diferencia de cuadrados identifica cada término como cuadrado perfecto.",
+    hint: "Revisa los exponentes y verifica que los términos sean cuadrados o cubos perfectos.",
+    tip: "a² significa a×a. Identifica cuadrados perfectos antes de aplicar las fórmulas.",
+  },
+  operations: {
+    icon: "➗",
+    title: "Error en operaciones",
+    hint: "Revisa los coeficientes y verifica el máximo común divisor.",
+    tip: "Al factorizar, los coeficientes deben ser exactos.",
   },
 };
 
@@ -383,6 +407,13 @@ export default function EjercicioScreen() {
             <Feather name="zap" size={14} color={colors.accent} />
             <Text style={[styles.tipText, { color: colors.foreground }]}>{errorHint.tip}</Text>
           </View>
+          <TouchableOpacity
+            style={[styles.practicaBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.push(`/practica/${exercise.errorCategory}` as any)}
+          >
+            <Feather name="layers" size={15} color="#fff" />
+            <Text style={styles.goTheoryText}>Ir a practicar este concepto</Text>
+          </TouchableOpacity>
           {showTheoryBtn && (
             <TouchableOpacity
               style={[styles.goTheoryBtn, { backgroundColor: module.color }]}
@@ -514,6 +545,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   tipText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  practicaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    padding: 14,
+  },
   goTheoryBtn: {
     flexDirection: "row",
     alignItems: "center",

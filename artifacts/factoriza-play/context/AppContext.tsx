@@ -65,11 +65,15 @@ export interface ErrorSummary {
 const TEACHER_CODE = "Karyul04";
 
 const ERROR_CATEGORIES: Record<string, string> = {
-  arithmetic: "Operaciones aritméticas y ley de signos",
-  variables: "Interpretación de variables y polinomios",
-  equality: "Comprensión del signo igual",
-  operations: "Operaciones con conjuntos numéricos",
-  powers: "Propiedades de potenciación y radicación",
+  operaciones: "Operaciones aritméticas básicas",
+  ley_signos: "Ley de signos",
+  variables: "Variables y polinomios",
+  equality: "El signo igual como equivalencia",
+  potenciacion: "Propiedades de potenciación",
+  radicacion: "Propiedades de radicación",
+  arithmetic: "Operaciones aritméticas",
+  powers: "Potenciación y radicación",
+  operations: "Operaciones numéricas",
 };
 
 const AVATARS = ["🎓", "🧑‍🎓", "👩‍🎓", "👨‍🎓", "🌟", "🚀", "💡", "🔢"];

@@ -324,21 +324,29 @@ export default function DocenteScreen() {
                     </View>
                   ))}
                 </View>
-                {student.exerciseResults.length > 0 && (
-                  <View style={{ gap: 4 }}>
-                    <Text style={[{ fontSize: 10, color: colors.mutedForeground, fontWeight: "600" }]}>
-                      Precisión
-                    </Text>
-                    <ProgressBar
-                      progress={
-                        (student.exerciseResults.filter((r) => r.correct).length /
-                          student.exerciseResults.length) * 100
-                      }
-                      color={colors.success}
-                      height={5}
-                    />
-                  </View>
-                )}
+                {student.exerciseResults.length > 0 && (() => {
+                  const pct = Math.round(
+                    (student.exerciseResults.filter((r) => r.correct).length /
+                      student.exerciseResults.length) * 100
+                  );
+                  return (
+                    <View style={{ gap: 4 }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={[{ fontSize: 10, color: colors.mutedForeground, fontWeight: "600" }]}>
+                          Precisión
+                        </Text>
+                        <Text style={[{ fontSize: 10, color: colors.success, fontWeight: "700" }]}>
+                          {pct}%
+                        </Text>
+                      </View>
+                      <ProgressBar
+                        progress={pct}
+                        color={colors.success}
+                        height={5}
+                      />
+                    </View>
+                  );
+                })()}
               </View>
             ))
           )}
