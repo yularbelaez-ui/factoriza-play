@@ -1,42 +1,15 @@
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Inicio</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="modulos">
-        <Icon sf={{ default: "books.vertical", selected: "books.vertical.fill" }} />
-        <Label>Módulos</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="comunidad">
-        <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
-        <Label>Comunidad</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="evaluacion">
-        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
-        <Label>Evaluación</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="docente">
-        <Icon sf={{ default: "person.badge.key", selected: "person.badge.key.fill" }} />
-        <Label>Docente</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
-function ClassicTabLayout() {
+function StudentTabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -120,25 +93,51 @@ function ClassicTabLayout() {
             ),
         }}
       />
+      {/* Hide teacher screen from students */}
       <Tabs.Screen
         name="docente"
-        options={{
-          title: "Docente",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person.badge.key" tintColor={color} size={22} />
-            ) : (
-              <Feather name="briefcase" size={21} color={color} />
-            ),
-        }}
+        options={{ href: null }}
+      />
+    </Tabs>
+  );
+}
+
+function TeacherTabLayout() {
+  const colors = useColors();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const isIOS = Platform.OS === "ios";
+  const isWeb = Platform.OS === "web";
+
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.mutedForeground,
+        headerShown: false,
+        tabBarStyle: {
+          display: "none",
+        },
+      }}
+    >
+      {/* Hide all student tabs from teacher */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="modulos" options={{ href: null }} />
+      <Tabs.Screen name="comunidad" options={{ href: null }} />
+      <Tabs.Screen name="evaluacion" options={{ href: null }} />
+      <Tabs.Screen
+        name="docente"
+        options={{ title: "Panel Docente" }}
       />
     </Tabs>
   );
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
+  const { role } = useApp();
+
+  if (role === "teacher") {
+    return <TeacherTabLayout />;
   }
-  return <ClassicTabLayout />;
+  return <StudentTabLayout />;
 }

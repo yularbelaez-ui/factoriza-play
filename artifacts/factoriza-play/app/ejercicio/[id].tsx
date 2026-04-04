@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,17 +13,75 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
 import { MODULES } from "@/data/modules";
+import { useColors } from "@/hooks/useColors";
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+const ERROR_HINTS: Record<string, { title: string; hint: string; tip: string; icon: string }> = {
+  arithmetic: {
+    icon: "🔢",
+    title: "Error en operaciones aritméticas",
+    hint: "Revisa la ley de signos y las operaciones básicas que realizaste. Un signo incorrecto cambia todo el resultado.",
+    tip: "Recuerda: al multiplicar dos negativos el resultado es positivo. Al sumar números de distinto signo, resta y conserva el signo del mayor.",
+  },
+  variables: {
+    icon: "🔤",
+    title: "Error con variables y polinomios",
+    hint: "Verifica los exponentes de cada variable. Solo se pueden combinar términos semejantes (misma variable, mismo exponente).",
+    tip: "Recuerda: x² y x son términos distintos, no se suman como 2x. Revisa cada término por separado.",
+  },
+  equality: {
+    icon: "⚖️",
+    title: "Error al aplicar el signo igual",
+    hint: "Al factorizar, al expandir el resultado debes obtener exactamente la expresión original. Verifica multiplicando tu respuesta.",
+    tip: "Practica: si factorizas a(b+c), al distribuir debes obtener ab+ac. Siempre verifica expandiendo.",
+  },
+  operations: {
+    icon: "➗",
+    title: "Error en operaciones con conjuntos numéricos",
+    hint: "Revisa si estás operando correctamente con fracciones, enteros o raíces. Cada conjunto tiene sus propias reglas.",
+    tip: "Al factorizar, los coeficientes deben ser exactos. Revisa el máximo común divisor.",
+  },
+  powers: {
+    icon: "⚡",
+    title: "Error con potencias y radicación",
+    hint: "Recuerda las propiedades de potencias: (aⁿ)ᵐ = aⁿᵐ y √(a²) = |a|. Verifica cada exponente.",
+    tip: "a² significa a×a. Para factorizar diferencia de cuadrados identifica cada término como cuadrado perfecto.",
+  },
+};
+
+function getExerciseLevels(exercises: (typeof MODULES)[0]["exercises"]) {
+  const perLevel = Math.ceil(exercises.length / 3);
+  return [
+    exercises.slice(0, perLevel),
+    exercises.slice(perLevel, perLevel * 2),
+    exercises.slice(perLevel * 2),
+  ].filter((l) => l.length > 0);
+}
+
+function getLevelForExercise(module: (typeof MODULES)[0], exerciseId: string): number {
+  return getExerciseLevels(module.exercises).findIndex((lvl) =>
+    lvl.some((e) => e.id === exerciseId)
+  );
+}
 
 export default function EjercicioScreen() {
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { recordExerciseResult } = useApp();
+  const { recordExerciseResult, completeLevel, currentStudent, moduleProgress } = useApp();
   const isWeb = Platform.OS === "web";
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const parts = rawId?.split("__") || [];
+  const parts = (id ?? "").split("__");
   const moduleId = parts[0];
   const exerciseId = parts[1];
 
@@ -31,8 +90,14 @@ export default function EjercicioScreen() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   const [showHint, setShowHint] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
+  const [showTheoryBtn, setShowTheoryBtn] = useState(false);
+
+  const shuffledOptions = useMemo(() => {
+    if (!exercise) return [];
+    return shuffleArray(exercise.options);
+  }, [exerciseId]);
 
   if (!module || !exercise) {
     return (
@@ -43,53 +108,81 @@ export default function EjercicioScreen() {
   }
 
   const isCorrect = selected === exercise.correctAnswer;
+  const errorHint = ERROR_HINTS[exercise.errorCategory] ?? ERROR_HINTS["arithmetic"];
 
-  const handleSelect = (option: string) => {
-    if (submitted) return;
-    setSelected(option);
-    Haptics.selectionAsync();
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 7, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -7, duration: 55, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 55, useNativeDriver: true }),
+    ]).start();
   };
 
   const handleSubmit = () => {
     if (!selected) return;
+    const newAttempts = attempts + 1;
+    setAttempts(newAttempts);
     setSubmitted(true);
-    if (isCorrect) {
+
+    if (selected === exercise.correctAnswer) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      recordExerciseResult({
+        exerciseId: exercise.id,
+        moduleId: module.id,
+        correct: true,
+        selectedAnswer: selected,
+        correctAnswer: exercise.correctAnswer,
+        errorCategory: exercise.errorCategory,
+        attempts: newAttempts,
+      });
+      const levelIdx = getLevelForExercise(module, exercise.id);
+      if (levelIdx !== -1) {
+        const levelExs = getExerciseLevels(module.exercises)[levelIdx];
+        const doneSet = new Set([...(currentStudent?.completedExercises ?? []), exercise.id]);
+        if (levelExs.every((e) => doneSet.has(e.id))) {
+          completeLevel(module.id, levelIdx);
+        }
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      triggerShake();
+      recordExerciseResult({
+        exerciseId: exercise.id,
+        moduleId: module.id,
+        correct: false,
+        selectedAnswer: selected,
+        correctAnswer: exercise.correctAnswer,
+        errorCategory: exercise.errorCategory,
+        attempts: newAttempts,
+      });
+      if (newAttempts >= 2) setShowTheoryBtn(true);
     }
-    recordExerciseResult({
-      exerciseId: exercise.id,
-      moduleId: module.id,
-      correct: isCorrect,
-      selectedAnswer: selected,
-      correctAnswer: exercise.correctAnswer,
-      errorCategory: exercise.errorCategory,
-      timestamp: Date.now(),
-    });
   };
 
-  const optionStyle = (option: string) => {
+  const handleRetry = () => {
+    setSelected(null);
+    setSubmitted(false);
+  };
+
+  const getOptionColors = (option: string) => {
     if (!submitted) {
+      const isSel = selected === option;
       return {
-        backgroundColor:
-          selected === option ? module.color + "15" : colors.card,
-        borderColor: selected === option ? module.color : colors.border,
+        bg: isSel ? colors.primary + "15" : colors.card,
+        border: isSel ? colors.primary : colors.border,
+        text: isSel ? colors.primary : colors.foreground,
       };
     }
-    if (option === exercise.correctAnswer) {
-      return {
-        backgroundColor: colors.success + "15",
-        borderColor: colors.success,
-      };
+    if (option === exercise.correctAnswer && isCorrect) {
+      return { bg: colors.success + "12", border: colors.success, text: colors.success };
     }
     if (option === selected && !isCorrect) {
-      return {
-        backgroundColor: colors.error + "15",
-        borderColor: colors.error,
-      };
+      return { bg: colors.error + "10", border: colors.error, text: colors.error };
     }
-    return { backgroundColor: colors.card, borderColor: colors.border };
+    return { bg: colors.card, border: colors.border, text: colors.mutedForeground };
   };
 
   return (
@@ -104,286 +197,232 @@ export default function EjercicioScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Back */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
         <Feather name="chevron-left" size={22} color={colors.primary} />
-        <Text style={[styles.backText, { color: colors.primary }]}>
-          {module.title}
-        </Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>Módulo</Text>
       </TouchableOpacity>
 
-      {/* Module badge */}
-      <View style={[styles.moduleBadge, { backgroundColor: module.color + "15" }]}>
-        <Text style={styles.moduleIcon}>{module.icon}</Text>
-        <Text style={[styles.moduleName, { color: module.color }]}>
-          {module.title}
-        </Text>
+      {/* Module tag */}
+      <View
+        style={[
+          styles.moduleTag,
+          { backgroundColor: module.color + "15", borderColor: module.color + "30" },
+        ]}
+      >
+        <Text style={styles.moduleTagIcon}>{module.icon}</Text>
+        <Text style={[styles.moduleTagText, { color: module.color }]}>{module.title}</Text>
       </View>
 
       {/* Question */}
-      <View
-        style={[
-          styles.questionCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.questionText, { color: colors.foreground }]}>
-          {exercise.question}
-        </Text>
-        {exercise.expression ? (
-          <View
-            style={[
-              styles.expressionBox,
-              { backgroundColor: module.color + "08", borderColor: module.color + "30" },
-            ]}
-          >
-            <Text style={[styles.expression, { color: module.color }]}>
-              {exercise.expression}
-            </Text>
-          </View>
-        ) : null}
-        {exercise.realWorld && (
-          <View
-            style={[
-              styles.realWorldBadge,
-              { backgroundColor: colors.accent + "10" },
-            ]}
-          >
-            <Text style={[styles.realWorldText, { color: colors.accent }]}>
-              🌍 {exercise.realWorld}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Hint */}
-      {!submitted && (
-        <TouchableOpacity
-          style={[
-            styles.hintToggle,
-            { backgroundColor: colors.accent + "10", borderColor: colors.accent + "30" },
-          ]}
-          onPress={() => setShowHint(!showHint)}
-        >
-          <Feather name="help-circle" size={16} color={colors.accent} />
-          <Text style={[styles.hintToggleText, { color: colors.accent }]}>
-            {showHint ? "Ocultar pista" : "Ver pista"}
-          </Text>
-          <Feather
-            name={showHint ? "chevron-up" : "chevron-down"}
-            size={14}
-            color={colors.accent}
-          />
-        </TouchableOpacity>
-      )}
-      {showHint && !submitted && (
+      <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
         <View
           style={[
-            styles.hintBox,
-            { backgroundColor: colors.accent + "08", borderColor: colors.accent + "30" },
+            styles.questionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.hintText, { color: colors.foreground }]}>
-            💡 {exercise.hint}
+          <Text style={[styles.questionText, { color: colors.foreground }]}>
+            {exercise.question}
           </Text>
+          {exercise.expression && (
+            <View
+              style={[
+                styles.expressionBox,
+                {
+                  backgroundColor: module.color + "08",
+                  borderColor: module.color + "30",
+                },
+              ]}
+            >
+              <Text style={[styles.expression, { color: module.color }]}>
+                {exercise.expression}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Animated.View>
+
+      {/* Hint toggle */}
+      <TouchableOpacity
+        style={[
+          styles.hintToggle,
+          { borderColor: colors.accent + "60", backgroundColor: colors.accent + "10" },
+        ]}
+        onPress={() => setShowHint(!showHint)}
+      >
+        <Feather name="help-circle" size={15} color={colors.accent} />
+        <Text style={[styles.hintToggleText, { color: colors.accent }]}>
+          {showHint ? "Ocultar pista" : "¿Necesitas una pista?"}
+        </Text>
+        <Feather
+          name={showHint ? "chevron-up" : "chevron-down"}
+          size={14}
+          color={colors.accent}
+        />
+      </TouchableOpacity>
+
+      {showHint && (
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: colors.accent + "10",
+              borderColor: colors.accent + "30",
+            },
+          ]}
+        >
+          <Text style={[styles.hintTitle, { color: colors.accent }]}>💡 Pista</Text>
+          {exercise.hint && (
+            <Text style={[styles.hintText, { color: colors.foreground }]}>{exercise.hint}</Text>
+          )}
+          {exercise.steps && exercise.steps.length > 0 && (
+            <>
+              <Text style={[styles.hintStepsTitle, { color: colors.accent }]}>Pasos sugeridos:</Text>
+              {exercise.steps.map((step: string, i: number) => (
+                <Text key={i} style={[styles.hintStep, { color: colors.foreground }]}>
+                  {step}
+                </Text>
+              ))}
+            </>
+          )}
         </View>
       )}
 
       {/* Options */}
-      <Text style={[styles.optionsLabel, { color: colors.mutedForeground }]}>
-        Selecciona una respuesta:
-      </Text>
-      {exercise.options.map((option, i) => (
-        <TouchableOpacity
-          key={i}
-          style={[styles.option, optionStyle(option)]}
-          onPress={() => handleSelect(option)}
-          activeOpacity={0.8}
-        >
-          <View
-            style={[
-              styles.optionLetter,
-              {
-                backgroundColor:
-                  submitted && option === exercise.correctAnswer
-                    ? colors.success
-                    : submitted && option === selected && !isCorrect
-                    ? colors.error
-                    : selected === option
-                    ? module.color
-                    : colors.secondary,
-              },
-            ]}
-          >
-            <Text
+      <View style={styles.options}>
+        {shuffledOptions.map((option) => {
+          const c = getOptionColors(option);
+          return (
+            <TouchableOpacity
+              key={option}
               style={[
-                styles.optionLetterText,
-                {
-                  color:
-                    selected === option || (submitted && option === exercise.correctAnswer)
-                      ? "#fff"
-                      : colors.mutedForeground,
-                },
+                styles.option,
+                { backgroundColor: c.bg, borderColor: c.border },
               ]}
+              onPress={() => {
+                if (submitted && isCorrect) return;
+                setSelected(option);
+              }}
+              disabled={submitted && isCorrect}
+              activeOpacity={0.8}
             >
-              {String.fromCharCode(65 + i)}
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.optionText,
-              {
-                color:
-                  submitted && option === exercise.correctAnswer
-                    ? colors.success
-                    : submitted && option === selected && !isCorrect
-                    ? colors.error
-                    : colors.foreground,
-              },
-            ]}
-          >
-            {option}
-          </Text>
-          {submitted && option === exercise.correctAnswer && (
-            <Feather name="check-circle" size={18} color={colors.success} />
-          )}
-          {submitted && option === selected && !isCorrect && (
-            <Feather name="x-circle" size={18} color={colors.error} />
-          )}
-        </TouchableOpacity>
-      ))}
+              <Text style={[styles.optionText, { color: c.text }]}>{option}</Text>
+              {submitted && option === exercise.correctAnswer && isCorrect && (
+                <Feather name="check-circle" size={20} color={colors.success} />
+              )}
+              {submitted && option === selected && !isCorrect && (
+                <Feather name="x-circle" size={20} color={colors.error} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-      {/* Submit / Result */}
-      {!submitted ? (
+      {/* Action button */}
+      {(!submitted || !isCorrect) && (
         <TouchableOpacity
           style={[
             styles.submitBtn,
             {
-              backgroundColor: selected ? module.color : colors.muted,
-              opacity: selected ? 1 : 0.5,
+              backgroundColor: selected ? module.color : colors.secondary,
+              borderColor: selected ? module.color : colors.border,
+              opacity: !selected && !submitted ? 0.6 : 1,
             },
           ]}
-          onPress={handleSubmit}
-          disabled={!selected}
+          onPress={submitted && !isCorrect ? handleRetry : handleSubmit}
+          disabled={!selected && !submitted}
           activeOpacity={0.85}
         >
-          <Text style={styles.submitBtnText}>Verificar respuesta</Text>
+          <Text
+            style={[
+              styles.submitBtnText,
+              { color: selected ? "#fff" : colors.mutedForeground },
+            ]}
+          >
+            {submitted && !isCorrect ? "🔄  Intentar de nuevo" : "Verificar respuesta"}
+          </Text>
+          {!submitted && (
+            <Feather
+              name="check"
+              size={17}
+              color={selected ? "#fff" : colors.mutedForeground}
+            />
+          )}
         </TouchableOpacity>
-      ) : (
-        <View>
-          {/* Result banner */}
+      )}
+
+      {/* Wrong feedback — NO correct answer shown */}
+      {submitted && !isCorrect && (
+        <View
+          style={[
+            styles.feedbackCard,
+            {
+              backgroundColor: colors.error + "08",
+              borderColor: colors.error + "30",
+            },
+          ]}
+        >
+          <View style={styles.feedbackHeader}>
+            <Text style={styles.feedbackIcon}>{errorHint.icon}</Text>
+            <Text style={[styles.feedbackTitle, { color: colors.error }]}>
+              {errorHint.title}
+            </Text>
+          </View>
+          <Text style={[styles.feedbackHint, { color: colors.foreground }]}>
+            {errorHint.hint}
+          </Text>
           <View
             style={[
-              styles.resultBanner,
+              styles.tipBox,
               {
-                backgroundColor: isCorrect
-                  ? colors.success + "15"
-                  : colors.error + "15",
-                borderColor: isCorrect ? colors.success : colors.error,
+                backgroundColor: colors.accent + "15",
+                borderColor: colors.accent + "30",
               },
             ]}
           >
-            <Text style={styles.resultEmoji}>{isCorrect ? "🎉" : "😅"}</Text>
-            <View style={styles.resultText}>
-              <Text
-                style={[
-                  styles.resultTitle,
-                  { color: isCorrect ? colors.success : colors.error },
-                ]}
-              >
-                {isCorrect ? "¡Correcto! +20 XP" : "Incorrecto"}
-              </Text>
-              <Text
-                style={[styles.resultSub, { color: colors.mutedForeground }]}
-              >
-                {isCorrect
-                  ? "¡Excelente trabajo!"
-                  : `La respuesta correcta es: ${exercise.correctAnswer}`}
-              </Text>
-            </View>
+            <Feather name="zap" size={14} color={colors.accent} />
+            <Text style={[styles.tipText, { color: colors.foreground }]}>{errorHint.tip}</Text>
           </View>
-
-          {/* Explanation */}
-          <View
-            style={[
-              styles.explanationCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.expTitle, { color: colors.foreground }]}>
-              📚 Explicación
-            </Text>
-            <Text style={[styles.expText, { color: colors.foreground }]}>
-              {exercise.explanation}
-            </Text>
-          </View>
-
-          {/* Steps */}
-          <TouchableOpacity
-            style={[
-              styles.stepsToggle,
-              { backgroundColor: module.color + "10", borderColor: module.color + "30" },
-            ]}
-            onPress={() => setShowSteps(!showSteps)}
-          >
-            <Feather name="list" size={16} color={module.color} />
-            <Text style={[styles.stepsToggleText, { color: module.color }]}>
-              {showSteps ? "Ocultar pasos" : "Ver pasos a paso"}
-            </Text>
-            <Feather
-              name={showSteps ? "chevron-up" : "chevron-down"}
-              size={14}
-              color={module.color}
-            />
-          </TouchableOpacity>
-          {showSteps && (
-            <View
-              style={[
-                styles.stepsBox,
-                { backgroundColor: module.color + "08", borderColor: module.color + "20" },
-              ]}
+          {showTheoryBtn && (
+            <TouchableOpacity
+              style={[styles.goTheoryBtn, { backgroundColor: module.color }]}
+              onPress={() => router.push(`/modulo/${module.id}` as any)}
             >
-              {exercise.steps.map((step, i) => (
-                <View key={i} style={styles.stepRow}>
-                  <View
-                    style={[
-                      styles.stepNum,
-                      { backgroundColor: module.color },
-                    ]}
-                  >
-                    <Text style={styles.stepNumText}>{i + 1}</Text>
-                  </View>
-                  <Text style={[styles.stepText, { color: colors.foreground }]}>
-                    {step}
-                  </Text>
-                </View>
-              ))}
-            </View>
+              <Feather name="book-open" size={15} color="#fff" />
+              <Text style={styles.goTheoryText}>Revisar teoría del módulo</Text>
+            </TouchableOpacity>
           )}
+        </View>
+      )}
 
-          {/* Navigation */}
-          <View style={styles.navRow}>
-            <TouchableOpacity
-              style={[styles.navBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => router.back()}
-            >
-              <Feather name="list" size={16} color={colors.foreground} />
-              <Text style={[styles.navBtnText, { color: colors.foreground }]}>
-                Ver módulo
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.navBtn, { backgroundColor: module.color }]}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.navBtnTextWhite}>Siguiente</Text>
-              <Feather name="chevron-right" size={16} color="#fff" />
-            </TouchableOpacity>
+      {/* Correct celebration */}
+      {submitted && isCorrect && (
+        <View
+          style={[
+            styles.feedbackCard,
+            {
+              backgroundColor: colors.success + "10",
+              borderColor: colors.success + "30",
+            },
+          ]}
+        >
+          <Text style={styles.correctEmoji}>🎉</Text>
+          <Text style={[styles.correctTitle, { color: colors.success }]}>¡Excelente!</Text>
+          <Text style={[styles.correctSub, { color: colors.foreground }]}>
+            {exercise.explanation}
+          </Text>
+          <View style={[styles.xpGain, { backgroundColor: colors.accent + "20" }]}>
+            <Text style={[styles.xpGainText, { color: colors.accent }]}>
+              ⚡ +20 XP ganados
+            </Text>
           </View>
+          <TouchableOpacity
+            style={[styles.nextBtn, { backgroundColor: module.color }]}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.nextBtnText}>← Volver al módulo</Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
@@ -394,38 +433,23 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-    gap: 4,
-  },
+  backBtn: { flexDirection: "row", alignItems: "center", marginBottom: 16, gap: 4 },
   backText: { fontSize: 15, fontWeight: "600" },
-  moduleBadge: {
+  moduleTag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    alignSelf: "flex-start",
+    borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: "flex-start",
     marginBottom: 16,
   },
-  moduleIcon: { fontSize: 16 },
-  moduleName: { fontSize: 13, fontWeight: "700" },
-  questionCard: {
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    marginBottom: 14,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  questionText: { fontSize: 16, fontWeight: "600", lineHeight: 22 },
+  moduleTagIcon: { fontSize: 14 },
+  moduleTagText: { fontSize: 12, fontWeight: "700" },
+  questionCard: { borderRadius: 18, padding: 20, borderWidth: 1, marginBottom: 12 },
+  questionText: { fontSize: 16, fontWeight: "600", lineHeight: 24, marginBottom: 12 },
   expressionBox: {
     borderRadius: 12,
     padding: 16,
@@ -433,8 +457,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   expression: { fontSize: 22, fontWeight: "800", letterSpacing: 0.5 },
-  realWorldBadge: { borderRadius: 8, padding: 8 },
-  realWorldText: { fontSize: 12, fontWeight: "600" },
   hintToggle: {
     flexDirection: "row",
     alignItems: "center",
@@ -442,96 +464,70 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 12,
+    alignSelf: "flex-start",
   },
-  hintToggleText: { fontSize: 13, fontWeight: "600", flex: 1 },
-  hintBox: {
-    borderRadius: 12,
+  hintToggleText: { fontSize: 13, fontWeight: "600" },
+  hintCard: {
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
     marginBottom: 14,
+    gap: 6,
   },
-  hintText: { fontSize: 14, lineHeight: 20 },
-  optionsLabel: { fontSize: 12, fontWeight: "600", marginBottom: 10 },
+  hintTitle: { fontSize: 13, fontWeight: "800" },
+  hintText: { fontSize: 13, lineHeight: 18 },
+  hintStepsTitle: { fontSize: 12, fontWeight: "700", marginTop: 4 },
+  hintStep: { fontSize: 12, lineHeight: 18 },
+  options: { gap: 10, marginBottom: 14 },
   option: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
     borderWidth: 1.5,
-    gap: 12,
   },
-  optionLetter: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  optionLetterText: { fontSize: 14, fontWeight: "800" },
-  optionText: { flex: 1, fontSize: 15, fontWeight: "500" },
+  optionText: { fontSize: 16, fontWeight: "600", flex: 1 },
   submitBtn: {
     borderRadius: 16,
     padding: 18,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  resultBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    borderRadius: 16,
-    padding: 16,
+    justifyContent: "center",
+    gap: 8,
     borderWidth: 1.5,
     marginBottom: 14,
   },
-  resultEmoji: { fontSize: 36 },
-  resultText: { flex: 1 },
-  resultTitle: { fontSize: 18, fontWeight: "800", marginBottom: 4 },
-  resultSub: { fontSize: 13 },
-  explanationCard: {
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 10,
-    gap: 10,
-  },
-  expTitle: { fontSize: 15, fontWeight: "700" },
-  expText: { fontSize: 14, lineHeight: 20 },
-  stepsToggle: {
+  submitBtnText: { fontSize: 16, fontWeight: "700" },
+  feedbackCard: { borderRadius: 18, padding: 18, borderWidth: 1, gap: 12, marginBottom: 16 },
+  feedbackHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  feedbackIcon: { fontSize: 26 },
+  feedbackTitle: { fontSize: 15, fontWeight: "800", flex: 1 },
+  feedbackHint: { fontSize: 14, lineHeight: 20 },
+  tipBox: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    gap: 8,
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
-    marginBottom: 10,
+    alignItems: "flex-start",
   },
-  stepsToggleText: { fontSize: 13, fontWeight: "600", flex: 1 },
-  stepsBox: { borderRadius: 14, padding: 14, borderWidth: 1, marginBottom: 14, gap: 10 },
-  stepRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  stepNum: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  stepNumText: { color: "#fff", fontSize: 11, fontWeight: "800" },
-  stepText: { flex: 1, fontSize: 14, lineHeight: 20 },
-  navRow: { flexDirection: "row", gap: 12, marginTop: 4 },
-  navBtn: {
-    flex: 1,
+  tipText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  goTheoryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    borderRadius: 14,
-    padding: 16,
+    gap: 8,
+    borderRadius: 12,
+    padding: 14,
   },
-  navBtnText: { fontSize: 15, fontWeight: "700" },
-  navBtnTextWhite: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  goTheoryText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  correctEmoji: { fontSize: 40, textAlign: "center" },
+  correctTitle: { fontSize: 24, fontWeight: "900", textAlign: "center" },
+  correctSub: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  xpGain: { borderRadius: 10, padding: 10, alignItems: "center" },
+  xpGainText: { fontSize: 15, fontWeight: "800" },
+  nextBtn: { borderRadius: 14, padding: 16, alignItems: "center" },
+  nextBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });

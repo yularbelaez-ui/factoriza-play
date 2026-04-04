@@ -9,15 +9,17 @@ import React, {
 
 export type UserRole = "student" | "teacher";
 
-export interface Student {
+export interface StudentRecord {
   id: string;
-  name: string;
+  pseudonym: string;
+  classCode: string;
   avatar: string;
   streak: number;
   totalXP: number;
   completedModules: string[];
   completedExercises: string[];
   exerciseResults: ExerciseResult[];
+  lastLogin: number;
 }
 
 export interface ExerciseResult {
@@ -28,42 +30,29 @@ export interface ExerciseResult {
   correctAnswer: string;
   errorCategory: string;
   timestamp: number;
+  attempts: number;
+}
+
+export interface ClassCode {
+  code: string;
+  label: string;
+  createdAt: number;
 }
 
 export interface ModuleProgress {
   moduleId: string;
   theoryRead: boolean;
-  exercisesCompleted: number;
-  totalExercises: number;
-  score: number;
+  completedLevels: number[];
 }
 
 export interface UnlockedModule {
   moduleId: string;
-  unlockedAt: number;
 }
 
 export interface EvaluationSession {
   moduleId: string;
   code: string;
   unlockedAt: number;
-}
-
-interface AppContextValue {
-  role: UserRole;
-  setRole: (r: UserRole) => void;
-  currentStudent: Student;
-  setCurrentStudent: (s: Student) => void;
-  allStudents: Student[];
-  unlockedModules: string[];
-  unlockModule: (moduleId: string) => void;
-  evaluationCodes: EvaluationSession[];
-  addEvaluationCode: (moduleId: string, code: string) => void;
-  recordExerciseResult: (result: ExerciseResult) => void;
-  markTheoryRead: (moduleId: string) => void;
-  moduleProgress: ModuleProgress[];
-  getErrorSummary: () => ErrorSummary[];
-  xpForExercise: number;
 }
 
 export interface ErrorSummary {
@@ -73,6 +62,8 @@ export interface ErrorSummary {
   percentage: number;
 }
 
+const TEACHER_CODE = "Karyul04";
+
 const ERROR_CATEGORIES: Record<string, string> = {
   arithmetic: "Operaciones aritméticas y ley de signos",
   variables: "Interpretación de variables y polinomios",
@@ -81,76 +72,46 @@ const ERROR_CATEGORIES: Record<string, string> = {
   powers: "Propiedades de potenciación y radicación",
 };
 
-const DEFAULT_STUDENT: Student = {
-  id: "student-1",
-  name: "Estudiante",
-  avatar: "🎓",
-  streak: 0,
-  totalXP: 0,
-  completedModules: [],
-  completedExercises: [],
-  exerciseResults: [],
-};
+const AVATARS = ["🎓", "🧑‍🎓", "👩‍🎓", "👨‍🎓", "🌟", "🚀", "💡", "🔢"];
 
-const DEMO_STUDENTS: Student[] = [
-  {
-    id: "student-1",
-    name: "Ana García",
-    avatar: "👩‍🎓",
-    streak: 5,
-    totalXP: 420,
-    completedModules: ["factor-comun", "diferencia-cuadrados"],
-    completedExercises: [],
-    exerciseResults: [],
-  },
-  {
-    id: "student-2",
-    name: "Carlos López",
-    avatar: "👨‍🎓",
-    streak: 3,
-    totalXP: 310,
-    completedModules: ["factor-comun"],
-    completedExercises: [],
-    exerciseResults: [],
-  },
-  {
-    id: "student-3",
-    name: "María Rodríguez",
-    avatar: "👩‍🏫",
-    streak: 7,
-    totalXP: 580,
-    completedModules: ["factor-comun", "diferencia-cuadrados", "suma-diferencia-cubos"],
-    completedExercises: [],
-    exerciseResults: [],
-  },
-  {
-    id: "student-4",
-    name: "José Martínez",
-    avatar: "🧑‍🎓",
-    streak: 1,
-    totalXP: 120,
-    completedModules: [],
-    completedExercises: [],
-    exerciseResults: [],
-  },
-  {
-    id: "student-5",
-    name: "Laura Torres",
-    avatar: "👩‍💻",
-    streak: 4,
-    totalXP: 390,
-    completedModules: ["factor-comun", "diferencia-cuadrados"],
-    completedExercises: [],
-    exerciseResults: [],
-  },
-];
+const getRandomAvatar = () => AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
+interface AppContextValue {
+  // Auth
+  isAuthenticated: boolean;
+  role: UserRole;
+  currentStudent: StudentRecord | null;
+  login: (role: UserRole, pseudonym: string, code: string) => Promise<{ ok: boolean; error?: string }>;
+  logout: () => void;
+
+  // Teacher data
+  classCodes: ClassCode[];
+  addClassCode: (code: string, label: string) => void;
+  removeClassCode: (code: string) => void;
+  allStudents: StudentRecord[];
+  unlockedModules: string[];
+  unlockModule: (moduleId: string) => void;
+  evaluationCodes: EvaluationSession[];
+  addEvaluationCode: (moduleId: string, code: string) => void;
+
+  // Student actions
+  recordExerciseResult: (result: Omit<ExerciseResult, "timestamp">) => void;
+  markTheoryRead: (moduleId: string) => void;
+  completeLevel: (moduleId: string, level: number) => void;
+  moduleProgress: ModuleProgress[];
+
+  // Analytics
+  getErrorSummary: (classCode?: string) => ErrorSummary[];
+}
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<UserRole>("student");
-  const [currentStudent, setCurrentStudentState] = useState<Student>(DEFAULT_STUDENT);
-  const [allStudents, setAllStudents] = useState<Student[]>(DEMO_STUDENTS);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<UserRole>("student");
+  const [currentStudent, setCurrentStudentState] = useState<StudentRecord | null>(null);
+  const [allStudents, setAllStudents] = useState<StudentRecord[]>([]);
+  const [classCodes, setClassCodes] = useState<ClassCode[]>([]);
   const [unlockedModules, setUnlockedModules] = useState<string[]>(["factor-comun"]);
   const [evaluationCodes, setEvaluationCodes] = useState<EvaluationSession[]>([]);
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
@@ -161,46 +122,125 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = async () => {
     try {
-      const stored = await AsyncStorage.getItem("factoriza_app_data");
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data.currentStudent) setCurrentStudentState(data.currentStudent);
+      const raw = await AsyncStorage.getItem("factoriza_v2");
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.allStudents) setAllStudents(data.allStudents);
+        if (data.classCodes) setClassCodes(data.classCodes);
         if (data.unlockedModules) setUnlockedModules(data.unlockedModules);
         if (data.evaluationCodes) setEvaluationCodes(data.evaluationCodes);
-        if (data.moduleProgress) setModuleProgress(data.moduleProgress);
-        if (data.allStudents) setAllStudents(data.allStudents);
+        // Restore session
+        if (data.session) {
+          const { role: r, studentId } = data.session;
+          setRole(r);
+          if (r === "teacher") {
+            setIsAuthenticated(true);
+          } else if (studentId && data.allStudents) {
+            const st = data.allStudents.find((s: StudentRecord) => s.id === studentId);
+            if (st) {
+              setCurrentStudentState(st);
+              setModuleProgress(data.moduleProgress || []);
+              setIsAuthenticated(true);
+            }
+          }
+        }
       }
     } catch {}
   };
 
-  const saveData = useCallback(
-    async (updates: Partial<{
-      currentStudent: Student;
-      unlockedModules: string[];
-      evaluationCodes: EvaluationSession[];
-      moduleProgress: ModuleProgress[];
-      allStudents: Student[];
-    }>) => {
+  const persist = useCallback(
+    async (patch: Record<string, unknown>) => {
       try {
-        const existing = await AsyncStorage.getItem("factoriza_app_data");
-        const current = existing ? JSON.parse(existing) : {};
-        await AsyncStorage.setItem(
-          "factoriza_app_data",
-          JSON.stringify({ ...current, ...updates })
-        );
+        const raw = await AsyncStorage.getItem("factoriza_v2");
+        const existing = raw ? JSON.parse(raw) : {};
+        await AsyncStorage.setItem("factoriza_v2", JSON.stringify({ ...existing, ...patch }));
       } catch {}
     },
     []
   );
 
-  const setRole = (r: UserRole) => setRoleState(r);
+  const login = async (
+    loginRole: UserRole,
+    pseudonym: string,
+    code: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (loginRole === "teacher") {
+      if (code !== TEACHER_CODE) {
+        return { ok: false, error: "Código de docente incorrecto." };
+      }
+      setRole("teacher");
+      setIsAuthenticated(true);
+      await persist({ session: { role: "teacher" } });
+      return { ok: true };
+    }
 
-  const setCurrentStudent = (s: Student) => {
-    setCurrentStudentState(s);
-    saveData({ currentStudent: s });
-    setAllStudents((prev) => {
-      const updated = prev.map((st) => (st.id === s.id ? s : st));
-      saveData({ allStudents: updated });
+    // Student login
+    const trimPseudo = pseudonym.trim();
+    const trimCode = code.trim().toUpperCase();
+    if (!trimPseudo) return { ok: false, error: "El seudónimo no puede estar vacío." };
+
+    const validCode = classCodes.find((c) => c.code.toUpperCase() === trimCode);
+    if (!validCode) {
+      return { ok: false, error: "Código de clase incorrecto. Pídelo a tu docente." };
+    }
+
+    // Check if pseudonym already registered for this class
+    const existing = allStudents.find(
+      (s) => s.pseudonym.toLowerCase() === trimPseudo.toLowerCase() && s.classCode === trimCode
+    );
+
+    let student: StudentRecord;
+    if (existing) {
+      student = existing;
+    } else {
+      // Register new student
+      student = {
+        id: `${trimCode}-${trimPseudo}-${Date.now()}`,
+        pseudonym: trimPseudo,
+        classCode: trimCode,
+        avatar: getRandomAvatar(),
+        streak: 0,
+        totalXP: 0,
+        completedModules: [],
+        completedExercises: [],
+        exerciseResults: [],
+        lastLogin: Date.now(),
+      };
+      const updatedStudents = [...allStudents, student];
+      setAllStudents(updatedStudents);
+      await persist({ allStudents: updatedStudents });
+    }
+
+    setRole("student");
+    setCurrentStudentState(student);
+    setIsAuthenticated(true);
+    await persist({ session: { role: "student", studentId: student.id } });
+    return { ok: true };
+  };
+
+  const logout = async () => {
+    setIsAuthenticated(false);
+    setCurrentStudentState(null);
+    setRole("student");
+    setModuleProgress([]);
+    await persist({ session: null });
+  };
+
+  const addClassCode = (code: string, label: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed || classCodes.find((c) => c.code === trimmed)) return;
+    const entry: ClassCode = { code: trimmed, label, createdAt: Date.now() };
+    setClassCodes((prev) => {
+      const updated = [...prev, entry];
+      persist({ classCodes: updated });
+      return updated;
+    });
+  };
+
+  const removeClassCode = (code: string) => {
+    setClassCodes((prev) => {
+      const updated = prev.filter((c) => c.code !== code);
+      persist({ classCodes: updated });
       return updated;
     });
   };
@@ -209,7 +249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUnlockedModules((prev) => {
       if (prev.includes(moduleId)) return prev;
       const updated = [...prev, moduleId];
-      saveData({ unlockedModules: updated });
+      persist({ unlockedModules: updated });
       return updated;
     });
   };
@@ -220,29 +260,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev.filter((e) => e.moduleId !== moduleId),
         { moduleId, code, unlockedAt: Date.now() },
       ];
-      saveData({ evaluationCodes: updated });
+      persist({ evaluationCodes: updated });
       return updated;
     });
   };
 
-  const recordExerciseResult = (result: ExerciseResult) => {
+  const recordExerciseResult = (result: Omit<ExerciseResult, "timestamp">) => {
+    if (!currentStudent) return;
+    const full: ExerciseResult = { ...result, timestamp: Date.now() };
     setCurrentStudentState((prev) => {
-      const xpGained = result.correct ? 20 : 5;
-      const updated: Student = {
+      if (!prev) return prev;
+      const xpGained = result.correct ? 20 : 3;
+      const updated: StudentRecord = {
         ...prev,
         totalXP: prev.totalXP + xpGained,
-        exerciseResults: [...prev.exerciseResults, result],
+        exerciseResults: [...prev.exerciseResults, full],
         completedExercises: result.correct
           ? [...new Set([...prev.completedExercises, result.exerciseId])]
           : prev.completedExercises,
         streak: result.correct ? prev.streak + 1 : prev.streak,
       };
-      saveData({ currentStudent: updated });
       setAllStudents((sts) => {
         const up = sts.map((s) => (s.id === updated.id ? updated : s));
-        saveData({ allStudents: up });
+        persist({ allStudents: up });
         return up;
       });
+      persist({ session: { role: "student", studentId: updated.id } });
       return updated;
     });
   };
@@ -251,27 +294,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setModuleProgress((prev) => {
       const existing = prev.find((p) => p.moduleId === moduleId);
       const updated = existing
-        ? prev.map((p) =>
-            p.moduleId === moduleId ? { ...p, theoryRead: true } : p
-          )
-        : [
-            ...prev,
-            {
-              moduleId,
-              theoryRead: true,
-              exercisesCompleted: 0,
-              totalExercises: 5,
-              score: 0,
-            },
-          ];
-      saveData({ moduleProgress: updated });
+        ? prev.map((p) => (p.moduleId === moduleId ? { ...p, theoryRead: true } : p))
+        : [...prev, { moduleId, theoryRead: true, completedLevels: [] }];
+      persist({ moduleProgress: updated });
       return updated;
     });
   };
 
-  const getErrorSummary = (): ErrorSummary[] => {
-    const allResults = allStudents.flatMap((s) => s.exerciseResults);
-    const wrongResults = allResults.filter((r) => !r.correct);
+  const completeLevel = (moduleId: string, level: number) => {
+    setModuleProgress((prev) => {
+      const existing = prev.find((p) => p.moduleId === moduleId);
+      const updated = existing
+        ? prev.map((p) =>
+            p.moduleId === moduleId
+              ? { ...p, completedLevels: [...new Set([...p.completedLevels, level])] }
+              : p
+          )
+        : [...prev, { moduleId, theoryRead: false, completedLevels: [level] }];
+      persist({ moduleProgress: updated });
+      return updated;
+    });
+  };
+
+  const getErrorSummary = (classCode?: string): ErrorSummary[] => {
+    const students = classCode
+      ? allStudents.filter((s) => s.classCode === classCode)
+      : allStudents;
+    const wrongResults = students.flatMap((s) => s.exerciseResults).filter((r) => !r.correct);
     const total = wrongResults.length || 1;
     const counts: Record<string, number> = {};
     wrongResults.forEach((r) => {
@@ -288,10 +337,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
         role,
-        setRole,
         currentStudent,
-        setCurrentStudent,
+        login,
+        logout,
+        classCodes,
+        addClassCode,
+        removeClassCode,
         allStudents,
         unlockedModules,
         unlockModule,
@@ -299,9 +352,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addEvaluationCode,
         recordExerciseResult,
         markTheoryRead,
+        completeLevel,
         moduleProgress,
         getErrorSummary,
-        xpForExercise: 20,
       }}
     >
       {children}

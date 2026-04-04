@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -14,20 +14,40 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+function AuthGuard() {
+  const { isAuthenticated } = useApp();
+  const segments = useSegments();
+
+  useEffect(() => {
+    const inLoginScreen = segments[0] === "login";
+    if (!isAuthenticated && !inLoginScreen) {
+      router.replace("/login");
+    } else if (isAuthenticated && inLoginScreen) {
+      router.replace("/(tabs)/");
+    }
+  }, [isAuthenticated, segments]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="modulo/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="ejercicio/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="evaluacion-modulo/[id]" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <AuthGuard />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modulo/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="ejercicio/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="evaluacion-modulo/[id]" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }
 

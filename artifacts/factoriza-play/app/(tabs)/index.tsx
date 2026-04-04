@@ -19,8 +19,10 @@ import { ProgressBar } from "@/components/ProgressBar";
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentStudent, unlockedModules, moduleProgress, role, setRole } = useApp();
+  const { currentStudent, unlockedModules, moduleProgress, logout } = useApp();
   const isWeb = Platform.OS === "web";
+
+  if (!currentStudent) return null;
 
   const totalModules = MODULES.length;
   const completedModulesCount = currentStudent.completedModules.length;
@@ -49,25 +51,21 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-            ¡Hola, {currentStudent.name.split(" ")[0]}! 👋
+            ¡Hola, {currentStudent.pseudonym}! 👋
           </Text>
           <Text style={[styles.appName, { color: colors.primary }]}>
             FactorIzA-Play
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.roleBtn, { backgroundColor: colors.secondary }]}
-          onPress={() => setRole(role === "student" ? "teacher" : "student")}
+          style={[styles.logoutBtn, { backgroundColor: colors.secondary }]}
+          onPress={logout}
         >
-          <Feather
-            name={role === "teacher" ? "user" : "briefcase"}
-            size={18}
-            color={colors.primary}
-          />
+          <Feather name="log-out" size={17} color={colors.mutedForeground} />
         </TouchableOpacity>
       </View>
 
-      {/* XP & Streak Cards */}
+      {/* Stats */}
       <View style={styles.statsRow}>
         <View
           style={[styles.statCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}
@@ -75,9 +73,7 @@ export default function HomeScreen() {
           <Text style={[styles.statValue, { color: colors.primary }]}>
             {currentStudent.totalXP}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-            XP Total
-          </Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP Total</Text>
         </View>
         <View
           style={[styles.statCard, { backgroundColor: colors.accent + "15", borderColor: colors.accent + "30" }]}
@@ -85,9 +81,7 @@ export default function HomeScreen() {
           <Text style={[styles.statValue, { color: colors.accent }]}>
             🔥 {currentStudent.streak}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-            Racha
-          </Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Racha</Text>
         </View>
         <View
           style={[styles.statCard, { backgroundColor: colors.success + "15", borderColor: colors.success + "30" }]}
@@ -95,33 +89,29 @@ export default function HomeScreen() {
           <Text style={[styles.statValue, { color: colors.success }]}>
             {completedModulesCount}/{totalModules}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-            Módulos
-          </Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Módulos</Text>
         </View>
       </View>
 
       {/* Progress */}
-      <View
-        style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}
-      >
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           Tu progreso general
         </Text>
         <ProgressBar progress={overallProgress} />
         <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-          {overallProgress}% completado — {completedModulesCount} de {totalModules} módulos
+          {overallProgress}% completado
         </Text>
       </View>
 
-      {/* Hero image */}
+      {/* Hero */}
       <Image
         source={require("@/assets/images/hero_factoring.png")}
         style={styles.heroImage}
         resizeMode="cover"
       />
 
-      {/* Continue Learning */}
+      {/* Continue */}
       {nextModule && (
         <View style={styles.continueSection}>
           <Text style={[styles.sectionTitle2, { color: colors.foreground }]}>
@@ -151,34 +141,20 @@ export default function HomeScreen() {
         Acceso rápido
       </Text>
       <View style={styles.quickGrid}>
-        <TouchableOpacity
-          style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => router.push("/(tabs)/modulos" as any)}
-        >
-          <Text style={styles.quickIcon}>📚</Text>
-          <Text style={[styles.quickLabel, { color: colors.foreground }]}>Módulos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => router.push("/(tabs)/comunidad" as any)}
-        >
-          <Text style={styles.quickIcon}>🏆</Text>
-          <Text style={[styles.quickLabel, { color: colors.foreground }]}>Ranking</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => router.push("/(tabs)/evaluacion" as any)}
-        >
-          <Text style={styles.quickIcon}>📝</Text>
-          <Text style={[styles.quickLabel, { color: colors.foreground }]}>Evaluación</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => router.push("/(tabs)/docente" as any)}
-        >
-          <Text style={styles.quickIcon}>👨‍🏫</Text>
-          <Text style={[styles.quickLabel, { color: colors.foreground }]}>Docente</Text>
-        </TouchableOpacity>
+        {[
+          { label: "Módulos", icon: "📚", route: "/(tabs)/modulos" },
+          { label: "Ranking", icon: "🏆", route: "/(tabs)/comunidad" },
+          { label: "Evaluación", icon: "📝", route: "/(tabs)/evaluacion" },
+        ].map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push(item.route as any)}
+          >
+            <Text style={styles.quickIcon}>{item.icon}</Text>
+            <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </ScrollView>
   );
@@ -195,7 +171,7 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 14, fontWeight: "500", marginBottom: 2 },
   appName: { fontSize: 26, fontWeight: "800" },
-  roleBtn: {
+  logoutBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -217,11 +193,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
   sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
   sectionTitle2: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
@@ -251,36 +222,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 2,
   },
-  continueTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 2,
-  },
-  continueSub: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-  },
-  quickGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 20,
-  },
+  continueTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  continueSub: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+  quickGrid: { flexDirection: "row", gap: 12 },
   quickCard: {
-    width: "47%",
+    flex: 1,
     borderRadius: 16,
     padding: 18,
     alignItems: "center",
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
   },
   quickIcon: { fontSize: 28, marginBottom: 8 },
-  quickLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  quickLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
 });
