@@ -66,7 +66,7 @@ export default function LoginScreen() {
     setLoading(false);
     if (result.ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)/");
+      router.replace("/(tabs)/docente");
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(result.error || "Código incorrecto.");

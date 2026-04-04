@@ -21,17 +21,27 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, role } = useApp();
   const segments = useSegments();
 
   useEffect(() => {
     const inLoginScreen = segments[0] === "login";
+    const inTabs = segments[0] === "(tabs)";
+    const inDocente = segments[1] === "docente";
+
     if (!isAuthenticated && !inLoginScreen) {
       router.replace("/login");
     } else if (isAuthenticated && inLoginScreen) {
-      router.replace("/(tabs)/");
+      if (role === "teacher") {
+        router.replace("/(tabs)/docente");
+      } else {
+        router.replace("/(tabs)/");
+      }
+    } else if (isAuthenticated && role === "teacher" && inTabs && !inDocente) {
+      // Teacher landed on a student screen — redirect to their panel
+      router.replace("/(tabs)/docente");
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated, role, segments]);
 
   return null;
 }
