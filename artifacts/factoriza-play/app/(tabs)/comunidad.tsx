@@ -11,7 +11,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
-import { Student } from "@/context/AppContext";
 
 export default function ComunidadScreen() {
   const colors = useColors();
@@ -20,7 +19,7 @@ export default function ComunidadScreen() {
   const isWeb = Platform.OS === "web";
 
   const sorted = [...allStudents].sort((a, b) => b.totalXP - a.totalXP);
-  const myRank = sorted.findIndex((s) => s.id === currentStudent.id) + 1;
+  const myRank = sorted.findIndex((s) => s.id === currentStudent?.id) + 1;
 
   const medalColors = [colors.gold, colors.silver, colors.bronze];
   const medalIcons = ["🥇", "🥈", "🥉"];

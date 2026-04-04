@@ -16,7 +16,7 @@ export default function ModulosScreen() {
   const getProgress = (moduleId: string) => {
     const prog = moduleProgress.find((p) => p.moduleId === moduleId);
     if (!prog) return 0;
-    const done = currentStudent.completedExercises.filter((id) =>
+    const done = (currentStudent?.completedExercises ?? []).filter((id) =>
       id.startsWith(moduleId)
     ).length;
     const total = MODULES.find((m) => m.id === moduleId)?.exercises.length || 5;
