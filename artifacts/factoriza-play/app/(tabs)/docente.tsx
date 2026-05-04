@@ -16,6 +16,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
+import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
 type Tab = "students" | "modules" | "errors" | "eval" | "codes";
 
@@ -28,6 +29,7 @@ export default function DocenteScreen() {
     unlockModule,
     addEvaluationCode,
     getErrorSummary,
+    getDiagnosticSummary,
     classCodes,
     addClassCode,
     removeClassCode,
@@ -397,6 +399,55 @@ export default function DocenteScreen() {
       {/* ── ERRORS TAB ── */}
       {activeTab === "errors" && (
         <View>
+          {/* Diagnostic summary */}
+          {(() => {
+            const diagSummary = getDiagnosticSummary(filterClass === "all" ? undefined : filterClass);
+            const studentsWithDiag = (filterClass === "all" ? allStudents : allStudents.filter((s) => s.classCode === filterClass)).filter((s) => s.diagnosticProfile);
+            if (studentsWithDiag.length === 0) return null;
+            const avgOverall = Math.round(
+              studentsWithDiag.reduce((s, st) => s + (st.diagnosticProfile?.overallScore ?? 0), 0) / studentsWithDiag.length
+            );
+            return (
+              <View style={[styles.diagSummaryCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "25" }]}>
+                <View style={styles.diagSummaryHeader}>
+                  <View style={[styles.diagSummaryIcon, { backgroundColor: colors.primary + "15" }]}>
+                    <Text style={{ fontSize: 20 }}>🧠</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.diagSummaryTitle, { color: colors.foreground }]}>
+                      Perfil Diagnóstico del Grupo
+                    </Text>
+                    <Text style={[styles.diagSummarySub, { color: colors.mutedForeground }]}>
+                      {studentsWithDiag.length} estudiante{studentsWithDiag.length !== 1 ? "s" : ""} evaluado{studentsWithDiag.length !== 1 ? "s" : ""} · Promedio: {avgOverall}%
+                    </Text>
+                  </View>
+                </View>
+                {diagSummary.filter((d) => d.count > 0).map((d) => {
+                  const info = DIAGNOSTIC_CATEGORY_INFO[d.category as keyof typeof DIAGNOSTIC_CATEGORY_INFO];
+                  if (!info) return null;
+                  const isWeak = d.avgScore < 60;
+                  return (
+                    <View key={d.category} style={styles.diagSummaryRow}>
+                      <Text style={styles.diagSummaryIcon2}>{info.icon}</Text>
+                      <View style={styles.diagSummaryBarWrap}>
+                        <Text style={[styles.diagSummaryLabel, { color: colors.foreground }]}>{info.label}</Text>
+                        <View style={[styles.diagSummaryBarBg, { backgroundColor: colors.border }]}>
+                          <View style={[styles.diagSummaryBarFill, { width: `${d.avgScore}%` as any, backgroundColor: isWeak ? info.color : colors.success }]} />
+                        </View>
+                      </View>
+                      <Text style={[styles.diagSummaryPct, { color: isWeak ? info.color : colors.success }]}>
+                        {d.avgScore}%
+                      </Text>
+                      {isWeak && (
+                        <Feather name="alert-circle" size={13} color={info.color} />
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })()}
+
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Análisis de Errores
           </Text>
@@ -572,4 +623,17 @@ const styles = StyleSheet.create({
   moduleChip: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, gap: 6 },
   moduleChipIcon: { fontSize: 14 },
   moduleChipText: { fontSize: 12, fontWeight: "600" },
+  // Diagnostic summary
+  diagSummaryCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 20, gap: 10 },
+  diagSummaryHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  diagSummaryIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  diagSummaryTitle: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  diagSummarySub: { fontSize: 12 },
+  diagSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  diagSummaryIcon2: { fontSize: 15, width: 22, textAlign: "center" },
+  diagSummaryBarWrap: { flex: 1, gap: 3 },
+  diagSummaryLabel: { fontSize: 11, fontWeight: "600" },
+  diagSummaryBarBg: { height: 6, borderRadius: 3, overflow: "hidden" },
+  diagSummaryBarFill: { height: "100%", borderRadius: 3 },
+  diagSummaryPct: { fontSize: 12, fontWeight: "800", width: 34, textAlign: "right" },
 });

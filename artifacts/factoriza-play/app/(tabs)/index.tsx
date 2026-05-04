@@ -15,6 +15,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
+import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -103,6 +104,71 @@ export default function HomeScreen() {
           {overallProgress}% completado
         </Text>
       </View>
+
+      {/* Diagnostic profile card */}
+      {currentStudent.diagnosticProfile && (() => {
+        const dp = currentStudent.diagnosticProfile!;
+        const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
+        const levelEmoji = { básico: "🌱", intermedio: "🌿", avanzado: "🌳" };
+        const lc = levelColors[dp.level];
+        const le = levelEmoji[dp.level];
+        const weakAreas = dp.results.filter((r) => r.score < 60);
+        return (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.diagHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>
+                  Perfil Diagnóstico
+                </Text>
+                <Text style={[{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }]}>
+                  Evaluación inicial completada
+                </Text>
+              </View>
+              <View style={[styles.diagBadge, { backgroundColor: lc + "15" }]}>
+                <Text style={styles.diagBadgeEmoji}>{le}</Text>
+                <Text style={[styles.diagBadgeScore, { color: lc }]}>
+                  {dp.overallScore}%
+                </Text>
+              </View>
+            </View>
+            <View style={{ gap: 8, marginTop: 12 }}>
+              {dp.results.map((r) => {
+                const info = DIAGNOSTIC_CATEGORY_INFO[r.category as keyof typeof DIAGNOSTIC_CATEGORY_INFO];
+                if (!info) return null;
+                return (
+                  <View key={r.category} style={styles.diagRow}>
+                    <Text style={styles.diagRowIcon}>{info.icon}</Text>
+                    <View style={styles.diagRowBar}>
+                      <View style={[styles.diagBarBg, { backgroundColor: colors.border }]}>
+                        <View
+                          style={[
+                            styles.diagBarFill,
+                            {
+                              width: `${r.score}%` as any,
+                              backgroundColor: r.score < 60 ? info.color : colors.success,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                    <Text style={[styles.diagRowPct, { color: r.score < 60 ? info.color : colors.success }]}>
+                      {r.score}%
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            {weakAreas.length > 0 && (
+              <View style={[styles.diagWeak, { backgroundColor: colors.accent + "10", borderColor: colors.accent + "30" }]}>
+                <Feather name="alert-triangle" size={13} color={colors.accent} />
+                <Text style={[styles.diagWeakText, { color: colors.foreground }]}>
+                  Áreas a reforzar: {weakAreas.map((r) => DIAGNOSTIC_CATEGORY_INFO[r.category as keyof typeof DIAGNOSTIC_CATEGORY_INFO]?.label).filter(Boolean).join(", ")}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })()}
 
       {/* Hero */}
       <Image
@@ -235,4 +301,25 @@ const styles = StyleSheet.create({
   },
   quickIcon: { fontSize: 28, marginBottom: 8 },
   quickLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  // Diagnostic card
+  diagHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  diagBadge: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center" },
+  diagBadgeEmoji: { fontSize: 18, marginBottom: 2 },
+  diagBadgeScore: { fontSize: 16, fontWeight: "900" },
+  diagRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  diagRowIcon: { fontSize: 16, width: 24, textAlign: "center" },
+  diagRowBar: { flex: 1 },
+  diagBarBg: { height: 6, borderRadius: 3, overflow: "hidden" },
+  diagBarFill: { height: "100%", borderRadius: 3 },
+  diagRowPct: { fontSize: 12, fontWeight: "700", width: 36, textAlign: "right" },
+  diagWeak: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    marginTop: 8,
+  },
+  diagWeakText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "500" },
 });

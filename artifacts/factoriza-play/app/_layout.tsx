@@ -21,27 +21,37 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard() {
-  const { isAuthenticated, role } = useApp();
+  const { isAuthenticated, role, currentStudent } = useApp();
   const segments = useSegments();
 
   useEffect(() => {
     const inLoginScreen = segments[0] === "login";
     const inTabs = segments[0] === "(tabs)";
     const inDocente = segments[1] === "docente";
+    const inDiagnostico = segments[0] === "diagnostico";
 
     if (!isAuthenticated && !inLoginScreen) {
       router.replace("/login");
     } else if (isAuthenticated && inLoginScreen) {
       if (role === "teacher") {
         router.replace("/(tabs)/docente");
+      } else if (role === "student" && currentStudent && !currentStudent.diagnosticProfile) {
+        router.replace("/diagnostico");
       } else {
         router.replace("/(tabs)/");
       }
     } else if (isAuthenticated && role === "teacher" && inTabs && !inDocente) {
-      // Teacher landed on a student screen — redirect to their panel
       router.replace("/(tabs)/docente");
+    } else if (
+      isAuthenticated &&
+      role === "student" &&
+      currentStudent &&
+      !currentStudent.diagnosticProfile &&
+      !inDiagnostico
+    ) {
+      router.replace("/diagnostico");
     }
-  }, [isAuthenticated, role, segments]);
+  }, [isAuthenticated, role, segments, currentStudent?.diagnosticProfile]);
 
   return null;
 }
@@ -53,6 +63,7 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="diagnostico" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="modulo/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="ejercicio/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="evaluacion-modulo/[id]" options={{ headerShown: false }} />

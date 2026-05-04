@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { DiagnosticProfile } from "@/data/diagnostic";
 
 export type UserRole = "student" | "teacher";
 
@@ -20,6 +21,7 @@ export interface StudentRecord {
   completedExercises: string[];
   exerciseResults: ExerciseResult[];
   lastLogin: number;
+  diagnosticProfile?: DiagnosticProfile;
 }
 
 export interface ExerciseResult {
@@ -103,9 +105,11 @@ interface AppContextValue {
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
   moduleProgress: ModuleProgress[];
+  saveDiagnosticProfile: (profile: DiagnosticProfile) => Promise<void>;
 
   // Analytics
   getErrorSummary: (classCode?: string) => ErrorSummary[];
+  getDiagnosticSummary: (classCode?: string) => { category: string; avgScore: number; count: number }[];
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -320,6 +324,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const saveDiagnosticProfile = async (profile: DiagnosticProfile) => {
+    if (!currentStudent) return;
+    const updated: StudentRecord = { ...currentStudent, diagnosticProfile: profile };
+    setCurrentStudentState(updated);
+    setAllStudents((sts) => {
+      const up = sts.map((s) => (s.id === updated.id ? updated : s));
+      persist({ allStudents: up });
+      return up;
+    });
+  };
+
   const getErrorSummary = (classCode?: string): ErrorSummary[] => {
     const students = classCode
       ? allStudents.filter((s) => s.classCode === classCode)
@@ -336,6 +351,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       count: counts[key] || 0,
       percentage: Math.round(((counts[key] || 0) / total) * 100),
     }));
+  };
+
+  const getDiagnosticSummary = (classCode?: string) => {
+    const students = (classCode
+      ? allStudents.filter((s) => s.classCode === classCode)
+      : allStudents
+    ).filter((s) => s.diagnosticProfile);
+
+    const categories = ["operaciones", "ley_signos", "variables", "potenciacion", "radicacion"];
+    return categories.map((cat) => {
+      const scores = students
+        .map((s) => s.diagnosticProfile!.results.find((r) => r.category === cat)?.score ?? null)
+        .filter((s): s is number => s !== null);
+      const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      return { category: cat, avgScore: avg, count: scores.length };
+    });
   };
 
   return (
@@ -358,7 +389,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         markTheoryRead,
         completeLevel,
         moduleProgress,
+        saveDiagnosticProfile,
         getErrorSummary,
+        getDiagnosticSummary,
       }}
     >
       {children}
