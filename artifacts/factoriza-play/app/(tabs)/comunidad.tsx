@@ -67,7 +67,7 @@ export default function ComunidadScreen() {
           #{myRank > 0 ? myRank : "?"}
         </Text>
         <Text style={[styles.myPosXP, { color: colors.mutedForeground }]}>
-          {currentStudent.totalXP} XP
+          {currentStudent?.totalXP ?? 0} XP
         </Text>
       </View>
 
@@ -77,7 +77,7 @@ export default function ComunidadScreen() {
       </Text>
 
       {sorted.map((student, index) => {
-        const isMe = student.id === currentStudent.id;
+        const isMe = student.id === currentStudent?.id;
         const rank = index + 1;
 
         return (
@@ -114,7 +114,7 @@ export default function ComunidadScreen() {
                   { color: isMe ? colors.primary : colors.foreground },
                 ]}
               >
-                {student.name} {isMe && "(Tú)"}
+                {student.pseudonym} {isMe && "(Tú)"}
               </Text>
               <Text
                 style={[styles.studentMeta, { color: colors.mutedForeground }]}

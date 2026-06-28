@@ -38,7 +38,7 @@ function AuthGuard() {
       } else if (role === "student" && currentStudent && !currentStudent.diagnosticProfile) {
         router.replace("/diagnostico");
       } else {
-        router.replace("/(tabs)/");
+        router.replace("/(tabs)" as any);
       }
     } else if (isAuthenticated && role === "teacher" && inTabs && !inDocente) {
       router.replace("/(tabs)/docente");

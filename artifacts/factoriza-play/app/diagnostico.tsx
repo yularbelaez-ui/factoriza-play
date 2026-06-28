@@ -112,7 +112,7 @@ export default function DiagnosticoScreen() {
     setSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await saveDiagnosticProfile(profile);
-    router.replace("/(tabs)/");
+    router.replace("/(tabs)" as any);
   };
 
   const padTop = isWeb ? 67 + 16 : insets.top + 16;
