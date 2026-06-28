@@ -1,9 +1,11 @@
 export type DiagnosticCategory =
-  | "operaciones"
-  | "ley_signos"
-  | "variables"
-  | "potenciacion"
-  | "radicacion";
+  | "naturales"
+  | "decimales"
+  | "enteros"
+  | "irracionales"
+  | "reales"
+  | "potencias"
+  | "factorizacion";
 
 export interface DiagnosticQuestion {
   id: string;
@@ -30,146 +32,200 @@ export interface DiagnosticProfile {
 }
 
 export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
-  // ── OPERACIONES BÁSICAS ──────────────────────────────────────────
+
+  // ── NÚMEROS NATURALES Y SUS OPERACIONES ─────────────────────────
   {
-    id: "diag-op-1",
-    category: "operaciones",
-    question: "¿Cuánto es:",
-    expression: "(-3) + (-5)",
-    options: ["-8", "8", "-2", "2"],
-    correctAnswer: "-8",
-    explanation: "Al sumar dos negativos: los valores absolutos se suman y el resultado es negativo. (-3) + (-5) = -8.",
+    id: "nat-1",
+    category: "naturales",
+    question: "Resuelve aplicando el orden de operaciones:",
+    expression: "24 ÷ 6 + 3 × 2",
+    options: ["10", "9", "14", "4"],
+    correctAnswer: "10",
+    explanation: "Primero multiplición y división: 24÷6 = 4, 3×2 = 6. Luego suma: 4 + 6 = 10.",
   },
   {
-    id: "diag-op-2",
-    category: "operaciones",
-    question: "¿Cuánto es:",
-    expression: "4 × (-6)",
-    options: ["-24", "24", "-10", "10"],
-    correctAnswer: "-24",
-    explanation: "Positivo × Negativo = Negativo. 4 × 6 = 24, por tanto 4 × (-6) = -24.",
+    id: "nat-2",
+    category: "naturales",
+    question: "¿Cuál es el Mínimo Común Múltiplo (MCM) de 4 y 6?",
+    options: ["12", "24", "6", "2"],
+    correctAnswer: "12",
+    explanation: "Múltiplos de 4: 4, 8, 12… Múltiplos de 6: 6, 12… El menor común es 12.",
   },
   {
-    id: "diag-op-3",
-    category: "operaciones",
-    question: "¿Cuánto es:",
-    expression: "(-15) ÷ 3",
-    options: ["-5", "5", "-45", "45"],
-    correctAnswer: "-5",
-    explanation: "Negativo ÷ Positivo = Negativo. 15 ÷ 3 = 5, por tanto (-15) ÷ 3 = -5.",
+    id: "nat-3",
+    category: "naturales",
+    question: "¿Cuál es el Máximo Común Divisor (MCD) de 12 y 18?",
+    options: ["6", "3", "9", "36"],
+    correctAnswer: "6",
+    explanation: "Divisores de 12: 1,2,3,4,6,12. Divisores de 18: 1,2,3,6,9,18. El mayor común es 6.",
   },
 
-  // ── LEY DE SIGNOS ────────────────────────────────────────────────
+  // ── NÚMEROS DECIMALES Y SUS OPERACIONES ─────────────────────────
   {
-    id: "diag-sg-1",
-    category: "ley_signos",
-    question: "El resultado de (-a) × (-b) es:",
-    options: ["ab", "-ab", "a + b", "-(a + b)"],
-    correctAnswer: "ab",
-    explanation: "Negativo × Negativo = Positivo. Por ley de signos: (-a)×(-b) = +ab.",
+    id: "dec-1",
+    category: "decimales",
+    question: "¿Cuánto es:",
+    expression: "3,5 + 1,25",
+    options: ["4,75", "4,25", "5,75", "4,50"],
+    correctAnswer: "4,75",
+    explanation: "Alineando decimales: 3,50 + 1,25 = 4,75.",
   },
   {
-    id: "diag-sg-2",
-    category: "ley_signos",
+    id: "dec-2",
+    category: "decimales",
     question: "¿Cuánto es:",
-    expression: "(-2) × (-3) × (-1)",
-    options: ["-6", "6", "-5", "5"],
-    correctAnswer: "-6",
-    explanation: "(-2)×(-3) = 6 (neg×neg=pos), luego 6×(-1) = -6 (pos×neg=neg).",
+    expression: "0,4 × 0,5",
+    options: ["0,2", "2", "0,02", "0,45"],
+    correctAnswer: "0,2",
+    explanation: "4 × 5 = 20. Con 2 decimales en total: 0,4 × 0,5 = 0,20 = 0,2.",
   },
   {
-    id: "diag-sg-3",
-    category: "ley_signos",
+    id: "dec-3",
+    category: "decimales",
     question: "¿Cuánto es:",
-    expression: "−(−8)",
-    options: ["8", "-8", "0", "16"],
-    correctAnswer: "8",
-    explanation: "El opuesto del opuesto es el número original: −(−8) = +8.",
+    expression: "1,8 ÷ 0,6",
+    options: ["3", "0,3", "12", "30"],
+    correctAnswer: "3",
+    explanation: "Multiplico ambos por 10: 18 ÷ 6 = 3.",
   },
 
-  // ── VARIABLES Y ÁLGEBRA ──────────────────────────────────────────
+  // ── NÚMEROS ENTEROS Y OPERACIONES CON NEGATIVOS ─────────────────
   {
-    id: "diag-var-1",
-    category: "variables",
-    question: "Si x = 3, ¿cuánto es:",
-    expression: "2x − 1",
-    options: ["5", "7", "4", "3"],
+    id: "ent-1",
+    category: "enteros",
+    question: "¿Cuánto es:",
+    expression: "(-4) + 7",
+    options: ["3", "-3", "11", "-11"],
+    correctAnswer: "3",
+    explanation: "Signos distintos: resto los valores absolutos y tomo el signo del mayor. 7 - 4 = 3, y 7 > 4, entonces +3.",
+  },
+  {
+    id: "ent-2",
+    category: "enteros",
+    question: "¿Cuánto es:",
+    expression: "(-3) × (-5)",
+    options: ["15", "-15", "8", "-8"],
+    correctAnswer: "15",
+    explanation: "Negativo × Negativo = Positivo. 3 × 5 = 15, por tanto (-3)×(-5) = +15.",
+  },
+  {
+    id: "ent-3",
+    category: "enteros",
+    question: "¿Cuánto es:",
+    expression: "12 ÷ (-4)",
+    options: ["-3", "3", "-48", "8"],
+    correctAnswer: "-3",
+    explanation: "Positivo ÷ Negativo = Negativo. 12 ÷ 4 = 3, por tanto 12÷(-4) = -3.",
+  },
+
+  // ── NÚMEROS IRRACIONALES Y SUS OPERACIONES ──────────────────────
+  {
+    id: "irr-1",
+    category: "irracionales",
+    question: "√2 es un número:",
+    options: ["Irracional", "Natural", "Entero", "Racional"],
+    correctAnswer: "Irracional",
+    explanation: "√2 ≈ 1,4142… no tiene representación decimal exacta ni periódica, por lo que es irracional.",
+  },
+  {
+    id: "irr-2",
+    category: "irracionales",
+    question: "¿Cuánto es:",
+    expression: "(√5)²",
+    options: ["5", "25", "√10", "2√5"],
     correctAnswer: "5",
-    explanation: "Sustituyo x=3: 2(3) − 1 = 6 − 1 = 5.",
+    explanation: "La raíz cuadrada y el cuadrado se anulan: (√5)² = 5.",
   },
   {
-    id: "diag-var-2",
-    category: "variables",
-    question: "Simplifica:",
-    expression: "3a + 2a",
-    options: ["5a", "6a²", "5", "3a² + 2a"],
-    correctAnswer: "5a",
-    explanation: "Términos semejantes: se suman los coeficientes. 3a + 2a = (3+2)a = 5a.",
-  },
-  {
-    id: "diag-var-3",
-    category: "variables",
-    question: "¿Cuál expresión significa 'el doble de m más 4'?",
-    options: ["2m + 4", "2(m + 4)", "m² + 4", "m + 2 + 4"],
-    correctAnswer: "2m + 4",
-    explanation: "'El doble de m' es 2·m = 2m. 'Más 4' agrega +4. Resultado: 2m + 4.",
+    id: "irr-3",
+    category: "irracionales",
+    question: "¿Cuál de los siguientes es un número irracional?",
+    options: ["π", "½", "0,75", "−3"],
+    correctAnswer: "π",
+    explanation: "π = 3,14159… es irracional (no periódico, no fracción exacta). Los demás son racionales.",
   },
 
-  // ── POTENCIACIÓN ─────────────────────────────────────────────────
+  // ── NÚMEROS REALES Y SUS OPERACIONES ────────────────────────────
   {
-    id: "diag-pot-1",
-    category: "potenciacion",
-    question: "¿Cuánto es:",
-    expression: "2³",
-    options: ["8", "6", "9", "12"],
-    correctAnswer: "8",
-    explanation: "2³ = 2 × 2 × 2 = 8.",
+    id: "real-1",
+    category: "reales",
+    question: "¿A cuál subconjunto de los reales pertenece 0,333…?",
+    options: ["Racional", "Irracional", "Natural", "Entero negativo"],
+    correctAnswer: "Racional",
+    explanation: "0,333… = 1/3. Los decimales periódicos son racionales porque se expresan como fracción.",
   },
   {
-    id: "diag-pot-2",
-    category: "potenciacion",
-    question: "Multiplica:",
-    expression: "x² · x³",
-    options: ["x⁵", "x⁶", "2x⁵", "x"],
-    correctAnswer: "x⁵",
-    explanation: "Al multiplicar bases iguales se suman los exponentes: x²·x³ = x^(2+3) = x⁵.",
+    id: "real-2",
+    category: "reales",
+    question: "¿Cuánto es:",
+    expression: "√9 + √16",
+    options: ["7", "5", "√25", "√13"],
+    correctAnswer: "7",
+    explanation: "√9 = 3 y √16 = 4. La suma es 3 + 4 = 7.",
   },
   {
-    id: "diag-pot-3",
-    category: "potenciacion",
-    question: "¿Cuánto es:",
-    expression: "(-3)²",
-    options: ["9", "-9", "6", "-6"],
-    correctAnswer: "9",
-    explanation: "(-3)² = (-3)×(-3) = 9. Negativo × Negativo = Positivo.",
+    id: "real-3",
+    category: "reales",
+    question: "¿Cuál es el orden correcto de menor a mayor?",
+    expression: "−2,  √2,  1/2,  −π",
+    options: ["−π < −2 < ½ < √2", "−2 < −π < ½ < √2", "−π < ½ < −2 < √2", "−2 < ½ < −π < √2"],
+    correctAnswer: "−π < −2 < ½ < √2",
+    explanation: "π ≈ 3,14, entonces −π ≈ −3,14. Ordenados: −3,14 < −2 < 0,5 < 1,41.",
   },
 
-  // ── RADICACIÓN ───────────────────────────────────────────────────
+  // ── POTENCIAS ───────────────────────────────────────────────────
   {
-    id: "diag-rad-1",
-    category: "radicacion",
+    id: "pot-1",
+    category: "potencias",
     question: "¿Cuánto es:",
-    expression: "√25",
-    options: ["5", "-5", "12,5", "625"],
-    correctAnswer: "5",
-    explanation: "√25 = 5, porque 5² = 25.",
+    expression: "3⁴",
+    options: ["81", "12", "64", "27"],
+    correctAnswer: "81",
+    explanation: "3⁴ = 3×3×3×3 = 9×9 = 81.",
   },
   {
-    id: "diag-rad-2",
-    category: "radicacion",
+    id: "pot-2",
+    category: "potencias",
     question: "Simplifica:",
-    expression: "√(x⁶)",
-    options: ["x³", "x²", "x⁴", "x"],
-    correctAnswer: "x³",
-    explanation: "√(x⁶) = x^(6÷2) = x³. La raíz cuadrada divide el exponente entre 2.",
+    expression: "2⁵ ÷ 2²",
+    options: ["2³", "2⁷", "1⁳", "4²"],
+    correctAnswer: "2³",
+    explanation: "Al dividir potencias de igual base se restan los exponentes: 2⁵ ÷ 2² = 2^(5−2) = 2³.",
   },
   {
-    id: "diag-rad-3",
-    category: "radicacion",
-    question: "Si a² = 49, entonces a es:",
-    options: ["±7", "7", "-7", "24,5"],
-    correctAnswer: "±7",
-    explanation: "a² = 49 → a = √49 = ±7, porque tanto 7² como (-7)² = 49.",
+    id: "pot-3",
+    category: "potencias",
+    question: "¿Cuánto es:",
+    expression: "(2³)²",
+    options: ["64", "12", "32", "16"],
+    correctAnswer: "64",
+    explanation: "Potencia de potencia: se multiplican los exponentes. (2³)² = 2^(3×2) = 2⁶ = 64.",
+  },
+
+  // ── DESCOMPOSICIÓN EN FACTORES ───────────────────────────────────
+  {
+    id: "fac-1",
+    category: "factorizacion",
+    question: "¿Cuál es la descomposición en factores primos de 12?",
+    options: ["2² × 3", "4 × 3", "2 × 6", "3²"],
+    correctAnswer: "2² × 3",
+    explanation: "12 ÷ 2 = 6, 6 ÷ 2 = 3, 3 ÷ 3 = 1. Factores primos: 2 × 2 × 3 = 2² × 3.",
+  },
+  {
+    id: "fac-2",
+    category: "factorizacion",
+    question: "¿Cuál es la descomposición en factores primos de 18?",
+    options: ["2 × 3²", "2² × 3", "3 × 6", "9 × 2"],
+    correctAnswer: "2 × 3²",
+    explanation: "18 ÷ 2 = 9, 9 ÷ 3 = 3, 3 ÷ 3 = 1. Factores primos: 2 × 3 × 3 = 2 × 3².",
+  },
+  {
+    id: "fac-3",
+    category: "factorizacion",
+    question: "¿Cuántos factores primos distintos tiene 30?",
+    options: ["3", "2", "4", "5"],
+    correctAnswer: "3",
+    explanation: "30 = 2 × 3 × 5. Tiene tres factores primos distintos: 2, 3 y 5.",
   },
 ];
 
@@ -177,35 +233,47 @@ export const DIAGNOSTIC_CATEGORY_INFO: Record<
   DiagnosticCategory,
   { label: string; icon: string; color: string; description: string }
 > = {
-  operaciones: {
-    label: "Operaciones Básicas",
-    icon: "➕",
+  naturales: {
+    label: "Números Naturales",
+    icon: "🔢",
     color: "#7c3aed",
-    description: "Sumas, restas, multiplicaciones y divisiones con enteros",
+    description: "Operaciones, MCM y MCD con números naturales",
   },
-  ley_signos: {
-    label: "Ley de Signos",
-    icon: "±",
-    color: "#dc2626",
-    description: "Reglas del signo en operaciones con negativos",
-  },
-  variables: {
-    label: "Variables y Álgebra",
-    icon: "🔤",
+  decimales: {
+    label: "Números Decimales",
+    icon: "🔸",
     color: "#2563eb",
-    description: "Interpretación y simplificación de expresiones algebraicas",
+    description: "Suma, resta, multiplicación y división de decimales",
   },
-  potenciacion: {
-    label: "Potenciación",
+  enteros: {
+    label: "Números Enteros",
+    icon: "➕",
+    color: "#dc2626",
+    description: "Operaciones con números negativos y enteros",
+  },
+  irracionales: {
+    label: "Números Irracionales",
+    icon: "√",
+    color: "#059669",
+    description: "Identificación y operaciones con irracionales",
+  },
+  reales: {
+    label: "Números Reales",
+    icon: "♾️",
+    color: "#0891b2",
+    description: "Subconjuntos y operaciones en los reales",
+  },
+  potencias: {
+    label: "Potencias",
     icon: "⬆️",
     color: "#d97706",
     description: "Propiedades y cálculo de potencias",
   },
-  radicacion: {
-    label: "Radicación",
-    icon: "√",
-    color: "#059669",
-    description: "Cálculo e interpretación de raíces cuadradas",
+  factorizacion: {
+    label: "Factores Primos",
+    icon: "🔍",
+    color: "#7c3aed",
+    description: "Descomposición de números en factores primos",
   },
 };
 
@@ -213,11 +281,13 @@ export function buildDiagnosticProfile(
   answers: Record<string, string>
 ): DiagnosticProfile {
   const categories: DiagnosticCategory[] = [
-    "operaciones",
-    "ley_signos",
-    "variables",
-    "potenciacion",
-    "radicacion",
+    "naturales",
+    "decimales",
+    "enteros",
+    "irracionales",
+    "reales",
+    "potencias",
+    "factorizacion",
   ];
 
   const results: DiagnosticResult[] = categories.map((cat) => {

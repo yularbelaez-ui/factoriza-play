@@ -359,7 +359,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : allStudents
     ).filter((s) => s.diagnosticProfile);
 
-    const categories = ["operaciones", "ley_signos", "variables", "potenciacion", "radicacion"];
+    const categories = ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "factorizacion"];
     return categories.map((cat) => {
       const scores = students
         .map((s) => s.diagnosticProfile!.results.find((r) => r.category === cat)?.score ?? null)
