@@ -101,7 +101,7 @@ export default function EjercicioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { recordExerciseResult, completeLevel, currentStudent, moduleProgress } = useApp();
+  const { recordExerciseResult, completeLevel, completeModule, currentStudent, moduleProgress } = useApp();
   const isWeb = Platform.OS === "web";
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
@@ -163,12 +163,16 @@ export default function EjercicioScreen() {
         attempts: newAttempts,
       });
       const levelIdx = getLevelForExercise(module, exercise.id);
+      const doneSet = new Set([...(currentStudent?.completedExercises ?? []), exercise.id]);
       if (levelIdx !== -1) {
         const levelExs = getExerciseLevels(module.exercises)[levelIdx];
-        const doneSet = new Set([...(currentStudent?.completedExercises ?? []), exercise.id]);
         if (levelExs.every((e) => doneSet.has(e.id))) {
           completeLevel(module.id, levelIdx);
         }
+      }
+      // Si todos los ejercicios del módulo están completados, desbloquear el siguiente caso
+      if (module.exercises.every((e) => doneSet.has(e.id))) {
+        completeModule(module.id);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
