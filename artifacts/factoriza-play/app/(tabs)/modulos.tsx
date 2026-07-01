@@ -243,15 +243,31 @@ export default function ModulosScreen() {
 
 // ── Sub-componentes ──────────────────────────────────────────────────
 
-function TopicList({ topics, color }: { topics: string[]; color: string }) {
+function TopicList({ topics, color }: { topics: import("@/data/courseSections").SectionTopic[]; color: string }) {
   return (
     <View style={styles.topicList}>
-      {topics.map((t, i) => (
-        <View key={i} style={styles.topicRow}>
-          <View style={[styles.topicDot, { backgroundColor: color }]} />
-          <Text style={styles.topicText}>{t}</Text>
-        </View>
-      ))}
+      {topics.map((t, i) => {
+        if (t.topicId) {
+          return (
+            <TouchableOpacity
+              key={i}
+              style={styles.topicRow}
+              onPress={() => router.push(`/tema/${t.topicId}` as any)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.topicDot, { backgroundColor: color }]} />
+              <Text style={[styles.topicText, { color: "#374151" }]}>{t.label}</Text>
+              <Feather name="chevron-right" size={13} color={color} />
+            </TouchableOpacity>
+          );
+        }
+        return (
+          <View key={i} style={styles.topicRow}>
+            <View style={[styles.topicDot, { backgroundColor: color }]} />
+            <Text style={styles.topicText}>{t.label}</Text>
+          </View>
+        );
+      })}
     </View>
   );
 }

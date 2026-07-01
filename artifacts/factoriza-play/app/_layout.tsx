@@ -68,6 +68,7 @@ function RootLayoutNav() {
         <Stack.Screen name="ejercicio/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="evaluacion-modulo/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="practica/[categoria]" options={{ headerShown: false }} />
+        <Stack.Screen name="tema/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );

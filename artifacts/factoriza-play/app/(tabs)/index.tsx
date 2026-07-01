@@ -177,7 +177,7 @@ export default function HomeScreen() {
                   {section.topics.map((topic, ti) => (
                     <View key={ti} style={styles.topicRow}>
                       <View style={[styles.topicDot, { backgroundColor: section.color }]} />
-                      <Text style={[styles.topicText, { color: "#374151" }]}>{topic}</Text>
+                      <Text style={[styles.topicText, { color: "#374151" }]}>{topic.label}</Text>
                     </View>
                   ))}
 
