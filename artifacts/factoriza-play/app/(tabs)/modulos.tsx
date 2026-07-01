@@ -219,14 +219,14 @@ export default function ModulosScreen() {
                     </>
                   )}
 
-                  {/* ── Secciones próximamente ── */}
-                  {section.status === "proximamente" && (
+                  {/* ── Secciones disponibles (contenido en construcción) ── */}
+                  {section.status === "disponible" && (
                     <>
                       <TopicList topics={section.topics} color={section.color} />
-                      <View style={[styles.comingSoon, { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb" }]}>
-                        <Feather name="clock" size={13} color="#9ca3af" />
-                        <Text style={[styles.comingSoonText, { color: "#9ca3af" }]}>
-                          Esta sección estará disponible próximamente
+                      <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
+                        <Feather name="book-open" size={13} color={section.color} />
+                        <Text style={[styles.comingSoonText, { color: section.color }]}>
+                          Contenido interactivo en construcción — pronto podrás practicar estos temas
                         </Text>
                       </View>
                     </>
@@ -258,9 +258,9 @@ function TopicList({ topics, color }: { topics: string[]; color: string }) {
 
 function StatusBadge({ status, color }: { status: SectionStatus; color: string }) {
   const config: Record<SectionStatus, { label: string; bg: string; text: string }> = {
-    activo:       { label: "Activo",        bg: color + "20",  text: color },
-    diagnostico:  { label: "Diagnóstico",   bg: "#7c3aed20",   text: "#7c3aed" },
-    proximamente: { label: "Próximamente",  bg: "#f3f4f6",     text: "#9ca3af" },
+    activo:      { label: "Activo",      bg: color + "20", text: color },
+    diagnostico: { label: "Diagnóstico", bg: "#7c3aed20",  text: "#7c3aed" },
+    disponible:  { label: "Disponible",  bg: "#f0fdf4",    text: "#059669" },
   };
   const c = config[status];
   return (

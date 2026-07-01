@@ -1,4 +1,4 @@
-export type SectionStatus = "diagnostico" | "proximamente" | "activo";
+export type SectionStatus = "diagnostico" | "disponible" | "activo";
 
 export interface CourseSection {
   id: string;
@@ -50,11 +50,11 @@ export const COURSE_SECTIONS: CourseSection[] = [
       "Signos en el álgebra",
       "Expresión y término algebraico",
       "Grado de un término",
-      "Clasificación de expresiones",
+      "Clasificación de expresiones algebraicas",
       "Ordenar un polinomio",
       "Términos semejantes y valor numérico",
     ],
-    status: "proximamente",
+    status: "disponible",
   },
   {
     id: "operaciones",
@@ -68,32 +68,30 @@ export const COURSE_SECTIONS: CourseSection[] = [
     topics: [
       "Suma y resta de polinomios",
       "Signos de agrupación",
-      "Multiplicación (monomios y polinomios)",
+      "Multiplicación de monomios y polinomios",
       "División algebraica",
       "Productos notables",
       "Cuadrado de la diferencia",
       "Producto suma por diferencia",
       "Cubo de un binomio",
     ],
-    status: "proximamente",
+    status: "disponible",
   },
   {
     id: "factorizacion",
     number: "04",
     title: "Factorización",
-    subtitle: "Los 8 casos de factorización",
+    subtitle: "Los 5 casos de factorización",
     icon: "🔍",
     color: "#d97706",
     lightColor: "#fffbeb",
     borderColor: "#fde68a",
     topics: [
       "Caso 1: Factor común monomio y polinomio",
-      "Caso 2: Factor común por agrupación",
-      "Caso 3: Trinomio cuadrado perfecto",
-      "Caso 4: Diferencia de cuadrados perfectos",
-      "Caso 5 & 6: Trinomios de la forma x²+bx+c",
-      "Caso 7: Cubo perfecto de binomios",
-      "Caso 8: Suma/diferencia de cubos perfectos",
+      "Caso 2: Diferencia de cuadrados perfectos",
+      "Caso 3: Suma/diferencia de cubos perfectos",
+      "Caso 4: Trinomio cuadrado perfecto",
+      "Caso 5: Trinomio de la forma x²+bx+c",
     ],
     status: "activo",
   },

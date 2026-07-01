@@ -224,11 +224,11 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {section.status === "proximamente" && (
-                    <View style={[styles.comingSoon, { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb" }]}>
-                      <Feather name="clock" size={13} color="#9ca3af" />
-                      <Text style={[styles.comingSoonText, { color: "#9ca3af" }]}>
-                        Próximamente disponible
+                  {section.status === "disponible" && (
+                    <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
+                      <Feather name="book-open" size={13} color={section.color} />
+                      <Text style={[styles.comingSoonText, { color: section.color }]}>
+                        Contenido interactivo en construcción
                       </Text>
                     </View>
                   )}
@@ -266,9 +266,9 @@ export default function HomeScreen() {
 // ── Sub-componente StatusBadge ───────────────────────────────────────
 function StatusBadge({ status, color }: { status: SectionStatus; color: string }) {
   const config: Record<SectionStatus, { label: string; bg: string; text: string }> = {
-    activo:       { label: "Activo",       bg: color + "20", text: color },
-    diagnostico:  { label: "Diagnóstico",  bg: "#7c3aed20",  text: "#7c3aed" },
-    proximamente: { label: "Próximamente", bg: "#f3f4f6",    text: "#9ca3af" },
+    activo:      { label: "Activo",       bg: color + "20", text: color },
+    diagnostico: { label: "Diagnóstico",  bg: "#7c3aed20",  text: "#7c3aed" },
+    disponible:  { label: "Disponible",   bg: "#f0fdf4",    text: "#059669" },
   };
   const c = config[status];
   return (

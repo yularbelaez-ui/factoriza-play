@@ -25,8 +25,6 @@ export default function DocenteScreen() {
   const insets = useSafeAreaInsets();
   const {
     allStudents,
-    unlockedModules,
-    unlockModule,
     addEvaluationCode,
     getErrorSummary,
     getDiagnosticSummary,
@@ -48,11 +46,6 @@ export default function DocenteScreen() {
   const sorted = [...allStudents]
     .filter((s) => filterClass === "all" || s.classCode === filterClass)
     .sort((a, b) => b.totalXP - a.totalXP);
-
-  const handleUnlock = (moduleId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    unlockModule(moduleId);
-  };
 
   const handleAddEvalCode = () => {
     if (!selectedModuleForEval || !evalCode.trim()) {
@@ -359,37 +352,37 @@ export default function DocenteScreen() {
       {activeTab === "modules" && (
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Desbloquear Módulos
+            Progreso por Módulo
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Activa los módulos para todos los estudiantes según el avance de la clase
+            Los módulos se desbloquean automáticamente al completar el anterior
           </Text>
           {MODULES.map((module) => {
-            const isUnlocked = unlockedModules.includes(module.id);
+            const completedCount = sorted.filter((s) =>
+              s.completedModules.includes(module.id)
+            ).length;
+            const total = sorted.length || 1;
+            const pct = Math.round((completedCount / total) * 100);
             return (
               <View
                 key={module.id}
-                style={[styles.moduleRow, { backgroundColor: isUnlocked ? module.color + "10" : colors.card, borderColor: isUnlocked ? module.color + "40" : colors.border }]}
+                style={[styles.moduleRow, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
                 <Text style={styles.moduleIcon}>{module.icon}</Text>
                 <View style={styles.moduleInfo}>
-                  <Text style={[styles.moduleName, { color: isUnlocked ? module.color : colors.foreground }]}>
+                  <Text style={[styles.moduleName, { color: colors.foreground }]}>
                     {module.title}
                   </Text>
                   <Text style={[styles.moduleLevel, { color: colors.mutedForeground }]}>
-                    Nivel {module.level} · {module.exercises.length} ejercicios
+                    {module.exercises.length} ejercicios · {completedCount}/{sorted.length} estudiantes
                   </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <View style={{ flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
+                      <View style={{ width: `${pct}%` as any, height: "100%", backgroundColor: module.color, borderRadius: 2 }} />
+                    </View>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: module.color }}>{pct}%</Text>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={[styles.unlockBtn, { backgroundColor: isUnlocked ? colors.success + "20" : colors.primary }]}
-                  onPress={() => !isUnlocked && handleUnlock(module.id)}
-                  disabled={isUnlocked}
-                >
-                  <Feather name={isUnlocked ? "check" : "unlock"} size={13} color={isUnlocked ? colors.success : "#fff"} />
-                  <Text style={[styles.unlockBtnText, { color: isUnlocked ? colors.success : "#fff" }]}>
-                    {isUnlocked ? "Activo" : "Activar"}
-                  </Text>
-                </TouchableOpacity>
               </View>
             );
           })}

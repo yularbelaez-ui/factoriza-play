@@ -66,6 +66,25 @@ export interface ErrorSummary {
 
 const TEACHER_CODE = "Karyul04";
 
+// Orden de desbloqueo progresivo de módulos de factorización
+const MODULE_ORDER = [
+  "factor-comun",
+  "diferencia-cuadrados",
+  "suma-diferencia-cubos",
+  "trinomio-cuadrado-perfecto",
+  "trinomio-forma-x2-bx-c",
+];
+
+function computeUnlocked(completedModules: string[]): string[] {
+  const unlocked = [MODULE_ORDER[0]];
+  for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
+    if (completedModules.includes(MODULE_ORDER[i])) {
+      unlocked.push(MODULE_ORDER[i + 1]);
+    }
+  }
+  return unlocked;
+}
+
 const ERROR_CATEGORIES: Record<string, string> = {
   operaciones: "Operaciones aritméticas básicas",
   ley_signos: "Ley de signos",
@@ -96,7 +115,6 @@ interface AppContextValue {
   removeClassCode: (code: string) => void;
   allStudents: StudentRecord[];
   unlockedModules: string[];
-  unlockModule: (moduleId: string) => void;
   evaluationCodes: EvaluationSession[];
   addEvaluationCode: (moduleId: string, code: string) => void;
 
@@ -104,6 +122,7 @@ interface AppContextValue {
   recordExerciseResult: (result: Omit<ExerciseResult, "timestamp">) => void;
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
+  completeModule: (moduleId: string) => void;
   moduleProgress: ModuleProgress[];
   saveDiagnosticProfile: (profile: DiagnosticProfile) => Promise<void>;
 
@@ -120,7 +139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentStudent, setCurrentStudentState] = useState<StudentRecord | null>(null);
   const [allStudents, setAllStudents] = useState<StudentRecord[]>([]);
   const [classCodes, setClassCodes] = useState<ClassCode[]>([]);
-  const [unlockedModules, setUnlockedModules] = useState<string[]>(["factor-comun"]);
+  // unlockedModules is derived from currentStudent.completedModules (no separate state needed)
   const [evaluationCodes, setEvaluationCodes] = useState<EvaluationSession[]>([]);
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
 
@@ -135,7 +154,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const data = JSON.parse(raw);
         if (data.allStudents) setAllStudents(data.allStudents);
         if (data.classCodes) setClassCodes(data.classCodes);
-        if (data.unlockedModules) setUnlockedModules(data.unlockedModules);
         if (data.evaluationCodes) setEvaluationCodes(data.evaluationCodes);
         // Restore session
         if (data.session) {
@@ -253,12 +271,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const unlockModule = (moduleId: string) => {
-    setUnlockedModules((prev) => {
-      if (prev.includes(moduleId)) return prev;
-      const updated = [...prev, moduleId];
-      persist({ unlockedModules: updated });
-      return updated;
+  const completeModule = (moduleId: string) => {
+    if (!currentStudent) return;
+    if (currentStudent.completedModules.includes(moduleId)) return;
+    const updated: StudentRecord = {
+      ...currentStudent,
+      completedModules: [...currentStudent.completedModules, moduleId],
+    };
+    setCurrentStudentState(updated);
+    setAllStudents((sts) => {
+      const up = sts.map((s) => (s.id === updated.id ? updated : s));
+      persist({ allStudents: up });
+      return up;
     });
   };
 
@@ -381,13 +405,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addClassCode,
         removeClassCode,
         allStudents,
-        unlockedModules,
-        unlockModule,
+        unlockedModules: computeUnlocked(currentStudent?.completedModules ?? []),
         evaluationCodes,
         addEvaluationCode,
         recordExerciseResult,
         markTheoryRead,
         completeLevel,
+        completeModule,
         moduleProgress,
         saveDiagnosticProfile,
         getErrorSummary,
