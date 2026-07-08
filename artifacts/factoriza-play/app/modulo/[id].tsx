@@ -36,7 +36,7 @@ export default function ModuloScreen() {
   if (!module) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground }}>Módulo no encontrado</Text>
+        <Text style={{ color: colors.foreground }}>Caso no encontrado</Text>
       </View>
     );
   }
@@ -92,7 +92,7 @@ export default function ModuloScreen() {
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <Feather name="chevron-left" size={22} color={colors.primary} />
-        <Text style={[styles.backText, { color: colors.primary }]}>Módulos</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>Casos</Text>
       </TouchableOpacity>
 
       {/* Header */}

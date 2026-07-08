@@ -54,7 +54,7 @@ export default function EvaluacionModuloScreen() {
   if (!module) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground }}>Módulo no encontrado</Text>
+        <Text style={{ color: colors.foreground }}>Caso no encontrado</Text>
       </View>
     );
   }
@@ -69,7 +69,7 @@ export default function EvaluacionModuloScreen() {
   const handleUnlock = () => {
     const evalSession = evaluationCodes.find((e) => e.moduleId === module.id);
     if (!evalSession) {
-      setCodeError("Este módulo no tiene código de evaluación activo. Consulta a tu docente.");
+      setCodeError("Este caso no tiene código de evaluación activo. Consulta a tu docente.");
       return;
     }
     if (codeInput.trim().toUpperCase() !== evalSession.code.toUpperCase()) {

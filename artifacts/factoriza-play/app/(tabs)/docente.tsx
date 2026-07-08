@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
-import { MODULES } from "@/data/modules";
+import { MODULES, MODULE_CASE_ORDER } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
@@ -49,7 +49,7 @@ export default function DocenteScreen() {
 
   const handleAddEvalCode = () => {
     if (!selectedModuleForEval || !evalCode.trim()) {
-      Alert.alert("Error", "Selecciona un módulo e ingresa un código.");
+      Alert.alert("Error", "Selecciona un caso e ingresa un código.");
       return;
     }
     addEvaluationCode(selectedModuleForEval, evalCode.trim().toUpperCase());
@@ -309,7 +309,7 @@ export default function DocenteScreen() {
                 </View>
                 <View style={styles.statsRow}>
                   {[
-                    { value: `${student.completedModules.length}/${MODULES.length}`, label: "Módulos", color: colors.primary },
+                    { value: `${student.completedModules.length}/${MODULES.length}`, label: "Casos", color: colors.primary },
                     { value: `${student.exerciseResults.filter((r) => r.correct).length}`, label: "Correctas", color: colors.success },
                     { value: `${student.exerciseResults.filter((r) => !r.correct).length}`, label: "Errores", color: colors.error },
                   ].map((s) => (
@@ -352,12 +352,19 @@ export default function DocenteScreen() {
       {activeTab === "modules" && (
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Progreso por Módulo
+            Progreso por Caso
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Los módulos se desbloquean automáticamente al completar el anterior
+            Los casos se desbloquean progresivamente al completar el anterior
           </Text>
-          {MODULES.map((module) => {
+          {[...MODULES]
+            .sort((a, b) => {
+              const ai = MODULE_CASE_ORDER.indexOf(a.id);
+              const bi = MODULE_CASE_ORDER.indexOf(b.id);
+              return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+            })
+            .map((module) => {
+            const caseNum = MODULE_CASE_ORDER.indexOf(module.id) + 1;
             const completedCount = sorted.filter((s) =>
               s.completedModules.includes(module.id)
             ).length;
@@ -371,7 +378,7 @@ export default function DocenteScreen() {
                 <Text style={styles.moduleIcon}>{module.icon}</Text>
                 <View style={styles.moduleInfo}>
                   <Text style={[styles.moduleName, { color: colors.foreground }]}>
-                    {module.title}
+                    {caseNum > 0 ? `Caso ${caseNum}: ` : ""}{module.title}
                   </Text>
                   <Text style={[styles.moduleLevel, { color: colors.mutedForeground }]}>
                     {module.exercises.length} ejercicios · {completedCount}/{sorted.length} estudiantes
@@ -494,25 +501,34 @@ export default function DocenteScreen() {
             Crear Código de Evaluación
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Genera un código para dar acceso al examen de un módulo en el momento oportuno
+            Genera un código para dar acceso al examen de un caso en el momento oportuno
           </Text>
 
           <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.formLabel, { color: colors.foreground }]}>Módulo:</Text>
+            <Text style={[styles.formLabel, { color: colors.foreground }]}>Caso:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                {MODULES.map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[styles.moduleChip, { backgroundColor: selectedModuleForEval === m.id ? m.color : colors.secondary, borderColor: selectedModuleForEval === m.id ? m.color : colors.border }]}
-                    onPress={() => setSelectedModuleForEval(m.id)}
-                  >
-                    <Text style={styles.moduleChipIcon}>{m.icon}</Text>
-                    <Text style={[styles.moduleChipText, { color: selectedModuleForEval === m.id ? "#fff" : colors.foreground }]}>
-                      {m.title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {[...MODULES]
+                  .sort((a, b) => {
+                    const ai = MODULE_CASE_ORDER.indexOf(a.id);
+                    const bi = MODULE_CASE_ORDER.indexOf(b.id);
+                    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                  })
+                  .map((m) => {
+                  const caseNum = MODULE_CASE_ORDER.indexOf(m.id) + 1;
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.moduleChip, { backgroundColor: selectedModuleForEval === m.id ? m.color : colors.secondary, borderColor: selectedModuleForEval === m.id ? m.color : colors.border }]}
+                      onPress={() => setSelectedModuleForEval(m.id)}
+                    >
+                      <Text style={styles.moduleChipIcon}>{m.icon}</Text>
+                      <Text style={[styles.moduleChipText, { color: selectedModuleForEval === m.id ? "#fff" : colors.foreground }]}>
+                        {caseNum > 0 ? `C${caseNum}: ` : ""}{m.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </ScrollView>
 

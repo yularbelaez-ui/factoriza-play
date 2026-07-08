@@ -227,7 +227,7 @@ export default function EjercicioScreen() {
     >
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
         <Feather name="chevron-left" size={22} color={colors.primary} />
-        <Text style={[styles.backText, { color: colors.primary }]}>Módulo</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>Caso</Text>
       </TouchableOpacity>
 
       {/* Module tag */}
@@ -424,7 +424,7 @@ export default function EjercicioScreen() {
               onPress={() => router.push(`/modulo/${module.id}` as any)}
             >
               <Feather name="book-open" size={15} color="#fff" />
-              <Text style={styles.goTheoryText}>Revisar teoría del módulo</Text>
+              <Text style={styles.goTheoryText}>Revisar teoría del caso</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -456,7 +456,7 @@ export default function EjercicioScreen() {
             onPress={() => router.back()}
             activeOpacity={0.85}
           >
-            <Text style={styles.nextBtnText}>← Volver al módulo</Text>
+            <Text style={styles.nextBtnText}>← Volver al caso</Text>
           </TouchableOpacity>
         </View>
       )}

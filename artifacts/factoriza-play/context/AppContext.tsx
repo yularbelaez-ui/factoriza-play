@@ -66,13 +66,16 @@ export interface ErrorSummary {
 
 const TEACHER_CODE = "Karyul04";
 
-// Orden de desbloqueo progresivo de módulos de factorización
+// Orden de desbloqueo progresivo de los 8 casos de factorización
 const MODULE_ORDER = [
-  "factor-comun",
-  "diferencia-cuadrados",
-  "suma-diferencia-cubos",
-  "trinomio-cuadrado-perfecto",
-  "trinomio-forma-x2-bx-c",
+  "factor-comun",           // Caso 1
+  "agrupacion-terminos",    // Caso 2
+  "trinomio-cuadrado-perfecto", // Caso 3
+  "diferencia-cuadrados",   // Caso 4
+  "trinomio-forma-x2-bx-c", // Caso 5
+  "trinomio-ax2-bx-c",      // Caso 6
+  "cubo-binomio",           // Caso 7
+  "suma-diferencia-cubos",  // Caso 8
 ];
 
 function computeUnlocked(completedModules: string[]): string[] {

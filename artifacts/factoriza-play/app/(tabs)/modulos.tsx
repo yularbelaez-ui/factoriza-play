@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
-import { MODULES } from "@/data/modules";
+import { MODULES, MODULE_CASE_ORDER } from "@/data/modules";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -133,17 +133,24 @@ export default function ModulosScreen() {
                       <TopicList topics={section.topics} color={section.color} />
                       <View style={[styles.modulesSeparator, { borderTopColor: section.borderColor }]}>
                         <Text style={[styles.modulesLabel, { color: section.color }]}>
-                          Módulos disponibles
+                          Casos de Factorización
                         </Text>
                         <View style={[styles.lockNote, { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb" }]}>
                           <Feather name="lock" size={12} color="#6b7280" />
                           <Text style={[styles.lockNoteText, { color: "#6b7280" }]}>
-                            El docente desbloquea cada módulo
+                            Los casos se desbloquean progresivamente
                           </Text>
                         </View>
                       </View>
                       <View style={styles.moduleList}>
-                        {MODULES.map((mod) => {
+                        {[...MODULES]
+                          .sort((a, b) => {
+                            const ai = MODULE_CASE_ORDER.indexOf(a.id);
+                            const bi = MODULE_CASE_ORDER.indexOf(b.id);
+                            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                          })
+                          .map((mod) => {
+                          const caseNum = MODULE_CASE_ORDER.indexOf(mod.id) + 1;
                           const unlocked = unlockedModules.includes(mod.id);
                           const completed = currentStudent.completedModules.includes(mod.id);
                           const progress = getProgress(mod.id);
@@ -171,7 +178,7 @@ export default function ModulosScreen() {
                                     ]}
                                     numberOfLines={1}
                                   >
-                                    {mod.title}
+                                    {caseNum > 0 ? `Caso ${caseNum}: ` : ""}{mod.title}
                                   </Text>
                                   {completed && (
                                     <View style={[styles.doneBadge, { backgroundColor: "#dcfce7" }]}>

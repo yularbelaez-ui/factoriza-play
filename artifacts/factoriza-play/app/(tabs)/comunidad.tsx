@@ -119,7 +119,7 @@ export default function ComunidadScreen() {
               <Text
                 style={[styles.studentMeta, { color: colors.mutedForeground }]}
               >
-                🔥 {student.streak} días · {student.completedModules.length} módulos
+                🔥 {student.streak} días · {student.completedModules.length} casos
               </Text>
             </View>
 

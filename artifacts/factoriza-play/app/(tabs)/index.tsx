@@ -83,7 +83,7 @@ export default function HomeScreen() {
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.success + "15", borderColor: colors.success + "30" }]}>
           <Text style={[styles.statValue, { color: colors.success }]}>{completedModulesCount}/{totalModules}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Módulos</Text>
+          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Casos</Text>
         </View>
       </View>
 
@@ -94,7 +94,7 @@ export default function HomeScreen() {
         </Text>
         <ProgressBar progress={overallProgress} />
         <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-          {overallProgress}% completado · {completedModulesCount} de {totalModules} módulos
+          {overallProgress}% completado · {completedModulesCount} de {totalModules} casos
         </Text>
       </View>
 
@@ -220,7 +220,7 @@ export default function HomeScreen() {
                       style={[styles.sectionBtn, { backgroundColor: section.color }]}
                       onPress={() => router.push("/(tabs)/modulos" as any)}
                     >
-                      <Text style={styles.sectionBtnText}>Ver módulos de factorización →</Text>
+                      <Text style={styles.sectionBtnText}>Ver casos de factorización →</Text>
                     </TouchableOpacity>
                   )}
 
@@ -245,7 +245,7 @@ export default function HomeScreen() {
       </Text>
       <View style={styles.quickGrid}>
         {[
-          { label: "Módulos", icon: "📚", route: "/(tabs)/modulos" },
+          { label: "Casos", icon: "📚", route: "/(tabs)/modulos" },
           { label: "Ranking", icon: "🏆", route: "/(tabs)/comunidad" },
           { label: "Evaluación", icon: "📝", route: "/(tabs)/evaluacion" },
         ].map((item) => (

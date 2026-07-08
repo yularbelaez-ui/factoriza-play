@@ -57,7 +57,7 @@ export default function EvaluacionScreen() {
         Evaluación
       </Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Demuestra lo que aprendiste en cada módulo
+        Demuestra lo que aprendiste en cada caso
       </Text>
 
       <View
