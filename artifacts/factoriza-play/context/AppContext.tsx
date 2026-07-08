@@ -18,6 +18,7 @@ export interface StudentRecord {
   streak: number;
   totalXP: number;
   completedModules: string[];
+  completedTopics: string[];
   completedExercises: string[];
   exerciseResults: ExerciseResult[];
   lastLogin: number;
@@ -126,6 +127,7 @@ interface AppContextValue {
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
   completeModule: (moduleId: string) => void;
+  completeTopicPractice: (topicId: string) => void;
   moduleProgress: ModuleProgress[];
   saveDiagnosticProfile: (profile: DiagnosticProfile) => Promise<void>;
 
@@ -231,6 +233,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         streak: 0,
         totalXP: 0,
         completedModules: [],
+        completedTopics: [],
         completedExercises: [],
         exerciseResults: [],
         lastLogin: Date.now(),
@@ -280,6 +283,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated: StudentRecord = {
       ...currentStudent,
       completedModules: [...currentStudent.completedModules, moduleId],
+    };
+    setCurrentStudentState(updated);
+    setAllStudents((sts) => {
+      const up = sts.map((s) => (s.id === updated.id ? updated : s));
+      persist({ allStudents: up });
+      return up;
+    });
+  };
+
+  const completeTopicPractice = (topicId: string) => {
+    if (!currentStudent) return;
+    const already = (currentStudent.completedTopics ?? []).includes(topicId);
+    if (already) return;
+    const updated: StudentRecord = {
+      ...currentStudent,
+      completedTopics: [...(currentStudent.completedTopics ?? []), topicId],
     };
     setCurrentStudentState(updated);
     setAllStudents((sts) => {
@@ -415,6 +434,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         markTheoryRead,
         completeLevel,
         completeModule,
+        completeTopicPractice,
         moduleProgress,
         saveDiagnosticProfile,
         getErrorSummary,

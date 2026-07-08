@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
 import { getTopicById, TopicContent } from "@/data/sectionTopics";
 
 type Tab = "teoria" | "ejemplos" | "practica";
@@ -21,6 +22,7 @@ export default function TemaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { completeTopicPractice } = useApp();
 
   const topic = getTopicById(id ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("teoria");
@@ -53,6 +55,7 @@ export default function TemaScreen() {
       (ex) => answers[ex.id] === ex.correctAnswer
     ).length;
     setScore(correct);
+    completeTopicPractice(topic.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 

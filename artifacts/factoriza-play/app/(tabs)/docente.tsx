@@ -15,10 +15,11 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES, MODULE_CASE_ORDER } from "@/data/modules";
+import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
-type Tab = "students" | "modules" | "errors" | "eval" | "codes";
+type Tab = "students" | "secciones" | "errors" | "eval" | "codes";
 
 export default function DocenteScreen() {
   const colors = useColors();
@@ -40,6 +41,7 @@ export default function DocenteScreen() {
   const [newCode, setNewCode] = useState("");
   const [newCodeLabel, setNewCodeLabel] = useState("");
   const [filterClass, setFilterClass] = useState<string>("all");
+  const [expandedSection, setExpandedSection] = useState<string | null>("saberes");
   const isWeb = Platform.OS === "web";
 
   const errorSummary = getErrorSummary(filterClass === "all" ? undefined : filterClass);
@@ -81,11 +83,33 @@ export default function DocenteScreen() {
 
   const TABS: { id: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
     { id: "students", label: "Estudiantes", icon: "users" },
-    { id: "modules", label: "Módulos", icon: "unlock" },
+    { id: "secciones", label: "Secciones", icon: "layers" },
     { id: "errors", label: "Errores", icon: "alert-triangle" },
     { id: "eval", label: "Exámenes", icon: "clipboard" },
     { id: "codes", label: "Códigos", icon: "key" },
   ];
+
+  const filterChips = (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <TouchableOpacity
+          style={[styles.filterChip, { backgroundColor: filterClass === "all" ? colors.primary : colors.secondary, borderColor: filterClass === "all" ? colors.primary : colors.border }]}
+          onPress={() => setFilterClass("all")}
+        >
+          <Text style={{ color: filterClass === "all" ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>Todos</Text>
+        </TouchableOpacity>
+        {classCodes.map((cc) => (
+          <TouchableOpacity
+            key={cc.code}
+            style={[styles.filterChip, { backgroundColor: filterClass === cc.code ? colors.primary : colors.secondary, borderColor: filterClass === cc.code ? colors.primary : colors.border }]}
+            onPress={() => setFilterClass(cc.code)}
+          >
+            <Text style={{ color: filterClass === cc.code ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>{cc.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
 
   return (
     <ScrollView
@@ -255,32 +279,7 @@ export default function DocenteScreen() {
             Resultados de Estudiantes
           </Text>
 
-          {/* Filter by class */}
-          {classCodes.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={[styles.filterChip, { backgroundColor: filterClass === "all" ? colors.primary : colors.secondary, borderColor: filterClass === "all" ? colors.primary : colors.border }]}
-                  onPress={() => setFilterClass("all")}
-                >
-                  <Text style={{ color: filterClass === "all" ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>
-                    Todos
-                  </Text>
-                </TouchableOpacity>
-                {classCodes.map((cc) => (
-                  <TouchableOpacity
-                    key={cc.code}
-                    style={[styles.filterChip, { backgroundColor: filterClass === cc.code ? colors.primary : colors.secondary, borderColor: filterClass === cc.code ? colors.primary : colors.border }]}
-                    onPress={() => setFilterClass(cc.code)}
-                  >
-                    <Text style={{ color: filterClass === cc.code ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>
-                      {cc.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          )}
+          {classCodes.length > 0 && filterChips}
 
           {sorted.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -290,106 +289,228 @@ export default function DocenteScreen() {
               </Text>
             </View>
           ) : (
-            sorted.map((student, index) => (
-              <View
-                key={student.id}
-                style={[styles.studentCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <View style={styles.studentHeader}>
-                  <Text style={styles.studentAvatar}>{student.avatar}</Text>
-                  <View style={styles.studentInfo}>
-                    <Text style={[styles.studentName, { color: colors.foreground }]}>
-                      {student.pseudonym}
-                    </Text>
-                    <Text style={[styles.studentMeta, { color: colors.mutedForeground }]}>
-                      Clase: {student.classCode} · 🔥 {student.streak} · ⚡{student.totalXP} XP
-                    </Text>
-                  </View>
-                  <Text style={[styles.rank, { color: colors.primary }]}>#{index + 1}</Text>
-                </View>
-                <View style={styles.statsRow}>
-                  {[
-                    { value: `${student.completedModules.length}/${MODULES.length}`, label: "Casos", color: colors.primary },
-                    { value: `${student.exerciseResults.filter((r) => r.correct).length}`, label: "Correctas", color: colors.success },
-                    { value: `${student.exerciseResults.filter((r) => !r.correct).length}`, label: "Errores", color: colors.error },
-                  ].map((s) => (
-                    <View key={s.label} style={[styles.miniStat, { backgroundColor: s.color + "10" }]}>
-                      <Text style={[styles.miniStatValue, { color: s.color }]}>{s.value}</Text>
-                      <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+            sorted.map((student, index) => {
+              const topicsDone = (student.completedTopics ?? []).length;
+              const casesDone = student.completedModules.length;
+              const correctCount = student.exerciseResults.filter((r) => r.correct).length;
+              const wrongCount = student.exerciseResults.filter((r) => !r.correct).length;
+              const totalResults = student.exerciseResults.length;
+              const pct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0;
+              return (
+                <View
+                  key={student.id}
+                  style={[styles.studentCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <View style={styles.studentHeader}>
+                    <Text style={styles.studentAvatar}>{student.avatar}</Text>
+                    <View style={styles.studentInfo}>
+                      <Text style={[styles.studentName, { color: colors.foreground }]}>
+                        {student.pseudonym}
+                      </Text>
+                      <Text style={[styles.studentMeta, { color: colors.mutedForeground }]}>
+                        Clase: {student.classCode} · 🔥 {student.streak} · ⚡{student.totalXP} XP
+                      </Text>
                     </View>
-                  ))}
-                </View>
-                {student.exerciseResults.length > 0 && (() => {
-                  const pct = Math.round(
-                    (student.exerciseResults.filter((r) => r.correct).length /
-                      student.exerciseResults.length) * 100
-                  );
-                  return (
+                    <Text style={[styles.rank, { color: colors.primary }]}>#{index + 1}</Text>
+                  </View>
+
+                  {/* Section progress summary */}
+                  <View style={styles.sectionProgressRow}>
+                    {COURSE_SECTIONS.map((sec) => {
+                      const isFact = sec.id === "factorizacion";
+                      const total = sec.topics.length;
+                      const done = isFact
+                        ? student.completedModules.length
+                        : sec.topics.filter((t) => t.topicId && (student.completedTopics ?? []).includes(t.topicId!)).length;
+                      const secPct = Math.round((done / total) * 100);
+                      return (
+                        <View key={sec.id} style={[styles.secProgressCard, { backgroundColor: sec.color + "12", borderColor: sec.color + "30" }]}>
+                          <Text style={{ fontSize: 14 }}>{sec.icon}</Text>
+                          <Text style={[styles.secProgressNum, { color: sec.color }]}>{done}/{total}</Text>
+                          <Text style={[styles.secProgressLabel, { color: colors.mutedForeground }]}>S{sec.number}</Text>
+                          <View style={{ width: "100%", height: 3, backgroundColor: colors.border, borderRadius: 2, marginTop: 2, overflow: "hidden" }}>
+                            <View style={{ width: `${secPct}%` as any, height: "100%", backgroundColor: sec.color, borderRadius: 2 }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  <View style={styles.statsRow}>
+                    {[
+                      { value: `${casesDone}/8`, label: "Casos", color: colors.primary },
+                      { value: `${correctCount}`, label: "Correctas", color: colors.success },
+                      { value: `${wrongCount}`, label: "Errores", color: colors.error },
+                    ].map((s) => (
+                      <View key={s.label} style={[styles.miniStat, { backgroundColor: s.color + "10" }]}>
+                        <Text style={[styles.miniStatValue, { color: s.color }]}>{s.value}</Text>
+                        <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {totalResults > 0 && (
                     <View style={{ gap: 4 }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                        <Text style={[{ fontSize: 10, color: colors.mutedForeground, fontWeight: "600" }]}>
-                          Precisión
+                        <Text style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: "600" }}>
+                          Precisión en factorización
                         </Text>
-                        <Text style={[{ fontSize: 10, color: colors.success, fontWeight: "700" }]}>
+                        <Text style={{ fontSize: 10, color: colors.success, fontWeight: "700" }}>
                           {pct}%
                         </Text>
                       </View>
-                      <ProgressBar
-                        progress={pct}
-                        color={colors.success}
-                        height={5}
-                      />
+                      <ProgressBar progress={pct} color={colors.success} height={5} />
                     </View>
-                  );
-                })()}
-              </View>
-            ))
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
       )}
 
-      {/* ── MODULES TAB ── */}
-      {activeTab === "modules" && (
+      {/* ── SECCIONES TAB ── */}
+      {activeTab === "secciones" && (
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Progreso por Caso
+            Avance por Sección
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Los casos se desbloquean progresivamente al completar el anterior
+            Progreso del grupo en los 4 módulos del curso
           </Text>
-          {[...MODULES]
-            .sort((a, b) => {
-              const ai = MODULE_CASE_ORDER.indexOf(a.id);
-              const bi = MODULE_CASE_ORDER.indexOf(b.id);
-              return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-            })
-            .map((module) => {
-            const caseNum = MODULE_CASE_ORDER.indexOf(module.id) + 1;
-            const completedCount = sorted.filter((s) =>
-              s.completedModules.includes(module.id)
-            ).length;
-            const total = sorted.length || 1;
-            const pct = Math.round((completedCount / total) * 100);
+
+          {classCodes.length > 0 && filterChips}
+
+          {COURSE_SECTIONS.map((sec) => {
+            const isFact = sec.id === "factorizacion";
+            const isExpanded = expandedSection === sec.id;
+            const studentsFiltered = sorted;
+            const totalStudents = studentsFiltered.length || 1;
+
+            const overallStarted = isFact
+              ? studentsFiltered.filter((s) => s.completedModules.length > 0).length
+              : studentsFiltered.filter((s) => sec.topics.some((t) => t.topicId && (s.completedTopics ?? []).includes(t.topicId!))).length;
+
+            const overallCompleted = isFact
+              ? studentsFiltered.filter((s) => s.completedModules.length === MODULES.length).length
+              : studentsFiltered.filter((s) => sec.topics.every((t) => !t.topicId || (s.completedTopics ?? []).includes(t.topicId!))).length;
+
+            const avgCompletion = isFact
+              ? Math.round(studentsFiltered.reduce((acc, s) => acc + s.completedModules.length, 0) / totalStudents / MODULES.length * 100)
+              : Math.round(studentsFiltered.reduce((acc, s) => {
+                  const done = sec.topics.filter((t) => t.topicId && (s.completedTopics ?? []).includes(t.topicId!)).length;
+                  return acc + done;
+                }, 0) / totalStudents / sec.topics.length * 100);
+
             return (
               <View
-                key={module.id}
-                style={[styles.moduleRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                key={sec.id}
+                style={[styles.secCard, { backgroundColor: colors.card, borderColor: isExpanded ? sec.color : colors.border }]}
               >
-                <Text style={styles.moduleIcon}>{module.icon}</Text>
-                <View style={styles.moduleInfo}>
-                  <Text style={[styles.moduleName, { color: colors.foreground }]}>
-                    {caseNum > 0 ? `Caso ${caseNum}: ` : ""}{module.title}
-                  </Text>
-                  <Text style={[styles.moduleLevel, { color: colors.mutedForeground }]}>
-                    {module.exercises.length} ejercicios · {completedCount}/{sorted.length} estudiantes
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
-                    <View style={{ flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
-                      <View style={{ width: `${pct}%` as any, height: "100%", backgroundColor: module.color, borderRadius: 2 }} />
-                    </View>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: module.color }}>{pct}%</Text>
+                {/* Section header */}
+                <TouchableOpacity
+                  style={styles.secCardHeader}
+                  onPress={() => setExpandedSection(isExpanded ? null : sec.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.secIconBox, { backgroundColor: sec.color + "18" }]}>
+                    <Text style={{ fontSize: 22 }}>{sec.icon}</Text>
                   </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.secCardTitle, { color: colors.foreground }]}>
+                      {sec.number} · {sec.title}
+                    </Text>
+                    <Text style={[styles.secCardSub, { color: colors.mutedForeground }]}>
+                      {sec.subtitle} · {sec.topics.length} {isFact ? "casos" : "temas"}
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                      <View style={{ flex: 1, height: 5, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden" }}>
+                        <View style={{ width: `${avgCompletion}%` as any, height: "100%", backgroundColor: sec.color, borderRadius: 3 }} />
+                      </View>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: sec.color, minWidth: 36 }}>{avgCompletion}%</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 4 }}>
+                    <View style={[styles.secBadge, { backgroundColor: sec.color + "15" }]}>
+                      <Text style={[styles.secBadgeText, { color: sec.color }]}>{overallStarted} iniciaron</Text>
+                    </View>
+                    <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color={colors.mutedForeground} />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Summary stats */}
+                <View style={[styles.secStatsRow, { borderTopColor: colors.border }]}>
+                  {[
+                    { label: "Iniciaron", value: overallStarted, color: sec.color },
+                    { label: "Completaron", value: overallCompleted, color: colors.success },
+                    { label: "Sin iniciar", value: totalStudents - overallStarted, color: colors.mutedForeground },
+                  ].map((st) => (
+                    <View key={st.label} style={styles.secStatItem}>
+                      <Text style={[styles.secStatValue, { color: st.color }]}>{st.value}</Text>
+                      <Text style={[styles.secStatLabel, { color: colors.mutedForeground }]}>{st.label}</Text>
+                    </View>
+                  ))}
                 </View>
+
+                {/* Expanded: per-topic/case breakdown */}
+                {isExpanded && (
+                  <View style={[styles.topicList, { borderTopColor: colors.border }]}>
+                    {isFact
+                      ? [...MODULES]
+                          .sort((a, b) => MODULE_CASE_ORDER.indexOf(a.id) - MODULE_CASE_ORDER.indexOf(b.id))
+                          .map((mod) => {
+                            const caseNum = MODULE_CASE_ORDER.indexOf(mod.id) + 1;
+                            const completedBy = studentsFiltered.filter((s) => s.completedModules.includes(mod.id)).length;
+                            const pct = Math.round((completedBy / totalStudents) * 100);
+                            return (
+                              <View key={mod.id} style={styles.topicRow}>
+                                <Text style={styles.topicIcon}>{mod.icon}</Text>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.topicName, { color: colors.foreground }]} numberOfLines={1}>
+                                    Caso {caseNum}: {mod.title}
+                                  </Text>
+                                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                                    <View style={{ flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
+                                      <View style={{ width: `${pct}%` as any, height: "100%", backgroundColor: mod.color, borderRadius: 2 }} />
+                                    </View>
+                                    <Text style={{ fontSize: 10, fontWeight: "700", color: mod.color, minWidth: 30 }}>{pct}%</Text>
+                                  </View>
+                                </View>
+                                <View style={[styles.topicCount, { backgroundColor: pct > 0 ? sec.color + "15" : colors.secondary }]}>
+                                  <Text style={[styles.topicCountText, { color: pct > 0 ? sec.color : colors.mutedForeground }]}>
+                                    {completedBy}/{sorted.length || 0}
+                                  </Text>
+                                </View>
+                              </View>
+                            );
+                          })
+                      : sec.topics.map((topic) => {
+                          if (!topic.topicId) return null;
+                          const completedBy = studentsFiltered.filter((s) => (s.completedTopics ?? []).includes(topic.topicId!)).length;
+                          const pct = Math.round((completedBy / totalStudents) * 100);
+                          return (
+                            <View key={topic.topicId} style={styles.topicRow}>
+                              <View style={[styles.topicDot, { backgroundColor: pct > 0 ? sec.color : colors.border }]} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.topicName, { color: colors.foreground }]} numberOfLines={1}>
+                                  {topic.label}
+                                </Text>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                                  <View style={{ flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" }}>
+                                    <View style={{ width: `${pct}%` as any, height: "100%", backgroundColor: sec.color, borderRadius: 2 }} />
+                                  </View>
+                                  <Text style={{ fontSize: 10, fontWeight: "700", color: sec.color, minWidth: 30 }}>{pct}%</Text>
+                                </View>
+                              </View>
+                              <View style={[styles.topicCount, { backgroundColor: pct > 0 ? sec.color + "15" : colors.secondary }]}>
+                                <Text style={[styles.topicCountText, { color: pct > 0 ? sec.color : colors.mutedForeground }]}>
+                                  {completedBy}/{sorted.length || 0}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -399,7 +520,6 @@ export default function DocenteScreen() {
       {/* ── ERRORS TAB ── */}
       {activeTab === "errors" && (
         <View>
-          {/* Diagnostic summary */}
           {(() => {
             const diagSummary = getDiagnosticSummary(filterClass === "all" ? undefined : filterClass);
             const studentsWithDiag = (filterClass === "all" ? allStudents : allStudents.filter((s) => s.classCode === filterClass)).filter((s) => s.diagnosticProfile);
@@ -452,31 +572,10 @@ export default function DocenteScreen() {
             Análisis de Errores
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Errores más frecuentes para reforzar en el aula
+            Errores más frecuentes en factorización para reforzar en el aula
           </Text>
 
-          {/* Filter */}
-          {classCodes.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={[styles.filterChip, { backgroundColor: filterClass === "all" ? colors.primary : colors.secondary, borderColor: filterClass === "all" ? colors.primary : colors.border }]}
-                  onPress={() => setFilterClass("all")}
-                >
-                  <Text style={{ color: filterClass === "all" ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>Todos</Text>
-                </TouchableOpacity>
-                {classCodes.map((cc) => (
-                  <TouchableOpacity
-                    key={cc.code}
-                    style={[styles.filterChip, { backgroundColor: filterClass === cc.code ? colors.primary : colors.secondary, borderColor: filterClass === cc.code ? colors.primary : colors.border }]}
-                    onPress={() => setFilterClass(cc.code)}
-                  >
-                    <Text style={{ color: filterClass === cc.code ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>{cc.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          )}
+          {classCodes.length > 0 && filterChips}
 
           {errorSummary.sort((a, b) => b.count - a.count).map((err, i) => (
             <View key={err.category} style={[styles.errorCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -552,7 +651,6 @@ export default function DocenteScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Active eval codes */}
           {evaluationCodes.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>
@@ -603,24 +701,42 @@ const styles = StyleSheet.create({
   codeLabel: { fontSize: 14, fontWeight: "700" },
   codeMeta: { fontSize: 12, marginTop: 2 },
   filterChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1 },
+  // Student card
   studentCard: { borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1 },
-  studentHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+  studentHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
   studentAvatar: { fontSize: 26 },
   studentInfo: { flex: 1 },
   studentName: { fontSize: 15, fontWeight: "700" },
   studentMeta: { fontSize: 11, marginTop: 2 },
   rank: { fontSize: 18, fontWeight: "800" },
+  sectionProgressRow: { flexDirection: "row", gap: 6, marginBottom: 10 },
+  secProgressCard: { flex: 1, borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, gap: 2 },
+  secProgressNum: { fontSize: 13, fontWeight: "800" },
+  secProgressLabel: { fontSize: 9, fontWeight: "600" },
   statsRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
   miniStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center" },
   miniStatValue: { fontSize: 16, fontWeight: "800" },
   miniStatLabel: { fontSize: 10, fontWeight: "500" },
-  moduleRow: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, gap: 12 },
-  moduleIcon: { fontSize: 24 },
-  moduleInfo: { flex: 1 },
-  moduleName: { fontSize: 14, fontWeight: "700" },
-  moduleLevel: { fontSize: 11, marginTop: 2 },
-  unlockBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  unlockBtnText: { fontSize: 12, fontWeight: "700" },
+  // Section cards (Secciones tab)
+  secCard: { borderRadius: 16, marginBottom: 14, borderWidth: 1.5, overflow: "hidden" },
+  secCardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  secIconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center" },
+  secCardTitle: { fontSize: 15, fontWeight: "800" },
+  secCardSub: { fontSize: 11, marginTop: 1 },
+  secBadge: { borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
+  secBadgeText: { fontSize: 10, fontWeight: "700" },
+  secStatsRow: { flexDirection: "row", borderTopWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
+  secStatItem: { flex: 1, alignItems: "center" },
+  secStatValue: { fontSize: 18, fontWeight: "800" },
+  secStatLabel: { fontSize: 10, fontWeight: "500", marginTop: 1 },
+  topicList: { borderTopWidth: 1, paddingHorizontal: 14, paddingBottom: 8, paddingTop: 4, gap: 2 },
+  topicRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+  topicIcon: { fontSize: 18, width: 24, textAlign: "center" },
+  topicDot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 8 },
+  topicName: { fontSize: 12, fontWeight: "600" },
+  topicCount: { borderRadius: 10, paddingVertical: 3, paddingHorizontal: 10 },
+  topicCountText: { fontSize: 11, fontWeight: "700" },
+  // Errors tab
   errorCard: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
   errorHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
   errorNum: { width: 26, height: 26, borderRadius: 13, justifyContent: "center", alignItems: "center" },
