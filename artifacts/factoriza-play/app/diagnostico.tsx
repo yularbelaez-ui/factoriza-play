@@ -428,6 +428,79 @@ export default function DiagnosticoScreen() {
         );
       })}
 
+      {/* ── Plan de Acción ── */}
+      {(() => {
+        const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
+          naturales:    { topicId: "s1-naturales",    title: "Números Naturales y Operaciones",     icon: "🔢", section: "Zona de Repaso" },
+          decimales:    { topicId: "s1-decimales",    title: "Números Decimales y Operaciones",     icon: "🔸", section: "Zona de Repaso" },
+          enteros:      { topicId: "s1-enteros",      title: "Números Enteros y Negativos",         icon: "➖", section: "Zona de Repaso" },
+          irracionales: { topicId: "s1-irracionales", title: "Números Irracionales",                icon: "√", section: "Zona de Repaso" },
+          reales:       { topicId: "s1-reales",       title: "Números Reales",                      icon: "♾️", section: "Zona de Repaso" },
+          potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",         icon: "⚡", section: "Zona de Repaso" },
+          factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos",   icon: "🔑", section: "Zona de Repaso" },
+        };
+
+        const weakAreas = profile.results
+          .filter((r) => r.score < 70)
+          .sort((a, b) => a.score - b.score);
+
+        if (weakAreas.length === 0) {
+          return (
+            <View style={[styles.planCard, { backgroundColor: "#f0fdf4", borderColor: "#16a34a30" }]}>
+              <Text style={styles.planIcon}>🚀</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.planTitle, { color: "#16a34a" }]}>¡Excelentes bases!</Text>
+                <Text style={[styles.planSub, { color: "#166534" }]}>
+                  Tus conocimientos previos son sólidos. Puedes ir directamente a los casos de factorización.
+                </Text>
+              </View>
+            </View>
+          );
+        }
+
+        const steps = weakAreas
+          .map((r) => CATEGORY_TOPICS[r.category])
+          .filter(Boolean);
+
+        return (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={[styles.breakdownTitle, { color: colors.foreground, marginTop: 4 }]}>
+              🗺️ Tu Plan de Acción
+            </Text>
+            <View style={[styles.actionPlanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.planIntro, { color: colors.mutedForeground }]}>
+                Detectamos {steps.length} área{steps.length !== 1 ? "s" : ""} para reforzar. Sigue estos pasos en orden antes de pasar a factorización:
+              </Text>
+              {steps.map((step, i) => (
+                <TouchableOpacity
+                  key={step.topicId}
+                  style={[styles.planStep, { backgroundColor: colors.background, borderColor: colors.border }]}
+                  onPress={() => router.push(`/tema/${step.topicId}` as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.planStepNum, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.planStepNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.planStepIcon}>{step.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
+                    <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.section}</Text>
+                  </View>
+                  <Feather name="arrow-right" size={14} color={colors.primary} />
+                </TouchableOpacity>
+              ))}
+              <View style={[styles.planFinalStep, { backgroundColor: "#fff7ed", borderColor: "#fed7aa" }]}>
+                <Text style={styles.planStepIcon}>🔍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.planStepTitle, { color: "#92400e" }]}>Paso final: Sección 4 — Factorización</Text>
+                  <Text style={[styles.planStepSub, { color: "#78350f" }]}>8 casos progresivos con práctica y evaluación</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      })()}
+
       <View style={[styles.summaryCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "25" }]}>
         <Feather name="trending-up" size={16} color={colors.primary} />
         <Text style={[styles.summaryText, { color: colors.foreground }]}>
@@ -613,4 +686,18 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   summaryText: { flex: 1, fontSize: 13, lineHeight: 20 },
+  // Plan de acción
+  planCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
+  planIcon: { fontSize: 22 },
+  planTitle: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  planSub: { fontSize: 12, lineHeight: 18 },
+  actionPlanCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16, gap: 8 },
+  planIntro: { fontSize: 13, lineHeight: 20, marginBottom: 4 },
+  planStep: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 12 },
+  planStepNum: { width: 26, height: 26, borderRadius: 13, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  planStepNumText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+  planStepIcon: { fontSize: 18, width: 24, textAlign: "center" as const },
+  planStepTitle: { fontSize: 13, fontWeight: "700" },
+  planStepSub: { fontSize: 11, marginTop: 1 },
+  planFinalStep: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 12 },
 });
