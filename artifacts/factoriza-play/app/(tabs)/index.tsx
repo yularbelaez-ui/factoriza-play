@@ -17,6 +17,24 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 
+// ── Mapa de categorías diagnóstico → tema ────────────────────────────
+const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
+  naturales:    { topicId: "s1-naturales",    title: "Números Naturales y Operaciones",   icon: "🔢", section: "Zona de Repaso" },
+  decimales:    { topicId: "s1-decimales",    title: "Números Decimales y Operaciones",   icon: "🔸", section: "Zona de Repaso" },
+  enteros:      { topicId: "s1-enteros",      title: "Números Enteros y Negativos",       icon: "➖", section: "Zona de Repaso" },
+  irracionales: { topicId: "s1-irracionales", title: "Números Irracionales",              icon: "√", section: "Zona de Repaso" },
+  reales:       { topicId: "s1-reales",       title: "Números Reales",                    icon: "♾️", section: "Zona de Repaso" },
+  potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",       icon: "⚡", section: "Zona de Repaso" },
+  factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos", icon: "🔑", section: "Zona de Repaso" },
+};
+
+// ── Colores de paso según puntaje ────────────────────────────────────
+function stepColor(score: number) {
+  if (score < 50) return { bg: "#fef2f2", border: "#fecaca", badge: "#dc2626", label: "#dc2626" };
+  if (score < 70) return { bg: "#fffbeb", border: "#fde68a", badge: "#d97706", label: "#d97706" };
+  return { bg: "#f0fdf4", border: "#bbf7d0", badge: "#059669", label: "#059669" };
+}
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -40,6 +58,21 @@ export default function HomeScreen() {
   const dp = currentStudent.diagnosticProfile;
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
+
+  // Construir pasos de la ruta personalizada
+  const routeSteps = dp
+    ? dp.results
+        .filter((r) => r.score < 70)
+        .sort((a, b) => a.score - b.score)
+        .map((r, i) => {
+          const info = CATEGORY_TOPICS[r.category];
+          if (!info) return null;
+          return { ...info, score: r.score, stepNum: i + 1 };
+        })
+        .filter(Boolean) as Array<{ topicId: string; title: string; icon: string; section: string; score: number; stepNum: number }>
+    : [];
+
+  const allStrong = dp !== undefined && routeSteps.length === 0;
 
   return (
     <ScrollView
@@ -87,18 +120,116 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ── Progreso general de factorización ── */}
-      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          Progreso en Factorización
-        </Text>
-        <ProgressBar progress={overallProgress} />
-        <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-          {overallProgress}% completado · {completedModulesCount} de {totalModules} casos
-        </Text>
-      </View>
+      {/* ══════════════════════════════════════════
+          RUTA SUGERIDA (solo si hay diagnóstico)
+          ══════════════════════════════════════════ */}
+      {dp ? (
+        <View style={[styles.routeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {/* Encabezado de ruta */}
+          <View style={styles.routeHeader}>
+            <View style={styles.routeTitleRow}>
+              <Text style={styles.routeEmoji}>🗺️</Text>
+              <View>
+                <Text style={[styles.routeTitle, { color: colors.foreground }]}>Tu Ruta Sugerida</Text>
+                <Text style={[styles.routeSub, { color: colors.mutedForeground }]}>
+                  Basada en tu diagnóstico · {levelEmoji[dp.level]} Nivel{" "}
+                  <Text style={{ color: levelColors[dp.level], fontWeight: "700" }}>{dp.level}</Text>
+                  {" "}· {dp.overallScore}%
+                </Text>
+              </View>
+            </View>
+          </View>
 
-      {/* ── Continuar ── */}
+          {allStrong ? (
+            /* Todas las áreas ≥ 70% */
+            <View style={styles.allStrongBox}>
+              <Text style={styles.allStrongEmoji}>🎉</Text>
+              <Text style={[styles.allStrongText, { color: "#059669" }]}>
+                ¡Tienes bases sólidas en todas las áreas! Puedes ir directo a factorización.
+              </Text>
+            </View>
+          ) : (
+            /* Pasos de repaso */
+            <View style={styles.stepsContainer}>
+              {routeSteps.map((step, idx) => {
+                const sc = stepColor(step.score);
+                const isLast = idx === routeSteps.length - 1;
+                return (
+                  <View key={step.topicId}>
+                    <TouchableOpacity
+                      style={[styles.stepRow, { backgroundColor: sc.bg, borderColor: sc.border }]}
+                      onPress={() => router.push(`/tema/${step.topicId}` as any)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.stepBadge, { backgroundColor: sc.badge }]}>
+                        <Text style={styles.stepNum}>{step.stepNum}</Text>
+                      </View>
+                      <Text style={styles.stepIcon}>{step.icon}</Text>
+                      <View style={styles.stepInfo}>
+                        <Text style={[styles.stepTitle, { color: colors.foreground }]} numberOfLines={2}>
+                          {step.title}
+                        </Text>
+                        <Text style={[styles.stepSection, { color: colors.mutedForeground }]}>
+                          {step.section}
+                        </Text>
+                      </View>
+                      <View style={styles.stepRight}>
+                        <Text style={[styles.stepScore, { color: sc.label }]}>{step.score}%</Text>
+                        <Feather name="chevron-right" size={16} color={sc.label} />
+                      </View>
+                    </TouchableOpacity>
+                    {/* Conector vertical entre pasos */}
+                    {!isLast && (
+                      <View style={styles.stepConnector}>
+                        <View style={[styles.stepConnectorLine, { backgroundColor: colors.border }]} />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+              {/* Conector al paso final */}
+              <View style={styles.stepConnector}>
+                <View style={[styles.stepConnectorLine, { backgroundColor: colors.border }]} />
+              </View>
+            </View>
+          )}
+
+          {/* Paso final: Factorización */}
+          <TouchableOpacity
+            style={styles.finalStep}
+            onPress={() => router.push("/(tabs)/modulos" as any)}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.stepBadge, { backgroundColor: "#d97706" }]}>
+              <Feather name="star" size={13} color="#fff" />
+            </View>
+            <Text style={styles.finalStepIcon}>🔢</Text>
+            <View style={styles.stepInfo}>
+              <Text style={styles.finalStepTitle}>Paso final: Factorización</Text>
+              <Text style={styles.finalStepSub}>Los 8 casos del curso · Sección 4</Text>
+            </View>
+            <Feather name="arrow-right-circle" size={20} color="#d97706" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        /* Sin diagnóstico: invitar a hacerlo */
+        <TouchableOpacity
+          style={[styles.diagBanner, { backgroundColor: "#7c3aed", shadowColor: "#7c3aed" }]}
+          onPress={() => router.push("/diagnostico" as any)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.diagBannerEmoji}>🧠</Text>
+          <View style={styles.diagBannerInfo}>
+            <Text style={styles.diagBannerTitle}>Haz el diagnóstico</Text>
+            <Text style={styles.diagBannerSub}>
+              Obtén una ruta personalizada según tus bases
+            </Text>
+          </View>
+          <Feather name="arrow-right-circle" size={26} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+      )}
+
+      {/* ── Continuar con el siguiente caso ── */}
       {nextModule && (
         <TouchableOpacity
           style={[styles.continueCard, { backgroundColor: nextModule.color, shadowColor: nextModule.color }]}
@@ -115,15 +246,26 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
+      {/* ── Progreso general de factorización ── */}
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          Progreso en Factorización
+        </Text>
+        <ProgressBar progress={overallProgress} />
+        <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
+          {overallProgress}% completado · {completedModulesCount} de {totalModules} casos
+        </Text>
+      </View>
+
       {/* ── Mapa de ruta resumido ── */}
       <View style={styles.mapHeader}>
-        <Text style={[styles.mapTitle, { color: colors.foreground }]}>🗺️ Ruta del Curso</Text>
+        <Text style={[styles.mapTitle, { color: colors.foreground }]}>📚 Módulos del Curso</Text>
         <TouchableOpacity onPress={() => router.push("/(tabs)/modulos" as any)}>
           <Text style={[styles.mapLink, { color: colors.primary }]}>Ver todo →</Text>
         </TouchableOpacity>
       </View>
       <Text style={[styles.mapSubtitle, { color: colors.mutedForeground }]}>
-        Toca una sección para ver los temas
+        Toca una sección para expandirla
       </Text>
 
       {COURSE_SECTIONS.map((section, idx) => {
@@ -310,10 +452,95 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: "800", marginBottom: 2 },
   statLabel: { fontSize: 11, fontWeight: "500" },
 
-  section: { borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
-  progressLabel: { fontSize: 12, fontWeight: "500", marginTop: 8 },
+  // ── Ruta sugerida ─────────────────────────────────────────────────
+  routeCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+  },
+  routeHeader: { marginBottom: 14 },
+  routeTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  routeEmoji: { fontSize: 28 },
+  routeTitle: { fontSize: 18, fontWeight: "800", lineHeight: 22 },
+  routeSub: { fontSize: 12, marginTop: 2 },
 
+  stepsContainer: { gap: 0 },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  stepBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  stepNum: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  stepIcon: { fontSize: 20 },
+  stepInfo: { flex: 1 },
+  stepTitle: { fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  stepSection: { fontSize: 11, marginTop: 1 },
+  stepRight: { alignItems: "flex-end", gap: 2 },
+  stepScore: { fontSize: 12, fontWeight: "800" },
+
+  stepConnector: { alignItems: "flex-start", paddingLeft: 22, height: 14 },
+  stepConnectorLine: { width: 2, flex: 1 },
+
+  allStrongBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  allStrongEmoji: { fontSize: 22 },
+  allStrongText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+
+  finalStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#fde68a",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+    marginTop: 2,
+  },
+  finalStepIcon: { fontSize: 20 },
+  finalStepTitle: { fontSize: 13, fontWeight: "800", color: "#92400e" },
+  finalStepSub: { fontSize: 11, color: "#b45309", marginTop: 1 },
+
+  // ── Banner diagnóstico ────────────────────────────────────────────
+  diagBanner: {
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 20,
+    gap: 14,
+  },
+  diagBannerEmoji: { fontSize: 32 },
+  diagBannerInfo: { flex: 1 },
+  diagBannerTitle: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  diagBannerSub: { color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 2 },
+
+  // ── Continuar ─────────────────────────────────────────────────────
   continueCard: {
     borderRadius: 20,
     padding: 20,
@@ -323,14 +550,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-    marginBottom: 24,
+    marginBottom: 20,
+    gap: 14,
   },
-  continueIcon: { fontSize: 32, marginRight: 14 },
+  continueIcon: { fontSize: 32 },
   continueInfo: { flex: 1 },
   continueLevel: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   continueTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
   continueSub: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
 
+  // ── Progreso factorización ────────────────────────────────────────
+  section: { borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
+  progressLabel: { fontSize: 12, fontWeight: "500", marginTop: 8 },
+
+  // ── Mapa de módulos ───────────────────────────────────────────────
   mapHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   mapTitle: { fontSize: 20, fontWeight: "800" },
   mapLink: { fontSize: 13, fontWeight: "700" },
@@ -411,7 +645,7 @@ const styles = StyleSheet.create({
   diagMiniBarFill: { height: "100%", borderRadius: 3 },
   diagMiniPct: { fontSize: 11, fontWeight: "700", width: 32, textAlign: "right" },
 
-  quickHeading: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  quickHeading: { fontSize: 18, fontWeight: "700", marginBottom: 12, marginTop: 8 },
   quickGrid: { flexDirection: "row", gap: 12 },
   quickCard: { flex: 1, borderRadius: 16, padding: 18, alignItems: "center", borderWidth: 1 },
   quickIcon: { fontSize: 28, marginBottom: 8 },
