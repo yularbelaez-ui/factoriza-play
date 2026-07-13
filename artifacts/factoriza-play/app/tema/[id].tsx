@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -380,6 +381,36 @@ export default function TemaScreen() {
                 </View>
               ))}
 
+              {/* ── Videos recomendados ── */}
+              {topic.videos && topic.videos.length > 0 && (
+                <View style={[styles.videosCard, { backgroundColor: "#1e1b4b08", borderColor: "#7c3aed20" }]}>
+                  <View style={styles.videosHeader}>
+                    <Text style={styles.videosEmoji}>📺</Text>
+                    <View>
+                      <Text style={[styles.videosTitle, { color: colors.foreground }]}>Videos recomendados</Text>
+                      <Text style={[styles.videosSub, { color: colors.mutedForeground }]}>Se abre en tu navegador</Text>
+                    </View>
+                  </View>
+                  {topic.videos.map((v, vi) => (
+                    <TouchableOpacity
+                      key={vi}
+                      style={[styles.videoRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={() => Linking.openURL(v.url)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[styles.videoPlayBtn, { backgroundColor: "#ff0000" }]}>
+                        <Feather name="play" size={12} color="#fff" />
+                      </View>
+                      <View style={styles.videoInfo}>
+                        <Text style={[styles.videoTitle, { color: colors.foreground }]} numberOfLines={2}>{v.title}</Text>
+                        <Text style={[styles.videoChannel, { color: colors.mutedForeground }]}>{v.channel}</Text>
+                      </View>
+                      <Feather name="external-link" size={14} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <TouchableOpacity style={[styles.nextTabBtn, { backgroundColor: topic.color }]} onPress={() => setActiveTab("ejemplos")}>
                 <Text style={styles.nextTabBtnText}>Ver ejemplos →</Text>
               </TouchableOpacity>
@@ -541,6 +572,19 @@ const styles = StyleSheet.create({
   formulaText: { fontSize: 13, fontWeight: "700", fontFamily: "monospace" as any },
   tipBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderRadius: 8, borderWidth: 1, padding: 10, borderColor: "#fde68a" },
   tipText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "500" },
+
+  // Videos
+  videosCard: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
+  videosHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  videosEmoji: { fontSize: 26 },
+  videosTitle: { fontSize: 15, fontWeight: "800" },
+  videosSub: { fontSize: 11, marginTop: 1 },
+  videoRow: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, padding: 12, gap: 10 },
+  videoPlayBtn: { width: 30, height: 30, borderRadius: 8, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  videoInfo: { flex: 1 },
+  videoTitle: { fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  videoChannel: { fontSize: 11, marginTop: 2 },
+
   nextTabBtn: { borderRadius: 12, paddingVertical: 13, alignItems: "center" },
   nextTabBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 

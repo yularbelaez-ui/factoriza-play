@@ -24,6 +24,12 @@ export interface TopicExercise {
   explanation: string;
 }
 
+export interface VideoSuggestion {
+  title: string;
+  channel: string;
+  url: string;
+}
+
 export interface TopicContent {
   id: string;
   sectionId: "saberes" | "algebra" | "operaciones";
@@ -32,6 +38,7 @@ export interface TopicContent {
   color: string;
   definition: string;
   practiceHint?: string;
+  videos?: VideoSuggestion[];
   theory: TopicTheory[];
   examples: TopicExample[];
   exercises: TopicExercise[];
@@ -51,6 +58,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Los números naturales (ℕ) son los números que usamos para contar: 1, 2, 3, 4, 5, … Se usan para contar objetos, ordenar posiciones y realizar las cuatro operaciones básicas.",
     practiceHint: "Recuerda las propiedades de los números naturales y las cuatro operaciones básicas (suma, resta, multiplicación, división). Piensa qué operación pide el problema y aplícala paso a paso.",
+    videos: [
+      { title: "Números naturales y operaciones básicas", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20naturales%20operaciones%20basicas%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Propiedades de los números naturales", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=propiedades%20numeros%20naturales%20unicoos" },
+      { title: "Operaciones con números naturales – ejercicios", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=operaciones%20numeros%20naturales%20ejercicios%20profe%20alex" },
+    ],
     theory: [
       {
         id: "nat-t1",
@@ -171,6 +183,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Los números decimales tienen una parte entera y una parte fraccionaria separadas por una coma (o punto). Permiten representar cantidades que no son enteras exactas.",
     practiceHint: "Alinea los puntos decimales uno sobre otro antes de sumar o restar. La posición de cada cifra (décimas, centésimas…) es clave para no cometer errores.",
+    videos: [
+      { title: "Números decimales: suma y resta", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20decimales%20suma%20resta%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Multiplicación y división de decimales", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=multiplicacion%20division%20numeros%20decimales%20unicoos" },
+      { title: "Ejercicios con decimales paso a paso", channel: "Matemáticas profe Alex", url: "https://www.youtube.com/results?search_query=ejercicios%20decimales%20paso%20a%20paso%20matematicas" },
+    ],
     theory: [
       {
         id: "dec-t1",
@@ -284,6 +301,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Los números enteros (ℤ) incluyen los naturales, el cero y los números negativos: …, −3, −2, −1, 0, 1, 2, 3, … Los negativos aparecen en deudas, temperaturas bajo cero, pisos de sótano, etc.",
     practiceHint: "Usa la recta numérica: positivos a la derecha, negativos a la izquierda. Mismo signo: suma y conserva el signo. Signos distintos: resta y usa el signo del mayor.",
+    videos: [
+      { title: "Números enteros y la recta numérica", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20enteros%20recta%20numerica%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Suma y resta de números enteros", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=suma%20resta%20numeros%20enteros%20unicoos" },
+      { title: "Multiplicación de enteros – regla de signos", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=multiplicacion%20numeros%20enteros%20regla%20signos%20profe%20alex" },
+    ],
     theory: [
       {
         id: "ent-t1",
@@ -393,6 +415,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Un número racional es todo número que se puede expresar como fracción p/q donde p y q son enteros y q ≠ 0. Incluye los naturales, enteros, fracciones y decimales periódicos.",
     practiceHint: "Para operar fracciones, iguala los denominadores primero. Para multiplicar: numerador × numerador, denominador × denominador. Simplifica al final.",
+    videos: [
+      { title: "Números racionales y fracciones", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20racionales%20fracciones%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Operaciones con fracciones paso a paso", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=operaciones%20fracciones%20paso%20a%20paso%20unicoos" },
+      { title: "Fracciones: suma resta multiplicación división", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=fracciones%20suma%20resta%20multiplicacion%20division%20profe%20alex" },
+    ],
     theory: [
       {
         id: "rac-t1",
@@ -504,6 +531,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Un número irracional NO puede expresarse como fracción de enteros. Su decimal es infinito y NO periódico (nunca se repite de forma regular). Ejemplos: √2, √3, π, φ (número áureo).",
     practiceHint: "Los irracionales no pueden escribirse como fracción exacta (π, √2, √3…). Si la raíz no da un número exacto, el resultado es irracional.",
+    videos: [
+      { title: "Números irracionales: qué son y ejemplos", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20irracionales%20que%20son%20ejemplos%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Diferencia entre racionales e irracionales", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=diferencia%20racionales%20irracionales%20unicoos" },
+      { title: "√2, π y otros irracionales explicados", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=numeros%20irracionales%20raiz%20cuadrada%20pi%20explicacion" },
+    ],
     theory: [
       {
         id: "irr-t1",
@@ -614,6 +646,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "El conjunto de los números reales (ℝ) reúne TODOS los anteriores: naturales, enteros, racionales e irracionales. Cualquier punto en la recta numérica corresponde a un real.",
     practiceHint: "Clasifica el número: ¿es entero? ¿fracción exacta? ¿decimal infinito no periódico? Cada número real pertenece a una categoría: ℕ ⊂ ℤ ⊂ ℚ ⊂ ℝ.",
+    videos: [
+      { title: "Números reales y su clasificación", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=numeros%20reales%20clasificacion%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Conjunto de los números reales", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=conjunto%20numeros%20reales%20unicoos" },
+      { title: "¿Qué son los números reales? Explicación completa", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=numeros%20reales%20explicacion%20completa%20profe%20alex" },
+    ],
     theory: [
       {
         id: "real-t1",
@@ -729,6 +766,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Una potencia aⁿ representa multiplicar la base a por sí misma n veces. El exponente n indica cuántas veces se multiplica la base. Las propiedades de potencias permiten simplificar operaciones.",
     practiceHint: "Base^exponente = base multiplicada por sí misma 'exponente' veces. Para multiplicar potencias de igual base: suma exponentes. Para dividir: réstalos.",
+    videos: [
+      { title: "Potencias y sus propiedades", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=potencias%20propiedades%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Leyes de los exponentes explicadas", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=leyes%20exponentes%20potencias%20unicoos" },
+      { title: "Ejercicios de potencias: producto, cociente, potencia", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=ejercicios%20potencias%20exponentes%20profe%20alex" },
+    ],
     theory: [
       {
         id: "pot-t1",
@@ -839,6 +881,11 @@ const SABERES_TOPICS: TopicContent[] = [
     definition:
       "Descomponer un número natural en factores primos significa escribirlo como producto de números primos. Todo número mayor que 1 tiene una única descomposición en primos (Teorema Fundamental de la Aritmética).",
     practiceHint: "Divide entre los primos en orden (2, 3, 5, 7…) hasta llegar a 1. El MCD = producto de factores comunes con el menor exponente.",
+    videos: [
+      { title: "Factorización prima de números", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=factorizacion%20prima%20numeros%20khan%20academy%20espa%C3%B1ol" },
+      { title: "MCD y MCM usando factores primos", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=mcd%20mcm%20factores%20primos%20unicoos" },
+      { title: "Descomposición en factores primos – ejercicios", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=descomposicion%20factores%20primos%20ejercicios%20profe%20alex" },
+    ],
     theory: [
       {
         id: "fac-t1",
@@ -958,6 +1005,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "La aritmética trabaja con números concretos. El álgebra usa letras (variables) para representar cantidades desconocidas o que pueden cambiar, permitiendo formular reglas generales.",
     practiceHint: "Las variables (letras) representan valores desconocidos. Para evaluar una expresión algebraica, sustituye la variable por el número dado y calcula respetando el orden de operaciones.",
+    videos: [
+      { title: "Introducción al álgebra: variables y expresiones", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=introduccion%20algebra%20variables%20expresiones%20khan%20academy%20espa%C3%B1ol" },
+      { title: "¿Qué es el álgebra? Conceptos básicos", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=que%20es%20algebra%20conceptos%20basicos%20unicoos" },
+      { title: "Diferencia entre aritmética y álgebra", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=diferencia%20aritmetica%20algebra%20variables%20explicacion" },
+    ],
     theory: [
       {
         id: "dif-t1",
@@ -1068,6 +1120,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "La notación algebraica es el conjunto de símbolos y convenciones para escribir expresiones matemáticas con variables. Permite comunicar ideas matemáticas de forma compacta y precisa.",
     practiceHint: "'ab' significa a×b (multiplicación implícita). El exponente afecta solo a la base inmediata. Identifica bien base y exponente antes de calcular.",
+    videos: [
+      { title: "Notación algebraica: coeficientes y variables", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=notacion%20algebraica%20coeficientes%20variables%20khan%20academy" },
+      { title: "Cómo leer y escribir expresiones algebraicas", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=leer%20escribir%20expresiones%20algebraicas%20unicoos" },
+      { title: "Simbología algebraica explicada", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=simbologia%20algebraica%20explicacion%20profe%20alex" },
+    ],
     theory: [
       {
         id: "not-t1",
@@ -1180,6 +1237,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "Los signos + y − en álgebra funcionan como en aritmética, pero con variables. Determinan si un término es positivo o negativo y cambian al quitar o agregar paréntesis según las reglas de agrupación.",
     practiceHint: "Regla clave: (−)(−)=+, (+)(−)=−. Para sumas con distintos signos, resta los valores absolutos y conserva el signo del mayor.",
+    videos: [
+      { title: "Regla de los signos en álgebra", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=regla%20signos%20algebra%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Suma y resta con signos – ejercicios", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=suma%20resta%20signos%20algebra%20unicoos" },
+      { title: "Signos en álgebra: positivo y negativo", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=signos%20algebra%20positivo%20negativo%20profe%20alex" },
+    ],
     theory: [
       {
         id: "sig-t1",
@@ -1291,6 +1353,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "Un término algebraico es el producto de un coeficiente y una o más variables con exponentes. Una expresión algebraica es la suma o diferencia de uno o más términos.",
     practiceHint: "Para evaluar una expresión, sustituye cada variable por su valor. Respeta el orden: primero potencias, luego ×÷, luego +−. Identifica coeficiente, variable y exponente en cada término.",
+    videos: [
+      { title: "Expresiones algebraicas: evaluación y simplificación", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=expresiones%20algebraicas%20evaluacion%20simplificacion%20khan%20academy" },
+      { title: "Cómo evaluar una expresión algebraica", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=evaluar%20expresion%20algebraica%20unicoos" },
+      { title: "Expresiones algebraicas – ejercicios paso a paso", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=expresiones%20algebraicas%20ejercicios%20paso%20a%20paso%20profe%20alex" },
+    ],
     theory: [
       {
         id: "expr-t1",
@@ -1404,6 +1471,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "El grado de un término es la suma de los exponentes de todas sus variables. El grado de una expresión algebraica (polinomio) es el mayor grado entre sus términos.",
     practiceHint: "Grado de un monomio = suma de todos los exponentes de sus variables. Grado de un polinomio = grado del término con mayor exponente.",
+    videos: [
+      { title: "Grado de un monomio y un polinomio", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=grado%20monomio%20polinomio%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Monomios: definición y grado", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=monomios%20definicion%20grado%20unicoos" },
+      { title: "¿Qué es el grado de un polinomio?", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=grado%20polinomio%20explicacion%20profe%20alex" },
+    ],
     theory: [
       {
         id: "grad-t1",
@@ -1517,6 +1589,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "Las expresiones algebraicas se clasifican según el número de términos: monomio (1), binomio (2), trinomio (3) y polinomio (4 o más). También se clasifican según su grado.",
     practiceHint: "Cuenta los términos separados por + o −: 1 = monomio, 2 = binomio, 3 = trinomio. Grado = mayor exponente presente.",
+    videos: [
+      { title: "Clasificación de polinomios por términos y grado", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=clasificacion%20polinomios%20terminos%20grado%20khan%20academy" },
+      { title: "Monomio, binomio, trinomio y polinomio", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=monomio%20binomio%20trinomio%20polinomio%20unicoos" },
+      { title: "Tipos de polinomios – explicación completa", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=tipos%20polinomios%20explicacion%20completa%20profe%20alex" },
+    ],
     theory: [
       {
         id: "clas-t1",
@@ -1629,6 +1706,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "Ordenar un polinomio significa escribir sus términos de mayor a menor grado (orden descendente) o de menor a mayor (orden ascendente). La forma descendente es la estándar en matemáticas.",
     practiceHint: "Para ordenar un polinomio escribe los términos de mayor a menor grado de su variable. El término independiente (sin variable) va al final.",
+    videos: [
+      { title: "Ordenar y completar polinomios", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=ordenar%20completar%20polinomios%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Polinomio ordenado y completo", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=polinomio%20ordenado%20completo%20unicoos" },
+      { title: "Cómo ordenar un polinomio correctamente", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=ordenar%20polinomio%20correctamente%20profe%20alex" },
+    ],
     theory: [
       {
         id: "ord-t1",
@@ -1739,6 +1821,11 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     definition:
       "Los términos semejantes tienen exactamente la misma parte literal (mismas variables con los mismos exponentes). Solo los términos semejantes se pueden sumar o restar combinando sus coeficientes.",
     practiceHint: "Términos semejantes: misma parte literal (mismas variables con mismos exponentes). Solo puedes sumar o restar sus coeficientes si son semejantes.",
+    videos: [
+      { title: "Términos semejantes: identificar y simplificar", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=terminos%20semejantes%20identificar%20simplificar%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Suma de términos semejantes", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=suma%20terminos%20semejantes%20unicoos" },
+      { title: "Términos semejantes – ejercicios resueltos", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=terminos%20semejantes%20ejercicios%20resueltos%20profe%20alex" },
+    ],
     theory: [
       {
         id: "sem-t1",
@@ -1856,6 +1943,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "Sumar o restar polinomios consiste en combinar los términos semejantes de ambos polinomios. Al restar, se cambian todos los signos del polinomio sustraendo antes de combinar.",
     practiceHint: "Agrupa términos semejantes. Al restar un polinomio, distribuye el signo negativo a TODOS sus términos antes de combinar.",
+    videos: [
+      { title: "Suma y resta de polinomios", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=suma%20resta%20polinomios%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Operaciones con polinomios: suma y resta", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=operaciones%20polinomios%20suma%20resta%20unicoos" },
+      { title: "Sumar y restar polinomios paso a paso", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=sumar%20restar%20polinomios%20paso%20a%20paso%20profe%20alex" },
+    ],
     theory: [
       {
         id: "sr-t1",
@@ -1967,6 +2059,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "Los signos de agrupación (paréntesis (), corchetes [] y llaves {}) se usan para indicar qué operaciones se realizan primero. Al eliminarlos, se deben aplicar correctamente las reglas de signos.",
     practiceHint: "Trabaja de adentro hacia afuera: () primero, luego [], luego {}. Signo − antes de un paréntesis cambia el signo de cada término interno.",
+    videos: [
+      { title: "Operaciones de agrupación: paréntesis y corchetes", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=operaciones%20agrupacion%20parentesis%20corchetes%20algebra%20khan%20academy" },
+      { title: "Signos de agrupación en álgebra", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=signos%20agrupacion%20algebra%20unicoos" },
+      { title: "Paréntesis y corchetes en expresiones algebraicas", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=parentesis%20corchetes%20expresiones%20algebraicas%20profe%20alex" },
+    ],
     theory: [
       {
         id: "agr-t1",
@@ -2079,6 +2176,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "La multiplicación algebraica aplica la ley de signos, la ley de exponentes y la propiedad distributiva. Se multiplican coeficientes entre sí y variables de igual base se suman sus exponentes.",
     practiceHint: "Multiplica cada término del primer factor por cada término del segundo (propiedad distributiva). Al multiplicar monomios: suma los exponentes de igual variable.",
+    videos: [
+      { title: "Multiplicación de polinomios", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=multiplicacion%20polinomios%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Multiplicar polinomios – propiedad distributiva", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=multiplicar%20polinomios%20propiedad%20distributiva%20unicoos" },
+      { title: "Multiplicación de polinomios – ejercicios", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=multiplicacion%20polinomios%20ejercicios%20profe%20alex" },
+    ],
     theory: [
       {
         id: "mul-t1",
@@ -2200,6 +2302,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "La división algebraica aplica la ley de signos y la ley de exponentes (se restan). Para dividir un polinomio entre un monomio, se divide cada término. Para dividir entre un polinomio se usa la división larga.",
     practiceHint: "Para dividir un polinomio entre un monomio, divide cada término por separado. Al dividir potencias de igual base: resta exponentes.",
+    videos: [
+      { title: "División de polinomios: monomio entre monomio", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=division%20polinomios%20monomio%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Dividir polinomios paso a paso", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=dividir%20polinomios%20paso%20a%20paso%20unicoos" },
+      { title: "División de expresiones algebraicas", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=division%20expresiones%20algebraicas%20profe%20alex" },
+    ],
     theory: [
       {
         id: "div-t1",
@@ -2311,6 +2418,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "Los productos notables son multiplicaciones de polinomios especiales cuyo resultado sigue un patrón fijo, lo que permite calcularlos directamente sin desarrollar término a término.",
     practiceHint: "Identifica el patrón: (a+b)²=a²+2ab+b², (a−b)²=a²−2ab+b², (a+b)(a−b)=a²−b². Aplica la fórmula directamente sin multiplicar término a término.",
+    videos: [
+      { title: "Productos notables: cuadrado de la suma", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=productos%20notables%20cuadrado%20suma%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Productos notables explicados con ejemplos", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=productos%20notables%20explicados%20ejemplos%20unicoos" },
+      { title: "Fórmulas de productos notables – ejercicios", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=formulas%20productos%20notables%20ejercicios%20profe%20alex" },
+    ],
     theory: [
       {
         id: "prod-t1",
@@ -2424,6 +2536,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "El cuadrado de la diferencia es el producto notable (a − b)² = a² − 2ab + b². Siempre produce tres términos: el cuadrado del primero, MENOS el doble del producto, MÁS el cuadrado del segundo.",
     practiceHint: "(a−b)² = a² − 2ab + b². El término central es NEGATIVO. Identifica a y b, cuadra cada uno y no olvides el doble producto con signo −.",
+    videos: [
+      { title: "Cuadrado de la diferencia (a−b)²", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=cuadrado%20diferencia%20binomio%20algebra%20khan%20academy%20espa%C3%B1ol" },
+      { title: "(a−b)² desarrollado paso a paso", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=cuadrado%20diferencia%20a%20menos%20b%20unicoos" },
+      { title: "Producto notable: cuadrado de un binomio", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=producto%20notable%20cuadrado%20binomio%20diferencia%20profe%20alex" },
+    ],
     theory: [
       {
         id: "cd-t1",
@@ -2536,6 +2653,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "El producto de la suma por la diferencia es el producto notable (a + b)(a − b) = a² − b². Su resultado es siempre una diferencia de cuadrados: solo dos términos, sin término medio.",
     practiceHint: "(a+b)(a−b) = a²−b². El resultado siempre elimina el término del medio. Solo cuadra cada término y réstalos. Identifica a y b primero.",
+    videos: [
+      { title: "Suma por diferencia: diferencia de cuadrados", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=suma%20por%20diferencia%20diferencia%20cuadrados%20khan%20academy%20espa%C3%B1ol" },
+      { title: "(a+b)(a−b) = a²−b² explicado", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=suma%20por%20diferencia%20producto%20notable%20unicoos" },
+      { title: "Diferencia de cuadrados – ejemplos y ejercicios", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=diferencia%20cuadrados%20producto%20notable%20profe%20alex" },
+    ],
     theory: [
       {
         id: "sd-t1",
@@ -2648,6 +2770,11 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     definition:
       "El cubo de un binomio es el producto notable (a ± b)³. Su desarrollo sigue un patrón de cuatro términos cuyos coeficientes son 1, 3, 3, 1 (de la fila del triángulo de Pascal).",
     practiceHint: "(a+b)³ = a³+3a²b+3ab²+b³. Coeficientes: 1,3,3,1. Para (a−b)³ los signos alternan: +,−,+,−. Identifica a y b primero.",
+    videos: [
+      { title: "Cubo de un binomio (a+b)³ y (a−b)³", channel: "Khan Academy en Español", url: "https://www.youtube.com/results?search_query=cubo%20binomio%20producto%20notable%20khan%20academy%20espa%C3%B1ol" },
+      { title: "Cómo desarrollar el cubo de un binomio", channel: "Unicoos", url: "https://www.youtube.com/results?search_query=cubo%20binomio%20desarrollo%20unicoos" },
+      { title: "Fórmula del cubo del binomio – ejercicios resueltos", channel: "Profe Alex", url: "https://www.youtube.com/results?search_query=cubo%20binomio%20formula%20ejercicios%20profe%20alex" },
+    ],
     theory: [
       {
         id: "cub-t1",
