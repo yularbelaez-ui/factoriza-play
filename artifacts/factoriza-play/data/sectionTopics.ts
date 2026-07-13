@@ -31,6 +31,7 @@ export interface TopicContent {
   icon: string;
   color: string;
   definition: string;
+  practiceHint?: string;
   theory: TopicTheory[];
   examples: TopicExample[];
   exercises: TopicExercise[];
@@ -49,6 +50,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#7c3aed",
     definition:
       "Los números naturales (ℕ) son los números que usamos para contar: 1, 2, 3, 4, 5, … Se usan para contar objetos, ordenar posiciones y realizar las cuatro operaciones básicas.",
+    practiceHint: "Recuerda las propiedades de los números naturales y las cuatro operaciones básicas (suma, resta, multiplicación, división). Piensa qué operación pide el problema y aplícala paso a paso.",
     theory: [
       {
         id: "nat-t1",
@@ -168,6 +170,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Los números decimales tienen una parte entera y una parte fraccionaria separadas por una coma (o punto). Permiten representar cantidades que no son enteras exactas.",
+    practiceHint: "Alinea los puntos decimales uno sobre otro antes de sumar o restar. La posición de cada cifra (décimas, centésimas…) es clave para no cometer errores.",
     theory: [
       {
         id: "dec-t1",
@@ -280,6 +283,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#dc2626",
     definition:
       "Los números enteros (ℤ) incluyen los naturales, el cero y los números negativos: …, −3, −2, −1, 0, 1, 2, 3, … Los negativos aparecen en deudas, temperaturas bajo cero, pisos de sótano, etc.",
+    practiceHint: "Usa la recta numérica: positivos a la derecha, negativos a la izquierda. Mismo signo: suma y conserva el signo. Signos distintos: resta y usa el signo del mayor.",
     theory: [
       {
         id: "ent-t1",
@@ -388,6 +392,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#7c3aed",
     definition:
       "Un número racional es todo número que se puede expresar como fracción p/q donde p y q son enteros y q ≠ 0. Incluye los naturales, enteros, fracciones y decimales periódicos.",
+    practiceHint: "Para operar fracciones, iguala los denominadores primero. Para multiplicar: numerador × numerador, denominador × denominador. Simplifica al final.",
     theory: [
       {
         id: "rac-t1",
@@ -498,6 +503,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "Un número irracional NO puede expresarse como fracción de enteros. Su decimal es infinito y NO periódico (nunca se repite de forma regular). Ejemplos: √2, √3, π, φ (número áureo).",
+    practiceHint: "Los irracionales no pueden escribirse como fracción exacta (π, √2, √3…). Si la raíz no da un número exacto, el resultado es irracional.",
     theory: [
       {
         id: "irr-t1",
@@ -607,6 +613,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#0891b2",
     definition:
       "El conjunto de los números reales (ℝ) reúne TODOS los anteriores: naturales, enteros, racionales e irracionales. Cualquier punto en la recta numérica corresponde a un real.",
+    practiceHint: "Clasifica el número: ¿es entero? ¿fracción exacta? ¿decimal infinito no periódico? Cada número real pertenece a una categoría: ℕ ⊂ ℤ ⊂ ℚ ⊂ ℝ.",
     theory: [
       {
         id: "real-t1",
@@ -721,6 +728,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#d97706",
     definition:
       "Una potencia aⁿ representa multiplicar la base a por sí misma n veces. El exponente n indica cuántas veces se multiplica la base. Las propiedades de potencias permiten simplificar operaciones.",
+    practiceHint: "Base^exponente = base multiplicada por sí misma 'exponente' veces. Para multiplicar potencias de igual base: suma exponentes. Para dividir: réstalos.",
     theory: [
       {
         id: "pot-t1",
@@ -830,6 +838,7 @@ const SABERES_TOPICS: TopicContent[] = [
     color: "#7c3aed",
     definition:
       "Descomponer un número natural en factores primos significa escribirlo como producto de números primos. Todo número mayor que 1 tiene una única descomposición en primos (Teorema Fundamental de la Aritmética).",
+    practiceHint: "Divide entre los primos en orden (2, 3, 5, 7…) hasta llegar a 1. El MCD = producto de factores comunes con el menor exponente.",
     theory: [
       {
         id: "fac-t1",
@@ -948,6 +957,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "La aritmética trabaja con números concretos. El álgebra usa letras (variables) para representar cantidades desconocidas o que pueden cambiar, permitiendo formular reglas generales.",
+    practiceHint: "Las variables (letras) representan valores desconocidos. Para evaluar una expresión algebraica, sustituye la variable por el número dado y calcula respetando el orden de operaciones.",
     theory: [
       {
         id: "dif-t1",
@@ -1057,6 +1067,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "La notación algebraica es el conjunto de símbolos y convenciones para escribir expresiones matemáticas con variables. Permite comunicar ideas matemáticas de forma compacta y precisa.",
+    practiceHint: "'ab' significa a×b (multiplicación implícita). El exponente afecta solo a la base inmediata. Identifica bien base y exponente antes de calcular.",
     theory: [
       {
         id: "not-t1",
@@ -1168,6 +1179,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Los signos + y − en álgebra funcionan como en aritmética, pero con variables. Determinan si un término es positivo o negativo y cambian al quitar o agregar paréntesis según las reglas de agrupación.",
+    practiceHint: "Regla clave: (−)(−)=+, (+)(−)=−. Para sumas con distintos signos, resta los valores absolutos y conserva el signo del mayor.",
     theory: [
       {
         id: "sig-t1",
@@ -1278,6 +1290,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Un término algebraico es el producto de un coeficiente y una o más variables con exponentes. Una expresión algebraica es la suma o diferencia de uno o más términos.",
+    practiceHint: "Para evaluar una expresión, sustituye cada variable por su valor. Respeta el orden: primero potencias, luego ×÷, luego +−. Identifica coeficiente, variable y exponente en cada término.",
     theory: [
       {
         id: "expr-t1",
@@ -1390,6 +1403,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "El grado de un término es la suma de los exponentes de todas sus variables. El grado de una expresión algebraica (polinomio) es el mayor grado entre sus términos.",
+    practiceHint: "Grado de un monomio = suma de todos los exponentes de sus variables. Grado de un polinomio = grado del término con mayor exponente.",
     theory: [
       {
         id: "grad-t1",
@@ -1502,6 +1516,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Las expresiones algebraicas se clasifican según el número de términos: monomio (1), binomio (2), trinomio (3) y polinomio (4 o más). También se clasifican según su grado.",
+    practiceHint: "Cuenta los términos separados por + o −: 1 = monomio, 2 = binomio, 3 = trinomio. Grado = mayor exponente presente.",
     theory: [
       {
         id: "clas-t1",
@@ -1613,6 +1628,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Ordenar un polinomio significa escribir sus términos de mayor a menor grado (orden descendente) o de menor a mayor (orden ascendente). La forma descendente es la estándar en matemáticas.",
+    practiceHint: "Para ordenar un polinomio escribe los términos de mayor a menor grado de su variable. El término independiente (sin variable) va al final.",
     theory: [
       {
         id: "ord-t1",
@@ -1722,6 +1738,7 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     color: "#2563eb",
     definition:
       "Los términos semejantes tienen exactamente la misma parte literal (mismas variables con los mismos exponentes). Solo los términos semejantes se pueden sumar o restar combinando sus coeficientes.",
+    practiceHint: "Términos semejantes: misma parte literal (mismas variables con mismos exponentes). Solo puedes sumar o restar sus coeficientes si son semejantes.",
     theory: [
       {
         id: "sem-t1",
@@ -1838,6 +1855,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "Sumar o restar polinomios consiste en combinar los términos semejantes de ambos polinomios. Al restar, se cambian todos los signos del polinomio sustraendo antes de combinar.",
+    practiceHint: "Agrupa términos semejantes. Al restar un polinomio, distribuye el signo negativo a TODOS sus términos antes de combinar.",
     theory: [
       {
         id: "sr-t1",
@@ -1948,6 +1966,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "Los signos de agrupación (paréntesis (), corchetes [] y llaves {}) se usan para indicar qué operaciones se realizan primero. Al eliminarlos, se deben aplicar correctamente las reglas de signos.",
+    practiceHint: "Trabaja de adentro hacia afuera: () primero, luego [], luego {}. Signo − antes de un paréntesis cambia el signo de cada término interno.",
     theory: [
       {
         id: "agr-t1",
@@ -2059,6 +2078,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "La multiplicación algebraica aplica la ley de signos, la ley de exponentes y la propiedad distributiva. Se multiplican coeficientes entre sí y variables de igual base se suman sus exponentes.",
+    practiceHint: "Multiplica cada término del primer factor por cada término del segundo (propiedad distributiva). Al multiplicar monomios: suma los exponentes de igual variable.",
     theory: [
       {
         id: "mul-t1",
@@ -2179,6 +2199,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "La división algebraica aplica la ley de signos y la ley de exponentes (se restan). Para dividir un polinomio entre un monomio, se divide cada término. Para dividir entre un polinomio se usa la división larga.",
+    practiceHint: "Para dividir un polinomio entre un monomio, divide cada término por separado. Al dividir potencias de igual base: resta exponentes.",
     theory: [
       {
         id: "div-t1",
@@ -2289,6 +2310,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "Los productos notables son multiplicaciones de polinomios especiales cuyo resultado sigue un patrón fijo, lo que permite calcularlos directamente sin desarrollar término a término.",
+    practiceHint: "Identifica el patrón: (a+b)²=a²+2ab+b², (a−b)²=a²−2ab+b², (a+b)(a−b)=a²−b². Aplica la fórmula directamente sin multiplicar término a término.",
     theory: [
       {
         id: "prod-t1",
@@ -2401,6 +2423,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "El cuadrado de la diferencia es el producto notable (a − b)² = a² − 2ab + b². Siempre produce tres términos: el cuadrado del primero, MENOS el doble del producto, MÁS el cuadrado del segundo.",
+    practiceHint: "(a−b)² = a² − 2ab + b². El término central es NEGATIVO. Identifica a y b, cuadra cada uno y no olvides el doble producto con signo −.",
     theory: [
       {
         id: "cd-t1",
@@ -2512,6 +2535,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "El producto de la suma por la diferencia es el producto notable (a + b)(a − b) = a² − b². Su resultado es siempre una diferencia de cuadrados: solo dos términos, sin término medio.",
+    practiceHint: "(a+b)(a−b) = a²−b². El resultado siempre elimina el término del medio. Solo cuadra cada término y réstalos. Identifica a y b primero.",
     theory: [
       {
         id: "sd-t1",
@@ -2623,6 +2647,7 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     color: "#059669",
     definition:
       "El cubo de un binomio es el producto notable (a ± b)³. Su desarrollo sigue un patrón de cuatro términos cuyos coeficientes son 1, 3, 3, 1 (de la fila del triángulo de Pascal).",
+    practiceHint: "(a+b)³ = a³+3a²b+3ab²+b³. Coeficientes: 1,3,3,1. Para (a−b)³ los signos alternan: +,−,+,−. Identifica a y b primero.",
     theory: [
       {
         id: "cub-t1",

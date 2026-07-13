@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,9 +14,23 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
-import { getTopicById } from "@/data/sectionTopics";
+import { getTopicById, TopicExercise } from "@/data/sectionTopics";
 
 type Tab = "teoria" | "ejemplos" | "practica";
+
+// XP per exercise
+const XP_FIRST_TRY  = 10;
+const XP_SECOND_TRY = 5;
+const XP_PASS_PCT   = 0.85; // need ≥85% of max XP to pass
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 export default function TemaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,23 +42,31 @@ export default function TemaScreen() {
   const topic = getTopicById(id ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("teoria");
 
-  // ── Duolingo-style practice state ──
-  const [practiceIdx, setPracticeIdx] = useState(0);
-  const [practiceAnswer, setPracticeAnswer] = useState<string | null>(null);
-  const [practiceRevealed, setPracticeRevealed] = useState(false);
-  const [practiceScore, setPracticeScore] = useState(0);
-  const [practiceFinished, setPracticeFinished] = useState(false);
+  // ── Practice state ──────────────────────────────────────────────
+  const [queue, setQueue]                         = useState<TopicExercise[]>([]);
+  const [practiceIdx, setPracticeIdx]             = useState(0);
+  const [selectedAnswer, setSelectedAnswer]       = useState<string | null>(null);
+  const [disabledOptions, setDisabledOptions]     = useState<string[]>([]);
+  // phase: "idle" | "hint" (wrong first try, showing hint) | "revealed" (final reveal)
+  const [phase, setPhase]                         = useState<"idle" | "hint" | "revealed">("idle");
+  const [earnedXP, setEarnedXP]                   = useState(0);
+  const [practiceFinished, setPracticeFinished]   = useState(false);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  // Reset practice when switching to practice tab
+  const resetPractice = useCallback(() => {
+    if (!topic) return;
+    setQueue(shuffleArray(topic.exercises));
+    setPracticeIdx(0);
+    setSelectedAnswer(null);
+    setDisabledOptions([]);
+    setPhase("idle");
+    setEarnedXP(0);
+    setPracticeFinished(false);
+  }, [topic]);
+
   useEffect(() => {
-    if (activeTab === "practica") {
-      setPracticeIdx(0);
-      setPracticeAnswer(null);
-      setPracticeRevealed(false);
-      setPracticeScore(0);
-      setPracticeFinished(false);
-    }
-  }, [activeTab]);
+    if (activeTab === "practica") resetPractice();
+  }, [activeTab, resetPractice]);
 
   if (!topic) {
     return (
@@ -53,34 +76,63 @@ export default function TemaScreen() {
     );
   }
 
-  const exercises = topic.exercises;
-  const currentEx = exercises[practiceIdx];
-  const totalEx = exercises.length;
+  const currentEx = queue[practiceIdx];
+  const totalEx   = queue.length;
+  const maxXP     = totalEx * XP_FIRST_TRY;
 
-  const handlePracticeSelect = (option: string) => {
-    if (practiceRevealed) return;
-    Haptics.selectionAsync();
-    setPracticeAnswer(option);
+  // ── Shake animation for wrong answer ────────────────────────────
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
   };
 
-  const handlePracticeVerify = () => {
-    if (!practiceAnswer || practiceRevealed) return;
+  // ── Option selection ─────────────────────────────────────────────
+  const handleSelect = (opt: string) => {
+    if (phase === "revealed") return;
+    if (disabledOptions.includes(opt)) return;
+    Haptics.selectionAsync();
+    setSelectedAnswer(opt);
+  };
+
+  // ── Verify button ────────────────────────────────────────────────
+  const handleVerify = () => {
+    if (!selectedAnswer || !currentEx) return;
+    const correct = selectedAnswer === currentEx.correctAnswer;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const correct = practiceAnswer === currentEx.correctAnswer;
+
     if (correct) {
-      setPracticeScore((s) => s + 1);
+      // Award XP based on phase
+      const xp = phase === "hint" ? XP_SECOND_TRY : XP_FIRST_TRY;
+      setEarnedXP((prev) => prev + xp);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPhase("revealed");
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      triggerShake();
+      if (phase === "idle") {
+        // First wrong attempt → show hint, disable that option
+        setDisabledOptions((prev) => [...prev, selectedAnswer]);
+        setSelectedAnswer(null);
+        setPhase("hint");
+      } else {
+        // Second wrong attempt → full reveal, no XP
+        setPhase("revealed");
+      }
     }
-    setPracticeRevealed(true);
   };
 
-  const handlePracticeContinue = () => {
+  // ── Continue to next question ────────────────────────────────────
+  const handleContinue = () => {
     if (practiceIdx < totalEx - 1) {
       setPracticeIdx((i) => i + 1);
-      setPracticeAnswer(null);
-      setPracticeRevealed(false);
+      setSelectedAnswer(null);
+      setDisabledOptions([]);
+      setPhase("idle");
     } else {
       completeTopicPractice(topic.id);
       setPracticeFinished(true);
@@ -88,32 +140,34 @@ export default function TemaScreen() {
     }
   };
 
-  const handlePracticeRetry = () => {
-    setPracticeIdx(0);
-    setPracticeAnswer(null);
-    setPracticeRevealed(false);
-    setPracticeScore(0);
-    setPracticeFinished(false);
-  };
-
   const tabs: { id: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { id: "teoria", label: "Teoría", icon: "book" },
-    { id: "ejemplos", label: "Ejemplos", icon: "eye" },
+    { id: "teoria",   label: "Teoría",   icon: "book"   },
+    { id: "ejemplos", label: "Ejemplos", icon: "eye"    },
     { id: "practica", label: "Práctica", icon: "edit-3" },
   ];
+
+  // ── Option visual state ──────────────────────────────────────────
+  function optionStyle(opt: string) {
+    const isSelected = selectedAnswer === opt;
+    const isCorrect  = opt === currentEx?.correctAnswer;
+    const isDisabled = disabledOptions.includes(opt);
+
+    if (phase === "revealed") {
+      if (isCorrect)                 return { bg: "#dcfce7", border: "#16a34a", text: "#16a34a", icon: "check" as const };
+      if (isSelected && !isCorrect)  return { bg: "#fee2e2", border: "#dc2626", text: "#dc2626", icon: "x"     as const };
+      return { bg: colors.secondary, border: colors.border, text: colors.foreground, icon: null };
+    }
+    if (isDisabled)
+      return { bg: "#fee2e2", border: "#dc262640", text: "#dc262680", icon: "x" as const };
+    if (isSelected)
+      return { bg: topic!.color + "18", border: topic!.color, text: topic!.color, icon: null };
+    return { bg: colors.secondary, border: colors.border, text: colors.foreground, icon: null };
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: topic.color,
-            paddingTop: isWeb ? 67 + 16 : insets.top + 16,
-          },
-        ]}
-      >
+      <View style={[styles.header, { backgroundColor: topic.color, paddingTop: isWeb ? 67 + 16 : insets.top + 16 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -131,33 +185,20 @@ export default function TemaScreen() {
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.id}
-            style={[
-              styles.tab,
-              {
-                borderBottomColor: activeTab === tab.id ? topic.color : "transparent",
-                borderBottomWidth: 3,
-              },
-            ]}
+            style={[styles.tab, { borderBottomColor: activeTab === tab.id ? topic.color : "transparent", borderBottomWidth: 3 }]}
             onPress={() => setActiveTab(tab.id)}
           >
-            <Feather
-              name={tab.icon}
-              size={15}
-              color={activeTab === tab.id ? topic.color : colors.mutedForeground}
-            />
-            <Text
-              style={[
-                styles.tabLabel,
-                { color: activeTab === tab.id ? topic.color : colors.mutedForeground },
-              ]}
-            >
+            <Feather name={tab.icon} size={15} color={activeTab === tab.id ? topic.color : colors.mutedForeground} />
+            <Text style={[styles.tabLabel, { color: activeTab === tab.id ? topic.color : colors.mutedForeground }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* ── PRÁCTICA (Duolingo-style, outside ScrollView) ── */}
+      {/* ══════════════════════════════════════════
+          PRÁCTICA (Duolingo-style, 2-attempt + XP)
+          ══════════════════════════════════════════ */}
       {activeTab === "practica" && (
         <View style={{ flex: 1 }}>
           {practiceFinished ? (
@@ -166,35 +207,28 @@ export default function TemaScreen() {
               showsVerticalScrollIndicator={false}
             >
               <PracticeScoreCard
-                score={practiceScore}
+                earnedXP={earnedXP}
+                maxXP={maxXP}
                 total={totalEx}
                 color={topic.color}
-                onRetry={handlePracticeRetry}
+                onRetry={resetPractice}
                 onBack={() => router.back()}
               />
             </ScrollView>
-          ) : (
+          ) : currentEx ? (
             <>
               {/* Progress bar */}
               <View style={[styles.practiceTopBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <View style={styles.progressMeta}>
                   <Text style={[styles.practiceProgress, { color: colors.mutedForeground }]}>
                     Ejercicio {practiceIdx + 1} de {totalEx}
                   </Text>
-                  <Text style={[styles.practiceScore, { color: topic.color }]}>
-                    ⭐ {practiceScore} correctas
-                  </Text>
+                  <View style={styles.xpBadge}>
+                    <Text style={[styles.xpText, { color: topic.color }]}>⭐ {earnedXP} XP</Text>
+                  </View>
                 </View>
                 <View style={[styles.progressBg, { backgroundColor: colors.border }]}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${((practiceIdx) / totalEx) * 100}%` as any,
-                        backgroundColor: topic.color,
-                      },
-                    ]}
-                  />
+                  <View style={[styles.progressFill, { width: `${(practiceIdx / totalEx) * 100}%` as any, backgroundColor: topic.color }]} />
                 </View>
               </View>
 
@@ -205,9 +239,7 @@ export default function TemaScreen() {
               >
                 {/* Question */}
                 <View style={[styles.questionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.questionText, { color: colors.foreground }]}>
-                    {currentEx.question}
-                  </Text>
+                  <Text style={[styles.questionText, { color: colors.foreground }]}>{currentEx.question}</Text>
                   {currentEx.expression && (
                     <View style={[styles.expressionBox, { backgroundColor: topic.color + "12", borderColor: topic.color + "30" }]}>
                       <Text style={[styles.expressionText, { color: topic.color }]}>{currentEx.expression}</Text>
@@ -216,116 +248,87 @@ export default function TemaScreen() {
                 </View>
 
                 {/* Options */}
-                <View style={{ gap: 8 }}>
+                <Animated.View style={{ gap: 8, transform: [{ translateX: shakeAnim }] }}>
                   {currentEx.options.map((opt) => {
-                    const isSelected = practiceAnswer === opt;
-                    const isCorrect = opt === currentEx.correctAnswer;
-                    let bg = colors.secondary;
-                    let border = colors.border;
-                    let textColor = colors.foreground;
-                    let rightIcon: "check" | "x" | null = null;
-
-                    if (practiceRevealed) {
-                      if (isCorrect) {
-                        bg = "#dcfce7"; border = "#16a34a"; textColor = "#16a34a"; rightIcon = "check";
-                      } else if (isSelected && !isCorrect) {
-                        bg = "#fee2e2"; border = "#dc2626"; textColor = "#dc2626"; rightIcon = "x";
-                      }
-                    } else if (isSelected) {
-                      bg = topic.color + "18"; border = topic.color; textColor = topic.color;
-                    }
-
+                    const s = optionStyle(opt);
+                    const isDisabled = disabledOptions.includes(opt) || phase === "revealed";
                     return (
                       <TouchableOpacity
                         key={opt}
-                        style={[styles.optionBtn, { backgroundColor: bg, borderColor: border }]}
-                        onPress={() => handlePracticeSelect(opt)}
-                        disabled={practiceRevealed}
+                        style={[styles.optionBtn, { backgroundColor: s.bg, borderColor: s.border }]}
+                        onPress={() => handleSelect(opt)}
+                        disabled={isDisabled}
                         activeOpacity={0.75}
                       >
-                        <Text style={[styles.optionText, { color: textColor }]}>{opt}</Text>
-                        {rightIcon && (
-                          <Feather
-                            name={rightIcon}
-                            size={16}
-                            color={rightIcon === "check" ? "#16a34a" : "#dc2626"}
-                          />
-                        )}
+                        <Text style={[styles.optionText, { color: s.text }]}>{opt}</Text>
+                        {s.icon && <Feather name={s.icon} size={16} color={s.text} />}
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </Animated.View>
 
-                {/* Feedback panel */}
-                {practiceRevealed && (
-                  <View
-                    style={[
-                      styles.feedbackCard,
-                      {
-                        backgroundColor: practiceAnswer === currentEx.correctAnswer ? "#f0fdf4" : "#fef2f2",
-                        borderColor: practiceAnswer === currentEx.correctAnswer ? "#16a34a40" : "#dc262640",
-                      },
-                    ]}
-                  >
+                {/* HINT (after first wrong attempt) */}
+                {phase === "hint" && (
+                  <View style={[styles.hintCard, { backgroundColor: "#fffbeb", borderColor: "#fde68a" }]}>
+                    <View style={styles.hintHeader}>
+                      <Text style={styles.hintEmoji}>💡</Text>
+                      <Text style={styles.hintTitle}>Pista — ¡inténtalo de nuevo!</Text>
+                    </View>
+                    <Text style={[styles.hintBody, { color: "#92400e" }]}>
+                      {topic.practiceHint ?? "Repasa la teoría y los ejemplos de este tema para encontrar la respuesta correcta."}
+                    </Text>
+                    <Text style={[styles.hintNote, { color: "#b45309" }]}>
+                      Si aciertas ahora ganarás {XP_SECOND_TRY} XP (en lugar de {XP_FIRST_TRY} XP).
+                    </Text>
+                  </View>
+                )}
+
+                {/* FEEDBACK (after final reveal) */}
+                {phase === "revealed" && (
+                  <View style={[
+                    styles.feedbackCard,
+                    {
+                      backgroundColor: selectedAnswer === currentEx.correctAnswer ? "#f0fdf4" : "#fef2f2",
+                      borderColor:     selectedAnswer === currentEx.correctAnswer ? "#16a34a40" : "#dc262640",
+                    },
+                  ]}>
                     <View style={styles.feedbackHeader}>
                       <Text style={styles.feedbackEmoji}>
-                        {practiceAnswer === currentEx.correctAnswer ? "🎉" : "💡"}
+                        {selectedAnswer === currentEx.correctAnswer ? "🎉" : "💡"}
                       </Text>
-                      <Text
-                        style={[
-                          styles.feedbackTitle,
-                          { color: practiceAnswer === currentEx.correctAnswer ? "#16a34a" : "#dc2626" },
-                        ]}
-                      >
-                        {practiceAnswer === currentEx.correctAnswer ? "¡Correcto!" : "Incorrecto"}
+                      <Text style={[styles.feedbackTitle, { color: selectedAnswer === currentEx.correctAnswer ? "#16a34a" : "#dc2626" }]}>
+                        {selectedAnswer === currentEx.correctAnswer ? "¡Correcto!" : "Respuesta incorrecta"}
                       </Text>
                     </View>
-                    {practiceAnswer !== currentEx.correctAnswer && (
+                    {selectedAnswer !== currentEx.correctAnswer && (
                       <View style={[styles.correctAnswerTag, { backgroundColor: "#dcfce7", borderColor: "#16a34a30" }]}>
                         <Feather name="check-circle" size={13} color="#16a34a" />
-                        <Text style={styles.correctAnswerText}>
-                          Respuesta correcta: {currentEx.correctAnswer}
-                        </Text>
+                        <Text style={styles.correctAnswerText}>Respuesta correcta: {currentEx.correctAnswer}</Text>
                       </View>
                     )}
-                    <Text style={[styles.feedbackExplanation, { color: "#374151" }]}>
-                      {currentEx.explanation}
-                    </Text>
+                    <Text style={[styles.feedbackExplanation, { color: "#374151" }]}>{currentEx.explanation}</Text>
                   </View>
                 )}
               </ScrollView>
 
               {/* Bottom action bar */}
-              <View
-                style={[
-                  styles.bottomBar,
-                  {
-                    backgroundColor: colors.card,
-                    borderTopColor: colors.border,
-                    paddingBottom: isWeb ? 34 : insets.bottom + 8,
-                  },
-                ]}
-              >
-                {!practiceRevealed ? (
+              <View style={[styles.bottomBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: isWeb ? 34 : insets.bottom + 8 }]}>
+                {phase !== "revealed" ? (
                   <TouchableOpacity
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: practiceAnswer ? topic.color : colors.border,
-                        opacity: practiceAnswer ? 1 : 0.55,
-                      },
-                    ]}
-                    onPress={handlePracticeVerify}
-                    disabled={!practiceAnswer}
+                    style={[styles.actionBtn, { backgroundColor: selectedAnswer ? (phase === "hint" ? "#d97706" : topic.color) : colors.border, opacity: selectedAnswer ? 1 : 0.55 }]}
+                    onPress={handleVerify}
+                    disabled={!selectedAnswer}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.actionBtnText}>Verificar</Text>
-                    <Feather name="check" size={18} color="#fff" />
+                    <Text style={styles.actionBtnText}>
+                      {phase === "hint" ? "Verificar de nuevo" : "Verificar"}
+                    </Text>
+                    <Feather name={phase === "hint" ? "refresh-cw" : "check"} size={18} color="#fff" />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: topic.color }]}
-                    onPress={handlePracticeContinue}
+                    onPress={handleContinue}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.actionBtnText}>
@@ -336,21 +339,17 @@ export default function TemaScreen() {
                 )}
               </View>
             </>
-          )}
+          ) : null}
         </View>
       )}
 
-      {/* ── TEORIA & EJEMPLOS (in ScrollView) ── */}
+      {/* ── TEORIA & EJEMPLOS ── */}
       {activeTab !== "practica" && (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: isWeb ? 34 + 24 : insets.bottom + 24 },
-          ]}
+          contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 + 24 : insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── TEORÍA ── */}
           {activeTab === "teoria" && (
             <View style={styles.section}>
               <View style={[styles.defBox, { backgroundColor: topic.color + "12", borderColor: topic.color + "30" }]}>
@@ -381,16 +380,12 @@ export default function TemaScreen() {
                 </View>
               ))}
 
-              <TouchableOpacity
-                style={[styles.nextTabBtn, { backgroundColor: topic.color }]}
-                onPress={() => setActiveTab("ejemplos")}
-              >
+              <TouchableOpacity style={[styles.nextTabBtn, { backgroundColor: topic.color }]} onPress={() => setActiveTab("ejemplos")}>
                 <Text style={styles.nextTabBtnText}>Ver ejemplos →</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ── EJEMPLOS ── */}
           {activeTab === "ejemplos" && (
             <View style={styles.section}>
               {topic.examples.map((ex, idx) => (
@@ -423,10 +418,7 @@ export default function TemaScreen() {
                 </View>
               ))}
 
-              <TouchableOpacity
-                style={[styles.nextTabBtn, { backgroundColor: topic.color }]}
-                onPress={() => setActiveTab("practica")}
-              >
+              <TouchableOpacity style={[styles.nextTabBtn, { backgroundColor: topic.color }]} onPress={() => setActiveTab("practica")}>
                 <Text style={styles.nextTabBtnText}>Ir a práctica →</Text>
               </TouchableOpacity>
             </View>
@@ -437,35 +429,58 @@ export default function TemaScreen() {
   );
 }
 
+// ── Score Card ───────────────────────────────────────────────────────
 function PracticeScoreCard({
-  score, total, color, onRetry, onBack,
+  earnedXP, maxXP, total, color, onRetry, onBack,
 }: {
-  score: number; total: number; color: string; onRetry: () => void; onBack: () => void;
+  earnedXP: number; maxXP: number; total: number; color: string; onRetry: () => void; onBack: () => void;
 }) {
-  const pct = Math.round((score / total) * 100);
-  const level = pct >= 80 ? "¡Excelente!" : pct >= 60 ? "¡Bien hecho!" : "Sigue practicando";
-  const emoji = pct >= 80 ? "🌟" : pct >= 60 ? "👍" : "💪";
-  const colors = useColors();
+  const pct     = maxXP > 0 ? Math.round((earnedXP / maxXP) * 100) : 0;
+  const passed  = pct >= Math.round(XP_PASS_PCT * 100);
+  const level   = pct >= 90 ? "¡Excelente!" : pct >= 70 ? "¡Bien hecho!" : "Sigue practicando";
+  const emoji   = pct >= 90 ? "🌟" : pct >= 70 ? "👍" : "💪";
+  const colors  = useColors();
 
   return (
     <View style={{ gap: 16, paddingTop: 8 }}>
       <View style={[styles.scoreCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={styles.scoreEmoji}>{emoji}</Text>
         <Text style={[styles.scoreTitle, { color }]}>{level}</Text>
-        <Text style={[styles.scoreValue, { color }]}>{score}/{total} correctas</Text>
-        <View style={[styles.scorePctBg, { backgroundColor: colors.border }]}>
-          <View style={[styles.scorePctFill, { width: `${pct}%` as any, backgroundColor: color }]} />
-        </View>
-        <Text style={[styles.scorePctLabel, { color: colors.mutedForeground }]}>{pct}% de acierto</Text>
 
-        {pct < 70 && (
-          <View style={[styles.hintBox, { backgroundColor: "#fef3c7", borderColor: "#fde68a" }]}>
+        {/* XP display */}
+        <View style={[styles.xpResultRow, { backgroundColor: color + "12", borderColor: color + "30" }]}>
+          <Text style={[styles.xpResultValue, { color }]}>⭐ {earnedXP} / {maxXP} XP</Text>
+          <Text style={[styles.xpResultPct, { color: passed ? "#059669" : "#dc2626" }]}>
+            {pct}% {passed ? "✅ Aprobado" : "❌ Necesitas más"}
+          </Text>
+        </View>
+
+        <View style={[styles.scorePctBg, { backgroundColor: colors.border }]}>
+          <View style={[styles.scorePctFill, { width: `${pct}%` as any, backgroundColor: passed ? "#059669" : "#d97706" }]} />
+        </View>
+
+        {passed ? (
+          <View style={[styles.passedBox, { backgroundColor: "#f0fdf4", borderColor: "#bbf7d0" }]}>
+            <Feather name="award" size={15} color="#059669" />
+            <Text style={[styles.passedText, { color: "#059669" }]}>
+              ¡Superaste el 85% de XP! Tema completado.
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.hintBoxSmall, { backgroundColor: "#fef3c7", borderColor: "#fde68a" }]}>
             <Feather name="zap" size={14} color="#d97706" />
-            <Text style={[styles.hintText, { color: "#92400e" }]}>
-              Te recomendamos repasar la teoría y los ejemplos antes de reintentar.
+            <Text style={[styles.hintSmallText, { color: "#92400e" }]}>
+              Necesitas al menos 85% de XP ({Math.ceil(maxXP * XP_PASS_PCT)} XP). Repasa la teoría y vuelve a intentarlo.
             </Text>
           </View>
         )}
+      </View>
+
+      <View style={[styles.xpLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.xpLegendTitle, { color: colors.foreground }]}>Sistema de XP:</Text>
+        <Text style={[styles.xpLegendRow, { color: colors.mutedForeground }]}>🥇 Respuesta correcta al 1.er intento: {XP_FIRST_TRY} XP</Text>
+        <Text style={[styles.xpLegendRow, { color: colors.mutedForeground }]}>🥈 Correcta al 2.° intento (con pista): {XP_SECOND_TRY} XP</Text>
+        <Text style={[styles.xpLegendRow, { color: colors.mutedForeground }]}>❌ Incorrecta ambos intentos: 0 XP</Text>
       </View>
 
       <TouchableOpacity style={[styles.retryBtn, { backgroundColor: color }]} onPress={onRetry}>
@@ -486,8 +501,8 @@ function PracticeScoreCard({
 
 function sectionLabel(sectionId: string): string {
   const labels: Record<string, string> = {
-    saberes: "Zona de Repaso",
-    algebra: "Introducción al Álgebra",
+    saberes:     "Zona de Repaso",
+    algebra:     "Introducción al Álgebra",
     operaciones: "Operaciones Algebraicas",
   };
   return labels[sectionId] ?? sectionId;
@@ -517,19 +532,15 @@ const styles = StyleSheet.create({
   defBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start", marginBottom: 8 },
   defBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   defText: { fontSize: 14, lineHeight: 22 },
-
   theoryCard: { borderRadius: 14, borderWidth: 1, flexDirection: "row", overflow: "hidden" },
   theoryAccent: { width: 4, flexShrink: 0 },
   theoryBody: { flex: 1, padding: 14, gap: 8 },
   theoryTitle: { fontSize: 14, fontWeight: "700" },
   theoryContent: { fontSize: 13, lineHeight: 21 },
-
   formulaBox: { borderRadius: 8, borderWidth: 1, padding: 10 },
   formulaText: { fontSize: 13, fontWeight: "700", fontFamily: "monospace" as any },
-
   tipBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderRadius: 8, borderWidth: 1, padding: 10, borderColor: "#fde68a" },
   tipText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "500" },
-
   nextTabBtn: { borderRadius: 12, paddingVertical: 13, alignItems: "center" },
   nextTabBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
@@ -544,62 +555,70 @@ const styles = StyleSheet.create({
   exExprBox: { borderRadius: 8, borderWidth: 1, padding: 10 },
   exExpr: { fontSize: 14, fontWeight: "700", textAlign: "center" },
   stepsLabel: { fontSize: 12, fontWeight: "600", marginTop: 4 },
-  stepRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   stepDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6, flexShrink: 0 },
   stepText: { flex: 1, fontSize: 13, lineHeight: 20 },
-  resultBox: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, borderWidth: 1, padding: 10 },
+  resultBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 8, borderWidth: 1, padding: 10 },
   resultText: { fontSize: 13, fontWeight: "700" },
 
-  // Práctica (Duolingo)
+  // Práctica
   practiceContent: { padding: 16 },
-  practiceTopBar: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
-  practiceProgress: { fontSize: 12, fontWeight: "600" },
-  practiceScore: { fontSize: 12, fontWeight: "700" },
-  progressBg: { height: 7, borderRadius: 4, overflow: "hidden" },
-  progressFill: { height: "100%", borderRadius: 4 },
+  practiceTopBar: { padding: 12, borderBottomWidth: 1 },
+  progressMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  practiceProgress: { fontSize: 13, fontWeight: "600" },
+  xpBadge: { flexDirection: "row", alignItems: "center" },
+  xpText: { fontSize: 14, fontWeight: "800" },
+  progressBg: { height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
 
-  questionCard: { borderRadius: 16, borderWidth: 1, padding: 18 },
-  questionText: { fontSize: 16, fontWeight: "600", lineHeight: 24, marginBottom: 10 },
-  expressionBox: { borderRadius: 10, borderWidth: 1, padding: 12, alignItems: "center", marginTop: 4 },
-  expressionText: { fontSize: 22, fontWeight: "800", letterSpacing: 1 },
+  questionCard: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 10 },
+  questionText: { fontSize: 15, fontWeight: "700", lineHeight: 22 },
+  expressionBox: { borderRadius: 10, padding: 12, borderWidth: 1, alignItems: "center" },
+  expressionText: { fontSize: 16, fontWeight: "800", fontFamily: "monospace" as any },
 
-  optionBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderRadius: 12, borderWidth: 1.5, paddingVertical: 14, paddingHorizontal: 16,
-  },
-  optionText: { fontSize: 15, fontWeight: "600", flex: 1 },
+  optionBtn: { borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  optionText: { fontSize: 14, fontWeight: "600", flex: 1 },
 
-  feedbackCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
+  // Hint card
+  hintCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, gap: 8 },
+  hintHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hintEmoji: { fontSize: 20 },
+  hintTitle: { fontSize: 14, fontWeight: "800", color: "#92400e" },
+  hintBody: { fontSize: 13, lineHeight: 20 },
+  hintNote: { fontSize: 12, fontStyle: "italic" },
+
+  // Feedback card
+  feedbackCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
   feedbackHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   feedbackEmoji: { fontSize: 22 },
   feedbackTitle: { fontSize: 16, fontWeight: "800" },
-  correctAnswerTag: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    borderRadius: 8, borderWidth: 1, padding: 8,
-  },
-  correctAnswerText: { fontSize: 13, fontWeight: "700", color: "#16a34a", flex: 1 },
+  correctAnswerTag: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, borderWidth: 1, padding: 8 },
+  correctAnswerText: { fontSize: 13, fontWeight: "600", color: "#16a34a" },
   feedbackExplanation: { fontSize: 13, lineHeight: 20 },
 
-  bottomBar: {
-    paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1,
-    position: "absolute", bottom: 0, left: 0, right: 0,
-  },
-  actionBtn: {
-    borderRadius: 14, paddingVertical: 15,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-  },
-  actionBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  // Bottom bar
+  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 12, borderTopWidth: 1 },
+  actionBtn: { borderRadius: 14, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  actionBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 
   // Score card
-  scoreCard: { borderRadius: 16, borderWidth: 1, padding: 24, alignItems: "center", gap: 10 },
+  scoreCard: { borderRadius: 20, borderWidth: 1, padding: 20, alignItems: "center", gap: 14 },
   scoreEmoji: { fontSize: 52 },
   scoreTitle: { fontSize: 22, fontWeight: "800" },
-  scoreValue: { fontSize: 18, fontWeight: "700" },
-  scorePctBg: { width: "100%", height: 8, borderRadius: 4, overflow: "hidden", marginVertical: 4 },
+  xpResultRow: { borderRadius: 12, borderWidth: 1, padding: 12, alignItems: "center", gap: 4, width: "100%" },
+  xpResultValue: { fontSize: 18, fontWeight: "800" },
+  xpResultPct: { fontSize: 14, fontWeight: "700" },
+  scorePctBg: { height: 8, borderRadius: 4, overflow: "hidden", width: "100%" },
   scorePctFill: { height: "100%", borderRadius: 4 },
-  scorePctLabel: { fontSize: 13 },
-  hintBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, borderRadius: 10, borderWidth: 1, padding: 10, width: "100%" },
-  hintText: { flex: 1, fontSize: 12, lineHeight: 18 },
-  retryBtn: { borderRadius: 14, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  retryBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  passedBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, width: "100%" },
+  passedText: { flex: 1, fontSize: 13, fontWeight: "600" },
+  hintBoxSmall: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, width: "100%" },
+  hintSmallText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: "500" },
+
+  xpLegend: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 6 },
+  xpLegendTitle: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
+  xpLegendRow: { fontSize: 12, lineHeight: 18 },
+
+  retryBtn: { borderRadius: 14, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  retryBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });
