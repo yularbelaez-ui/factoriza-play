@@ -19,7 +19,7 @@ import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
-type Tab = "students" | "secciones" | "errors" | "eval" | "codes";
+type Tab = "students" | "comunidad" | "secciones" | "errors" | "eval" | "codes";
 
 export default function DocenteScreen() {
   const colors = useColors();
@@ -82,11 +82,12 @@ export default function DocenteScreen() {
   };
 
   const TABS: { id: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { id: "students", label: "Estudiantes", icon: "users" },
-    { id: "secciones", label: "Secciones", icon: "layers" },
-    { id: "errors", label: "Errores", icon: "alert-triangle" },
-    { id: "eval", label: "Exámenes", icon: "clipboard" },
-    { id: "codes", label: "Códigos", icon: "key" },
+    { id: "students",   label: "Estudiantes", icon: "users"          },
+    { id: "comunidad",  label: "Comunidad",   icon: "award"          },
+    { id: "secciones",  label: "Secciones",   icon: "layers"         },
+    { id: "errors",     label: "Errores",     icon: "alert-triangle" },
+    { id: "eval",       label: "Exámenes",    icon: "clipboard"      },
+    { id: "codes",      label: "Códigos",     icon: "key"            },
   ];
 
   const filterChips = (
@@ -367,6 +368,122 @@ export default function DocenteScreen() {
           )}
         </View>
       )}
+
+      {/* ── COMUNIDAD TAB ── */}
+      {activeTab === "comunidad" && (() => {
+        const communityStudents = [...allStudents]
+          .filter((s) => filterClass === "all" || s.classCode === filterClass)
+          .sort((a, b) => b.totalXP - a.totalXP);
+
+        const totalXPSum = communityStudents.reduce((acc, s) => acc + s.totalXP, 0);
+        const avgXP = communityStudents.length > 0 ? Math.round(totalXPSum / communityStudents.length) : 0;
+        const topXP  = communityStudents.length > 0 ? communityStudents[0].totalXP : 0;
+        const activeStudents = communityStudents.filter((s) => s.streak > 0).length;
+        const medalIcons = ["🥇", "🥈", "🥉"];
+
+        return (
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Comunidad y Ranking
+            </Text>
+            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+              Participación y posicionamiento de tus estudiantes
+            </Text>
+
+            {/* Summary stats */}
+            <View style={styles.commSummaryRow}>
+              {[
+                { label: "Total",     value: String(communityStudents.length), icon: "👥", color: colors.primary },
+                { label: "XP líder",  value: String(topXP),  icon: "🥇", color: "#d97706" },
+                { label: "XP prom.",  value: String(avgXP),  icon: "⭐", color: colors.success },
+                { label: "Con racha", value: String(activeStudents), icon: "🔥", color: "#dc2626" },
+              ].map((s) => (
+                <View key={s.label} style={[styles.commStatCard, { backgroundColor: s.color + "12", borderColor: s.color + "25" }]}>
+                  <Text style={styles.commStatIcon}>{s.icon}</Text>
+                  <Text style={[styles.commStatValue, { color: s.color }]}>{s.value}</Text>
+                  <Text style={[styles.commStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Class filter */}
+            {classCodes.length > 0 && filterChips}
+
+            {communityStudents.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="award" size={28} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  Ningún estudiante registrado en esta clase aún
+                </Text>
+              </View>
+            ) : (
+              communityStudents.map((student, index) => {
+                const rank = index + 1;
+                const correctCount  = student.exerciseResults.filter((r) => r.correct).length;
+                const totalResults  = student.exerciseResults.length;
+                const pct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0;
+                const casesDone = student.completedModules.length;
+                const topicsDone = (student.completedTopics ?? []).length;
+
+                return (
+                  <View
+                    key={student.id}
+                    style={[
+                      styles.commRow,
+                      {
+                        backgroundColor: rank <= 3 ? colors.card : colors.card,
+                        borderColor: rank === 1 ? "#f59e0b60" : rank === 2 ? "#94a3b860" : rank === 3 ? "#cd7c3a60" : colors.border,
+                        borderLeftWidth: rank <= 3 ? 4 : 1,
+                        borderLeftColor: rank === 1 ? "#f59e0b" : rank === 2 ? "#94a3b8" : rank === 3 ? "#cd7c3a" : colors.border,
+                      },
+                    ]}
+                  >
+                    {/* Rank + Avatar */}
+                    <View style={styles.commRankCol}>
+                      {rank <= 3 ? (
+                        <Text style={styles.commMedal}>{medalIcons[rank - 1]}</Text>
+                      ) : (
+                        <Text style={[styles.commRankNum, { color: colors.mutedForeground }]}>#{rank}</Text>
+                      )}
+                      <Text style={styles.commAvatar}>{student.avatar}</Text>
+                    </View>
+
+                    {/* Info */}
+                    <View style={styles.commInfo}>
+                      <View style={styles.commNameRow}>
+                        <Text style={[styles.commName, { color: colors.foreground }]} numberOfLines={1}>
+                          {student.pseudonym}
+                        </Text>
+                        <View style={[styles.commClassBadge, { backgroundColor: colors.primary + "15" }]}>
+                          <Text style={[styles.commClassText, { color: colors.primary }]}>{student.classCode}</Text>
+                        </View>
+                      </View>
+
+                      {/* Quick stats row */}
+                      <View style={styles.commQuickStats}>
+                        <Text style={[styles.commStat, { color: "#d97706" }]}>⭐ {student.totalXP} XP</Text>
+                        <Text style={[styles.commStat, { color: "#dc2626" }]}>🔥 {student.streak}</Text>
+                        <Text style={[styles.commStat, { color: colors.success }]}>📚 {casesDone}/8</Text>
+                        <Text style={[styles.commStat, { color: colors.mutedForeground }]}>📖 {topicsDone} temas</Text>
+                      </View>
+
+                      {/* Accuracy bar */}
+                      {totalResults > 0 && (
+                        <View style={styles.commAccRow}>
+                          <View style={[styles.commAccBg, { backgroundColor: colors.border }]}>
+                            <View style={[styles.commAccFill, { width: `${pct}%` as any, backgroundColor: pct >= 70 ? colors.success : "#d97706" }]} />
+                          </View>
+                          <Text style={[styles.commAccPct, { color: pct >= 70 ? colors.success : "#d97706" }]}>{pct}%</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        );
+      })()}
 
       {/* ── SECCIONES TAB ── */}
       {activeTab === "secciones" && (
@@ -748,6 +865,31 @@ const styles = StyleSheet.create({
   moduleChip: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, gap: 6 },
   moduleChipIcon: { fontSize: 14 },
   moduleChipText: { fontSize: 12, fontWeight: "600" },
+  // Comunidad tab
+  commSummaryRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  commStatCard: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 10, alignItems: "center", gap: 2 },
+  commStatIcon: { fontSize: 18 },
+  commStatValue: { fontSize: 16, fontWeight: "800" },
+  commStatLabel: { fontSize: 9, fontWeight: "600" },
+  commRow: {
+    borderRadius: 16, borderWidth: 1, padding: 12,
+    marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10,
+  },
+  commRankCol: { alignItems: "center", width: 38, gap: 2 },
+  commMedal: { fontSize: 20 },
+  commRankNum: { fontSize: 13, fontWeight: "800" },
+  commAvatar: { fontSize: 22 },
+  commInfo: { flex: 1, gap: 5 },
+  commNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  commName: { fontSize: 14, fontWeight: "700", flex: 1 },
+  commClassBadge: { borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  commClassText: { fontSize: 10, fontWeight: "700" },
+  commQuickStats: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  commStat: { fontSize: 11, fontWeight: "700" },
+  commAccRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  commAccBg: { flex: 1, height: 5, borderRadius: 3, overflow: "hidden" },
+  commAccFill: { height: "100%", borderRadius: 3 },
+  commAccPct: { fontSize: 11, fontWeight: "800", width: 32, textAlign: "right" },
   // Diagnostic summary
   diagSummaryCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 20, gap: 10 },
   diagSummaryHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
