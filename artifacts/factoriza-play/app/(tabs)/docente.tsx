@@ -19,6 +19,19 @@ import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 
+// Mapa: categoría de error → tema de S1/S2/S3 recomendado para el docente
+const ERROR_TO_TOPIC_DOCENTE: Record<string, { title: string; section: string; color: string; icon: string }> = {
+  operaciones:  { title: "Multiplicación de polinomios",      section: "S3 · Operaciones Algebraicas", color: "#059669", icon: "⚙️" },
+  ley_signos:   { title: "Números Enteros y Ley de Signos",   section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  variables:    { title: "Términos semejantes y polinomios",  section: "S2 · Introducción al Álgebra",  color: "#2563eb", icon: "✏️" },
+  equality:     { title: "Expresión y término algebraico",    section: "S2 · Introducción al Álgebra",  color: "#2563eb", icon: "✏️" },
+  potenciacion: { title: "Potencias y sus propiedades",       section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  radicacion:   { title: "Radicación y números irracionales", section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  arithmetic:   { title: "Operaciones con números naturales", section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  powers:       { title: "Potencias y sus propiedades",       section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  operations:   { title: "Suma y resta de polinomios",        section: "S3 · Operaciones Algebraicas", color: "#059669", icon: "⚙️" },
+};
+
 type Tab = "students" | "comunidad" | "secciones" | "errors" | "eval" | "codes";
 
 export default function DocenteScreen() {
@@ -694,19 +707,32 @@ export default function DocenteScreen() {
 
           {classCodes.length > 0 && filterChips}
 
-          {errorSummary.sort((a, b) => b.count - a.count).map((err, i) => (
-            <View key={err.category} style={[styles.errorCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.errorHeader}>
-                <View style={[styles.errorNum, { backgroundColor: i === 0 ? colors.error + "20" : colors.secondary }]}>
-                  <Text style={[styles.errorNumText, { color: i === 0 ? colors.error : colors.mutedForeground }]}>#{i + 1}</Text>
+          {errorSummary.sort((a, b) => b.count - a.count).map((err, i) => {
+            const remediation = ERROR_TO_TOPIC_DOCENTE[err.category];
+            return (
+              <View key={err.category} style={[styles.errorCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.errorHeader}>
+                  <View style={[styles.errorNum, { backgroundColor: i === 0 ? colors.error + "20" : colors.secondary }]}>
+                    <Text style={[styles.errorNumText, { color: i === 0 ? colors.error : colors.mutedForeground }]}>#{i + 1}</Text>
+                  </View>
+                  <Text style={[styles.errorLabel, { color: colors.foreground }]} numberOfLines={2}>{err.label}</Text>
+                  <Text style={[styles.errorCount, { color: colors.mutedForeground }]}>{err.count}</Text>
                 </View>
-                <Text style={[styles.errorLabel, { color: colors.foreground }]} numberOfLines={2}>{err.label}</Text>
-                <Text style={[styles.errorCount, { color: colors.mutedForeground }]}>{err.count}</Text>
+                <ProgressBar progress={err.percentage} color={i === 0 ? colors.error : colors.primary} height={5} />
+                <Text style={[{ fontSize: 10, color: colors.mutedForeground, marginTop: 5 }]}>{err.percentage}% de los errores</Text>
+                {remediation && (
+                  <View style={[styles.errorRemediationRow, { backgroundColor: remediation.color + "10", borderColor: remediation.color + "30" }]}>
+                    <Text style={{ fontSize: 13 }}>{remediation.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.errorRemediationLabel, { color: remediation.color }]}>Reforzar en clase →</Text>
+                      <Text style={[styles.errorRemediationTopic, { color: colors.foreground }]} numberOfLines={1}>{remediation.title}</Text>
+                      <Text style={[styles.errorRemediationSection, { color: colors.mutedForeground }]}>{remediation.section}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
-              <ProgressBar progress={err.percentage} color={i === 0 ? colors.error : colors.primary} height={5} />
-              <Text style={[{ fontSize: 10, color: colors.mutedForeground, marginTop: 5 }]}>{err.percentage}% de los errores</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -860,6 +886,13 @@ const styles = StyleSheet.create({
   errorNumText: { fontSize: 11, fontWeight: "800" },
   errorLabel: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   errorCount: { fontSize: 18, fontWeight: "800" },
+  errorRemediationRow: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    borderRadius: 10, borderWidth: 1, padding: 10, marginTop: 10,
+  },
+  errorRemediationLabel: { fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.4 },
+  errorRemediationTopic: { fontSize: 13, fontWeight: "700", marginTop: 1 },
+  errorRemediationSection: { fontSize: 11, marginTop: 1 },
   emptyCard: { borderRadius: 16, padding: 28, alignItems: "center", borderWidth: 1, gap: 10 },
   emptyText: { fontSize: 14, textAlign: "center" },
   moduleChip: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, gap: 6 },

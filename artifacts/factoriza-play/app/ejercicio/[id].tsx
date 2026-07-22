@@ -25,6 +25,19 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
+// Mapa: categoría de error → tema de S1/S2/S3 a reforzar
+const ERROR_TO_TOPIC: Record<string, { topicId: string; title: string; section: string; color: string; icon: string }> = {
+  operaciones:  { topicId: "s3-multiplicacion", title: "Multiplicación de polinomios",      section: "S3 · Operaciones Algebraicas", color: "#059669", icon: "⚙️" },
+  ley_signos:   { topicId: "s1-enteros",         title: "Números Enteros y Ley de Signos",  section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  variables:    { topicId: "s2-semejantes",       title: "Términos semejantes y polinomios", section: "S2 · Introducción al Álgebra", color: "#2563eb", icon: "✏️" },
+  equality:     { topicId: "s2-expresion",        title: "Expresión y término algebraico",   section: "S2 · Introducción al Álgebra", color: "#2563eb", icon: "✏️" },
+  potenciacion: { topicId: "s1-potencias",        title: "Potencias y sus propiedades",      section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  radicacion:   { topicId: "s1-irracionales",     title: "Radicación y números irracionales",section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  arithmetic:   { topicId: "s1-naturales",        title: "Operaciones con naturales",        section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  powers:       { topicId: "s1-potencias",        title: "Potencias y sus propiedades",      section: "S1 · Zona de Repaso",          color: "#7c3aed", icon: "🧮" },
+  operations:   { topicId: "s3-suma-resta",       title: "Suma y resta de polinomios",       section: "S3 · Operaciones Algebraicas", color: "#059669", icon: "⚙️" },
+};
+
 const ERROR_HINTS: Record<string, { title: string; hint: string; tip: string; icon: string }> = {
   operaciones: {
     icon: "🔢",
@@ -133,6 +146,7 @@ export default function EjercicioScreen() {
 
   const isCorrect = selected === exercise.correctAnswer;
   const errorHint = ERROR_HINTS[exercise.errorCategory] ?? ERROR_HINTS["arithmetic"];
+  const remediation = ERROR_TO_TOPIC[exercise.errorCategory] ?? null;
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -411,13 +425,30 @@ export default function EjercicioScreen() {
             <Feather name="zap" size={14} color={colors.accent} />
             <Text style={[styles.tipText, { color: colors.foreground }]}>{errorHint.tip}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.practicaBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/practica/${exercise.errorCategory}` as any)}
-          >
-            <Feather name="layers" size={15} color="#fff" />
-            <Text style={styles.goTheoryText}>Ir a practicar este concepto</Text>
-          </TouchableOpacity>
+          {/* Recomendación: ir al tema de S1/S2/S3 relacionado con el error */}
+          {remediation && (
+            <TouchableOpacity
+              style={[styles.remediationBtn, { backgroundColor: remediation.color + "12", borderColor: remediation.color + "40" }]}
+              onPress={() => router.push(`/tema/${remediation.topicId}` as any)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.remediationIcon, { backgroundColor: remediation.color + "20" }]}>
+                <Text style={{ fontSize: 16 }}>{remediation.icon}</Text>
+              </View>
+              <View style={styles.remediationInfo}>
+                <Text style={[styles.remediationLabel, { color: remediation.color }]}>
+                  💡 Refuerza este concepto
+                </Text>
+                <Text style={[styles.remediationTitle, { color: remediation.color }]} numberOfLines={1}>
+                  {remediation.title}
+                </Text>
+                <Text style={[styles.remediationSection, { color: remediation.color + "aa" }]}>
+                  {remediation.section}
+                </Text>
+              </View>
+              <Feather name="arrow-right-circle" size={20} color={remediation.color} />
+            </TouchableOpacity>
+          )}
           {showTheoryBtn && (
             <TouchableOpacity
               style={[styles.goTheoryBtn, { backgroundColor: module.color }]}
@@ -549,14 +580,18 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   tipText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  practicaBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 12,
-    padding: 14,
+  remediationBtn: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderRadius: 14, borderWidth: 1.5, padding: 12,
   },
+  remediationIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    justifyContent: "center", alignItems: "center",
+  },
+  remediationInfo: { flex: 1, gap: 1 },
+  remediationLabel: { fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  remediationTitle: { fontSize: 13, fontWeight: "700" },
+  remediationSection: { fontSize: 11 },
   goTheoryBtn: {
     flexDirection: "row",
     alignItems: "center",

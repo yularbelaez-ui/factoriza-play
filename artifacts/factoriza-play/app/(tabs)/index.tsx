@@ -19,13 +19,18 @@ import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
 const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
-  naturales:    { topicId: "s1-naturales",    title: "Números Naturales y Operaciones",   icon: "🔢", section: "Zona de Repaso" },
-  decimales:    { topicId: "s1-decimales",    title: "Números Decimales y Operaciones",   icon: "🔸", section: "Zona de Repaso" },
-  enteros:      { topicId: "s1-enteros",      title: "Números Enteros y Negativos",       icon: "➖", section: "Zona de Repaso" },
-  irracionales: { topicId: "s1-irracionales", title: "Números Irracionales",              icon: "√", section: "Zona de Repaso" },
-  reales:       { topicId: "s1-reales",       title: "Números Reales",                    icon: "♾️", section: "Zona de Repaso" },
-  potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",       icon: "⚡", section: "Zona de Repaso" },
-  factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos", icon: "🔑", section: "Zona de Repaso" },
+  // S1 — Zona de Repaso
+  naturales:    { topicId: "s1-naturales",    title: "Números Naturales y Operaciones",   icon: "🔢", section: "S1 · Zona de Repaso" },
+  decimales:    { topicId: "s1-decimales",    title: "Números Decimales y Operaciones",   icon: "🔸", section: "S1 · Zona de Repaso" },
+  enteros:      { topicId: "s1-enteros",      title: "Números Enteros y Ley de Signos",  icon: "➖", section: "S1 · Zona de Repaso" },
+  irracionales: { topicId: "s1-irracionales", title: "Números Irracionales y Radicación",icon: "√",  section: "S1 · Zona de Repaso" },
+  reales:       { topicId: "s1-reales",       title: "Números Reales",                   icon: "♾️", section: "S1 · Zona de Repaso" },
+  potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",      icon: "⚡", section: "S1 · Zona de Repaso" },
+  factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos",icon: "🔑", section: "S1 · Zona de Repaso" },
+  // S2 — Álgebra Básica
+  algebra:      { topicId: "s2-semejantes",   title: "Términos semejantes y valor numérico", icon: "✏️", section: "S2 · Introducción al Álgebra" },
+  // S3 — Operaciones Algebraicas
+  operaciones:  { topicId: "s3-productos",    title: "Productos notables",               icon: "⚙️", section: "S3 · Operaciones Algebraicas" },
 };
 
 // ── Colores de paso según puntaje ────────────────────────────────────

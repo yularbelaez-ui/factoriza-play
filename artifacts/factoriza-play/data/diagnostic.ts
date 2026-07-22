@@ -5,7 +5,9 @@ export type DiagnosticCategory =
   | "irracionales"
   | "reales"
   | "potencias"
-  | "factorizacion";
+  | "factorizacion"
+  | "algebra"
+  | "operaciones";
 
 export interface DiagnosticQuestion {
   id: string;
@@ -202,6 +204,64 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
     explanation: "Potencia de potencia: se multiplican los exponentes. (2³)² = 2^(3×2) = 2⁶ = 64.",
   },
 
+  // ── ÁLGEBRA BÁSICA (S2) ──────────────────────────────────────────
+  {
+    id: "alg-1",
+    category: "algebra",
+    question: "Evalúa la expresión para x = 3:",
+    expression: "2x² − 5x + 1",
+    options: ["4", "7", "10", "−2"],
+    correctAnswer: "4",
+    explanation: "2(3)² − 5(3) + 1 = 2·9 − 15 + 1 = 18 − 15 + 1 = 4.",
+  },
+  {
+    id: "alg-2",
+    category: "algebra",
+    question: "¿Cuál es el resultado de simplificar los términos semejantes?",
+    expression: "3x² + 5x − 2x² + x",
+    options: ["x² + 6x", "5x² + 6x", "x² + 4x", "5x + x²"],
+    correctAnswer: "x² + 6x",
+    explanation: "Agrupa términos semejantes: (3x²−2x²) + (5x+x) = x² + 6x.",
+  },
+  {
+    id: "alg-3",
+    category: "algebra",
+    question: "¿Cuál es el grado del polinomio?",
+    expression: "4x³ − 7x + 2",
+    options: ["3", "4", "2", "1"],
+    correctAnswer: "3",
+    explanation: "El grado de un polinomio es el mayor exponente de sus términos. Aquí el mayor exponente es 3.",
+  },
+
+  // ── OPERACIONES ALGEBRAICAS (S3) ─────────────────────────────────
+  {
+    id: "op-1",
+    category: "operaciones",
+    question: "Multiplica y simplifica:",
+    expression: "3x(2x + 5)",
+    options: ["6x² + 15x", "6x + 15", "5x² + 8x", "6x² + 5"],
+    correctAnswer: "6x² + 15x",
+    explanation: "Distribuye: 3x·2x = 6x² y 3x·5 = 15x. Resultado: 6x² + 15x.",
+  },
+  {
+    id: "op-2",
+    category: "operaciones",
+    question: "Aplica el producto notable (cuadrado de la suma):",
+    expression: "(x + 4)²",
+    options: ["x² + 8x + 16", "x² + 4", "x² + 16", "x² + 4x + 16"],
+    correctAnswer: "x² + 8x + 16",
+    explanation: "(a+b)² = a²+2ab+b². Aquí a=x, b=4: x²+2·x·4+16 = x²+8x+16.",
+  },
+  {
+    id: "op-3",
+    category: "operaciones",
+    question: "Multiplica usando la diferencia de cuadrados:",
+    expression: "(x + 3)(x − 3)",
+    options: ["x² − 9", "x² + 9", "x² − 6x + 9", "x² + 6x − 9"],
+    correctAnswer: "x² − 9",
+    explanation: "(a+b)(a−b) = a²−b². Aquí: x²−3² = x²−9.",
+  },
+
   // ── DESCOMPOSICIÓN EN FACTORES ───────────────────────────────────
   {
     id: "fac-1",
@@ -275,6 +335,18 @@ export const DIAGNOSTIC_CATEGORY_INFO: Record<
     color: "#7c3aed",
     description: "Descomposición de números en factores primos",
   },
+  algebra: {
+    label: "Álgebra Básica",
+    icon: "✏️",
+    color: "#2563eb",
+    description: "Expresiones algebraicas, términos semejantes, grado de polinomios",
+  },
+  operaciones: {
+    label: "Operaciones Algebraicas",
+    icon: "⚙️",
+    color: "#059669",
+    description: "Multiplicación de polinomios y productos notables",
+  },
 };
 
 export function buildDiagnosticProfile(
@@ -288,6 +360,8 @@ export function buildDiagnosticProfile(
     "reales",
     "potencias",
     "factorizacion",
+    "algebra",
+    "operaciones",
   ];
 
   const results: DiagnosticResult[] = categories.map((cat) => {
