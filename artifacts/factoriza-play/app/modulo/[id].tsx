@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
+import { ProcedureDiagram } from "@/components/ProcedureDiagram";
 
 // Divide exercises into 3 levels
 function getExerciseLevels(exercises: typeof MODULES[0]["exercises"]) {
@@ -153,6 +154,10 @@ export default function ModuloScreen() {
           )}
         </View>
       ))}
+
+      {/* Procedure Diagram */}
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🖼️ Diagrama del Procedimiento</Text>
+      <ProcedureDiagram moduleId={module.id} color={module.color} />
 
       {/* Exercise Levels */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
