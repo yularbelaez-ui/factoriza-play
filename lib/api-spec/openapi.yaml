@@ -1,36 +1,415 @@
-openapi: 3.1.0
+openapi: "3.1.0"
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: "0.1.0"
 servers:
   - url: /api
-    description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: students
+  - name: class
+  - name: teacher
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
       responses:
         "200":
-          description: Healthy
+          description: Health status
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/student:
+    post:
+      operationId: loginStudent
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentLoginRequest"
+      responses:
+        "200":
+          description: Student logged in or registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentLoginResponse"
+        "400":
+          description: Invalid class code or missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/teacher:
+    post:
+      operationId: loginTeacher
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherLoginRequest"
+      responses:
+        "200":
+          description: Teacher authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherLoginResponse"
+        "401":
+          description: Invalid teacher code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /students/{studentId}/exercise:
+    post:
+      operationId: recordExerciseResult
+      tags: [students]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExerciseResultRequest"
+      responses:
+        "200":
+          description: Updated student data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSyncResponse"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /students/{studentId}/topics:
+    post:
+      operationId: completeTopicPractice
+      tags: [students]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteTopicRequest"
+      responses:
+        "200":
+          description: Updated student data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSyncResponse"
+
+  /students/{studentId}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSyncResponse"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /class/{classCode}/students:
+    get:
+      operationId: getClassStudents
+      tags: [class]
+      parameters:
+        - in: path
+          name: classCode
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of students in the class
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassStudentsResponse"
+
+  /class/{classCode}/errors:
+    get:
+      operationId: getClassErrors
+      tags: [class]
+      parameters:
+        - in: path
+          name: classCode
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Error summary for the class
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassErrorsResponse"
+
+  /teacher/{teacherCode}/classes:
+    get:
+      operationId: getTeacherClasses
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: teacherCode
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Classes managed by teacher
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherClassesResponse"
+
+  /teacher/{teacherCode}/classes/{classCode}/eval-code:
+    post:
+      operationId: createEvalCode
+      tags: [teacher]
+      parameters:
+        - in: path
+          name: teacherCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: classCode
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEvalCodeRequest"
+      responses:
+        "200":
+          description: Eval code created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateEvalCodeResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    StudentLoginRequest:
+      type: object
+      required: [pseudonym, classCode]
+      properties:
+        pseudonym:
+          type: string
+        classCode:
+          type: string
+
+    StudentLoginResponse:
+      type: object
+      required: [studentId, student]
+      properties:
+        studentId:
+          type: integer
+        student:
+          $ref: "#/components/schemas/StudentData"
+
+    TeacherLoginRequest:
+      type: object
+      required: [teacherCode]
+      properties:
+        teacherCode:
+          type: string
+
+    TeacherLoginResponse:
+      type: object
+      required: [teacherId, teacherCode]
+      properties:
+        teacherId:
+          type: integer
+        teacherCode:
+          type: string
+
+    StudentData:
+      type: object
+      required: [id, pseudonym, classCode, totalXP, streak, completedTopics, completedModules, completedExercises]
+      properties:
+        id:
+          type: integer
+        pseudonym:
+          type: string
+        classCode:
+          type: string
+        totalXP:
+          type: integer
+        streak:
+          type: integer
+        completedTopics:
+          type: array
+          items:
+            type: string
+        completedModules:
+          type: array
+          items:
+            type: string
+        completedExercises:
+          type: array
+          items:
+            type: string
+
+    ExerciseResultRequest:
+      type: object
+      required: [exerciseId, correct]
+      properties:
+        exerciseId:
+          type: string
+        correct:
+          type: boolean
+        errorCategory:
+          type: string
+          nullable: true
+        attempts:
+          type: integer
+        answer:
+          type: string
+          nullable: true
+
+    CompleteTopicRequest:
+      type: object
+      required: [topicId]
+      properties:
+        topicId:
+          type: string
+
+    StudentSyncResponse:
+      type: object
+      required: [student]
+      properties:
+        student:
+          $ref: "#/components/schemas/StudentData"
+
+    ClassStudentsResponse:
+      type: object
+      required: [students]
+      properties:
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentData"
+
+    ErrorSummaryItem:
+      type: object
+      required: [category, count, percentage]
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+        percentage:
+          type: string
+
+    ClassErrorsResponse:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorSummaryItem"
+
+    TeacherClassesResponse:
+      type: object
+      required: [classes]
+      properties:
+        classes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassInfo"
+
+    ClassInfo:
+      type: object
+      required: [code, label, studentCount]
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        studentCount:
+          type: integer
+
+    CreateEvalCodeRequest:
+      type: object
+      required: [moduleId, code]
+      properties:
+        moduleId:
+          type: string
+        code:
+          type: string
+
+    CreateEvalCodeResponse:
+      type: object
+      required: [evalCode]
+      properties:
+        evalCode:
+          type: object
+          required: [moduleId, code, classCode]
+          properties:
+            moduleId:
+              type: string
+            code:
+              type: string
+            classCode:
+              type: string

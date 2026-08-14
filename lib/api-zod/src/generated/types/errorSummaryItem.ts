@@ -5,6 +5,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface ErrorSummaryItem {
+  category: string;
+  count: number;
+  percentage: string;
 }

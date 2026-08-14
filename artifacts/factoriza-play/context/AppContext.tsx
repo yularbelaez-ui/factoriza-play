@@ -7,11 +7,19 @@ import React, {
   useState,
 } from "react";
 import { DiagnosticProfile } from "@/data/diagnostic";
+import {
+  apiLoginStudent,
+  apiLoginTeacher,
+  apiRecordExercise,
+  apiCompleteTopic,
+  apiGetTeacherClasses,
+} from "@/lib/api";
 
 export type UserRole = "student" | "teacher";
 
 export interface StudentRecord {
   id: string;
+  backendId?: number; // numeric ID from the API server
   pseudonym: string;
   classCode: string;
   avatar: string;
@@ -196,12 +204,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     code: string
   ): Promise<{ ok: boolean; error?: string }> => {
     if (loginRole === "teacher") {
-      if (code !== TEACHER_CODE) {
+      // Verify with backend
+      try {
+        await apiLoginTeacher(code.trim());
+      } catch {
         return { ok: false, error: "Código de docente incorrecto." };
       }
+      // Load classes from backend
+      try {
+        const { classes } = await apiGetTeacherClasses(code.trim());
+        const backendCodes: ClassCode[] = classes.map((c) => ({
+          code: c.code,
+          label: c.label,
+          createdAt: Date.now(),
+        }));
+        setClassCodes(backendCodes);
+        await persist({ classCodes: backendCodes });
+      } catch {}
       setRole("teacher");
       setIsAuthenticated(true);
-      await persist({ session: { role: "teacher" } });
+      await persist({ session: { role: "teacher", teacherCode: code.trim() } });
       return { ok: true };
     }
 
@@ -210,43 +232,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const trimCode = code.trim().toUpperCase();
     if (!trimPseudo) return { ok: false, error: "El seudónimo no puede estar vacío." };
 
-    const validCode = classCodes.find((c) => c.code.toUpperCase() === trimCode);
-    if (!validCode) {
-      return { ok: false, error: "Código de clase incorrecto. Pídelo a tu docente." };
+    // Register or fetch student from backend (backend validates class code)
+    let backendId: number;
+    let backendStudent: {
+      id: number; pseudonym: string; classCode: string;
+      totalXP: number; streak: number;
+      completedTopics: string[]; completedModules: string[]; completedExercises: string[];
+    };
+    try {
+      const res = await apiLoginStudent(trimPseudo, trimCode);
+      backendId = res.studentId;
+      backendStudent = res.student;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de conexión";
+      return { ok: false, error: msg };
     }
 
-    // Check if pseudonym already registered for this class
-    const existing = allStudents.find(
-      (s) => s.pseudonym.toLowerCase() === trimPseudo.toLowerCase() && s.classCode === trimCode
-    );
+    // Merge with local record (keep exerciseResults, avatar, diagnosticProfile locally)
+    const existing = allStudents.find((s) => s.backendId === backendId);
+    const student: StudentRecord = {
+      id: existing?.id ?? `${trimCode}-${trimPseudo}-${Date.now()}`,
+      backendId,
+      pseudonym: backendStudent.pseudonym,
+      classCode: backendStudent.classCode,
+      avatar: existing?.avatar ?? getRandomAvatar(),
+      streak: backendStudent.streak,
+      totalXP: backendStudent.totalXP,
+      completedModules: backendStudent.completedModules,
+      completedTopics: backendStudent.completedTopics,
+      completedExercises: backendStudent.completedExercises,
+      exerciseResults: existing?.exerciseResults ?? [],
+      lastLogin: Date.now(),
+      diagnosticProfile: existing?.diagnosticProfile,
+    };
 
-    let student: StudentRecord;
-    if (existing) {
-      student = existing;
-    } else {
-      // Register new student
-      student = {
-        id: `${trimCode}-${trimPseudo}-${Date.now()}`,
-        pseudonym: trimPseudo,
-        classCode: trimCode,
-        avatar: getRandomAvatar(),
-        streak: 0,
-        totalXP: 0,
-        completedModules: [],
-        completedTopics: [],
-        completedExercises: [],
-        exerciseResults: [],
-        lastLogin: Date.now(),
-      };
-      const updatedStudents = [...allStudents, student];
-      setAllStudents(updatedStudents);
-      await persist({ allStudents: updatedStudents });
-    }
+    const updatedStudents = existing
+      ? allStudents.map((s) => (s.backendId === backendId ? student : s))
+      : [...allStudents, student];
 
+    setAllStudents(updatedStudents);
     setRole("student");
     setCurrentStudentState(student);
     setIsAuthenticated(true);
-    await persist({ session: { role: "student", studentId: student.id } });
+    await persist({ allStudents: updatedStudents, session: { role: "student", studentId: student.id } });
     return { ok: true };
   };
 
@@ -306,6 +334,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ allStudents: up });
       return up;
     });
+    // Sync to backend silently
+    if (currentStudent.backendId) {
+      apiCompleteTopic(currentStudent.backendId, topicId).catch(() => {});
+    }
   };
 
   const addEvaluationCode = (moduleId: string, code: string) => {
@@ -322,6 +354,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const recordExerciseResult = (result: Omit<ExerciseResult, "timestamp">) => {
     if (!currentStudent) return;
     const full: ExerciseResult = { ...result, timestamp: Date.now() };
+    // Sync to backend silently (fire-and-forget)
+    if (currentStudent.backendId) {
+      apiRecordExercise(currentStudent.backendId, {
+        exerciseId: result.exerciseId,
+        correct: result.correct,
+        errorCategory: result.errorCategory || null,
+        attempts: result.attempts,
+        answer: result.selectedAnswer || null,
+      }).catch(() => {});
+    }
     setCurrentStudentState((prev) => {
       if (!prev) return prev;
       const xpGained = result.correct ? 20 : 3;
