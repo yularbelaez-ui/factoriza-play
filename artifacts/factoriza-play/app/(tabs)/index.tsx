@@ -251,7 +251,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Progreso general de factorización ── */}
+      {/* ── Progreso general + por módulo ── */}
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           Progreso en Factorización
@@ -260,6 +260,50 @@ export default function HomeScreen() {
         <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
           {overallProgress}% completado · {completedModulesCount} de {totalModules} casos
         </Text>
+
+        {/* Per-module mini progress */}
+        <View style={styles.modGrid}>
+          {MODULES.map((mod) => {
+            const totalEx = mod.exercises.length;
+            const doneEx = mod.exercises.filter(e =>
+              currentStudent.completedExercises.includes(e.id)
+            ).length;
+            const pct = totalEx > 0 ? Math.round((doneEx / totalEx) * 100) : 0;
+            const completed = currentStudent.completedModules.includes(mod.id);
+            const unlocked = unlockedModules.includes(mod.id);
+            return (
+              <TouchableOpacity
+                key={mod.id}
+                style={[styles.modRow, {
+                  backgroundColor: completed ? colors.success + "08" : colors.background,
+                  borderColor: completed ? colors.success + "40" : colors.border,
+                }]}
+                onPress={() => router.push(`/modulo/${mod.id}` as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modIcon}>{mod.icon}</Text>
+                <View style={styles.modInfo}>
+                  <Text style={[styles.modTitle, { color: colors.foreground }]} numberOfLines={1}>
+                    {mod.title}
+                  </Text>
+                  {unlocked && doneEx > 0 && (
+                    <View style={[styles.modBarBg, { backgroundColor: colors.border }]}>
+                      <View style={[styles.modBarFill, {
+                        width: `${pct}%` as any,
+                        backgroundColor: completed ? colors.success : mod.color,
+                      }]} />
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.modPct, {
+                  color: completed ? colors.success : unlocked && doneEx > 0 ? mod.color : colors.mutedForeground,
+                }]}>
+                  {completed ? "✅" : unlocked ? (doneEx > 0 ? `${pct}%` : "0%") : "🔒"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* ── Mapa de ruta resumido ── */}
@@ -372,11 +416,27 @@ export default function HomeScreen() {
                   )}
 
                   {section.status === "disponible" && (
-                    <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
-                      <Feather name="book-open" size={13} color={section.color} />
-                      <Text style={[styles.comingSoonText, { color: section.color }]}>
-                        Contenido interactivo en construcción
-                      </Text>
+                    <View style={{ gap: 4, marginTop: 4 }}>
+                      {section.topics.filter(t => t.topicId).map((topic, ti) => (
+                        <TouchableOpacity
+                          key={ti}
+                          style={[styles.topicLink, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}
+                          onPress={() => router.push(`/tema/${topic.topicId}` as any)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={[styles.topicDot, { backgroundColor: section.color }]} />
+                          <Text style={[styles.topicLinkText, { color: "#374151" }]} numberOfLines={1}>{topic.label}</Text>
+                          <Feather name="chevron-right" size={13} color={section.color} />
+                        </TouchableOpacity>
+                      ))}
+                      {section.topics.every(t => !t.topicId) && (
+                        <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
+                          <Feather name="book-open" size={13} color={section.color} />
+                          <Text style={[styles.comingSoonText, { color: section.color }]}>
+                            Contenido interactivo en construcción
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
@@ -639,6 +699,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   comingSoonText: { fontSize: 12, fontWeight: "500" },
+
+  topicLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  topicLinkText: { flex: 1, fontSize: 12, fontWeight: "500" },
+
+  modGrid: { gap: 6, marginTop: 12 },
+  modRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  modIcon: { fontSize: 18, width: 24, textAlign: "center" },
+  modInfo: { flex: 1, gap: 3 },
+  modTitle: { fontSize: 12, fontWeight: "600" },
+  modBarBg: { height: 3, borderRadius: 2, overflow: "hidden" },
+  modBarFill: { height: "100%", borderRadius: 2 },
+  modPct: { fontSize: 11, fontWeight: "700", minWidth: 30, textAlign: "right" },
 
   diagMini: { backgroundColor: "#f5f3ff", borderRadius: 10, padding: 10, marginTop: 6, gap: 5 },
   diagMiniHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
