@@ -1,0 +1,1 @@
+- [FactorIzA-Play producción](factoriza-play-production.md) — URL de producción del backend y patrón de login offline para docente
