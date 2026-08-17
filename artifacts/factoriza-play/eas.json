@@ -11,7 +11,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://workspace--yularbelaez.replit.app/api-server"
+        "EXPO_PUBLIC_API_URL": "https://algebra-tutor--yularbelaez.replit.app"
       },
       "android": {
         "buildType": "apk"
