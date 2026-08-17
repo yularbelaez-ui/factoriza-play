@@ -47,6 +47,12 @@
         "projectId": "985e3e8b-c265-4a23-b0c7-0f7e8e38c348"
       }
     },
-    "owner": "yul.arbelaez"
+    "owner": "yul.arbelaez",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/985e3e8b-c265-4a23-b0c7-0f7e8e38c348"
+    }
   }
 }
