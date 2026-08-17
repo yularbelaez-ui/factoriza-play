@@ -4,25 +4,43 @@
  */
 import { Platform } from "react-native";
 
-// On native builds, set EXPO_PUBLIC_API_URL to your Replit dev/prod domain.
-// On web it falls back to relative path.
+// On native builds, EXPO_PUBLIC_API_URL must be the absolute production URL.
+// Example: https://mi-app.replit.app/api-server
+// On web it uses a relative path.
 const BASE =
   process.env["EXPO_PUBLIC_API_URL"] ??
   (Platform.OS === "web" ? "" : "");
 
 const API = `${BASE}/api`;
 
+// Whether the API base URL is usable (non-empty on native)
+export const apiAvailable =
+  Platform.OS === "web" || (BASE !== "" && BASE !== "undefined");
+
 async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const json = await res.json();
+  if (!apiAvailable) {
+    throw new Error("SIN_CONEXION");
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch {
+    throw new Error("SIN_CONEXION");
+  }
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error("El servidor respondió de forma inesperada. Intenta de nuevo.");
+  }
   if (!res.ok) {
-    throw new Error((json as { error?: string }).error ?? "API error");
+    throw new Error((json as { error?: string }).error ?? "Error del servidor");
   }
   return json as T;
 }

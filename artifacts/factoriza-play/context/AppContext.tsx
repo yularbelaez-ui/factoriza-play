@@ -204,26 +204,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     code: string
   ): Promise<{ ok: boolean; error?: string }> => {
     if (loginRole === "teacher") {
-      // Verify with backend
+      const trimCode = code.trim();
+      // Try backend verification first
+      let backendOk = false;
       try {
-        await apiLoginTeacher(code.trim());
-      } catch {
-        return { ok: false, error: "Código de docente incorrecto." };
+        await apiLoginTeacher(trimCode);
+        backendOk = true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "SIN_CONEXION") {
+          // API unreachable — validate against built-in code
+          if (trimCode !== TEACHER_CODE) {
+            return { ok: false, error: "Código de docente incorrecto." };
+          }
+          // Accepted offline
+        } else {
+          // Backend rejected the code
+          return { ok: false, error: "Código de docente incorrecto." };
+        }
       }
-      // Load classes from backend
-      try {
-        const { classes } = await apiGetTeacherClasses(code.trim());
-        const backendCodes: ClassCode[] = classes.map((c) => ({
-          code: c.code,
-          label: c.label,
-          createdAt: Date.now(),
-        }));
-        setClassCodes(backendCodes);
-        await persist({ classCodes: backendCodes });
-      } catch {}
+      // If backend responded OK, also load classes
+      if (backendOk) {
+        try {
+          const { classes } = await apiGetTeacherClasses(trimCode);
+          const backendCodes: ClassCode[] = classes.map((c) => ({
+            code: c.code,
+            label: c.label,
+            createdAt: Date.now(),
+          }));
+          setClassCodes(backendCodes);
+          await persist({ classCodes: backendCodes });
+        } catch {}
+      }
       setRole("teacher");
       setIsAuthenticated(true);
-      await persist({ session: { role: "teacher", teacherCode: code.trim() } });
+      await persist({ session: { role: "teacher", teacherCode: trimCode } });
       return { ok: true };
     }
 
@@ -245,6 +260,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       backendStudent = res.student;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error de conexión";
+      if (msg === "SIN_CONEXION") {
+        return { ok: false, error: "Sin conexión al servidor. Verifica que tengas internet y que el servidor esté activo." };
+      }
       return { ok: false, error: msg };
     }
 
