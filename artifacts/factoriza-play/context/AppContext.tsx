@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { DiagnosticProfile } from "@/data/diagnostic";
@@ -13,6 +14,7 @@ import {
   apiRecordExercise,
   apiCompleteTopic,
   apiGetTeacherClasses,
+  apiGetClassStudents,
 } from "@/lib/api";
 
 export type UserRole = "student" | "teacher";
@@ -139,6 +141,10 @@ interface AppContextValue {
   moduleProgress: ModuleProgress[];
   saveDiagnosticProfile: (profile: DiagnosticProfile) => Promise<void>;
 
+  // Teacher sync
+  refreshTeacherData: () => Promise<void>;
+  isRefreshingTeacher: boolean;
+
   // Analytics
   getErrorSummary: (classCode?: string) => ErrorSummary[];
   getDiagnosticSummary: (classCode?: string) => { category: string; avgScore: number; count: number }[];
@@ -155,6 +161,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // unlockedModules is derived from currentStudent.completedModules (no separate state needed)
   const [evaluationCodes, setEvaluationCodes] = useState<EvaluationSession[]>([]);
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
+  const [isRefreshingTeacher, setIsRefreshingTeacher] = useState(false);
+
+  // Ref so refreshTeacherData doesn't depend on allStudents (avoids infinite loop)
+  const allStudentsRef = useRef<StudentRecord[]>([]);
+  useEffect(() => { allStudentsRef.current = allStudents; }, [allStudents]);
 
   useEffect(() => {
     loadData();
@@ -459,6 +470,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  // Fetch all students for all class codes from the backend (teacher panel sync)
+  const refreshTeacherData = useCallback(async () => {
+    if (classCodes.length === 0) return;
+    setIsRefreshingTeacher(true);
+    try {
+      const fetched: StudentRecord[] = [];
+      for (const cc of classCodes) {
+        try {
+          const { students: backendStudents } = await apiGetClassStudents(cc.code);
+          for (const bs of backendStudents) {
+            const existing = allStudentsRef.current.find((s) => s.backendId === bs.id);
+            fetched.push({
+              id: existing?.id ?? `${bs.classCode}-${bs.pseudonym}-${bs.id}`,
+              backendId: bs.id,
+              pseudonym: bs.pseudonym,
+              classCode: bs.classCode,
+              avatar: existing?.avatar ?? getRandomAvatar(),
+              streak: bs.streak,
+              totalXP: bs.totalXP,
+              completedModules: bs.completedModules,
+              completedTopics: bs.completedTopics,
+              completedExercises: bs.completedExercises,
+              exerciseResults: existing?.exerciseResults ?? [],
+              lastLogin: existing?.lastLogin ?? Date.now(),
+              diagnosticProfile: existing?.diagnosticProfile,
+            });
+          }
+        } catch {
+          // keep going for other classes if one fails
+        }
+      }
+      if (fetched.length > 0) {
+        setAllStudents(fetched);
+        await persist({ allStudents: fetched });
+      }
+    } finally {
+      setIsRefreshingTeacher(false);
+    }
+  }, [classCodes, persist]);
+
   const getDiagnosticSummary = (classCode?: string) => {
     const students = (classCode
       ? allStudents.filter((s) => s.classCode === classCode)
@@ -497,6 +548,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         completeTopicPractice,
         moduleProgress,
         saveDiagnosticProfile,
+        refreshTeacherData,
+        isRefreshingTeacher,
         getErrorSummary,
         getDiagnosticSummary,
       }}

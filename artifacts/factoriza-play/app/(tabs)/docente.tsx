@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
@@ -47,6 +48,8 @@ export default function DocenteScreen() {
     removeClassCode,
     logout,
     evaluationCodes,
+    refreshTeacherData,
+    isRefreshingTeacher,
   } = useApp();
   const [activeTab, setActiveTab] = useState<Tab>("students");
   const [evalCode, setEvalCode] = useState("");
@@ -56,6 +59,14 @@ export default function DocenteScreen() {
   const [filterClass, setFilterClass] = useState<string>("all");
   const [expandedSection, setExpandedSection] = useState<string | null>("saberes");
   const isWeb = Platform.OS === "web";
+
+  // Sync students from backend on mount and every 30 s
+  const stableRefresh = useCallback(() => { refreshTeacherData(); }, [refreshTeacherData]);
+  useEffect(() => {
+    stableRefresh();
+    const interval = setInterval(stableRefresh, 30_000);
+    return () => clearInterval(interval);
+  }, [stableRefresh]);
 
   const errorSummary = getErrorSummary(filterClass === "all" ? undefined : filterClass);
   const sorted = [...allStudents]
@@ -147,12 +158,24 @@ export default function DocenteScreen() {
             {allStudents.length} estudiantes registrados
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.logoutBtn, { backgroundColor: colors.secondary }]}
-          onPress={logout}
-        >
-          <Feather name="log-out" size={17} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {isRefreshingTeacher && (
+            <ActivityIndicator size="small" color={colors.primary} />
+          )}
+          <TouchableOpacity
+            style={[styles.refreshBtn, { backgroundColor: colors.secondary }]}
+            onPress={refreshTeacherData}
+            disabled={isRefreshingTeacher}
+          >
+            <Feather name="refresh-cw" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.logoutBtn, { backgroundColor: colors.secondary }]}
+            onPress={logout}
+          >
+            <Feather name="log-out" size={17} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -827,6 +850,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: "800" },
   subtitle: { fontSize: 13 },
   logoutBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
+  refreshBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   tabsContainer: { marginBottom: 20 },
   tab: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, gap: 5 },
   tabLabel: { fontSize: 12, fontWeight: "600" },
