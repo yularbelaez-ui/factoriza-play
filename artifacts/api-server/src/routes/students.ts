@@ -15,6 +15,7 @@ function toStudentData(s: typeof students.$inferSelect) {
     completedTopics: s.completedTopics ?? [],
     completedModules: s.completedModules ?? [],
     completedExercises: s.completedExercises ?? [],
+    diagnosticProfile: s.diagnosticProfile ?? null,
   };
 }
 
@@ -141,6 +142,28 @@ router.post("/students/:studentId/topics", async (req, res) => {
     .where(eq(students.id, studentId))
     .returning();
 
+  res.json({ student: toStudentData(updated) });
+});
+
+// POST /api/students/:studentId/diagnostic
+router.post("/students/:studentId/diagnostic", async (req, res) => {
+  const studentId = parseInt(req.params.studentId, 10);
+  const { diagnosticProfile } = req.body as { diagnosticProfile?: Record<string, unknown> };
+  if (isNaN(studentId) || !diagnosticProfile || typeof diagnosticProfile !== "object") {
+    res.status(400).json({ error: "Valid studentId and diagnosticProfile are required" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(students)
+    .set({ diagnosticProfile })
+    .where(eq(students.id, studentId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
   res.json({ student: toStudentData(updated) });
 });
 

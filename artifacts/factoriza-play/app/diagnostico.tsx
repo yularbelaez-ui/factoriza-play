@@ -17,6 +17,7 @@ import {
   DIAGNOSTIC_QUESTIONS,
   DiagnosticCategory,
 } from "@/data/diagnostic";
+import { LEARNING_ROUTES, PROFILE_DETAILS } from "@/data/learningRoutes";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -339,6 +340,11 @@ export default function DiagnosticoScreen() {
   // ── RESULTS ─────────────────────────────────────────────────────
   if (!profile) return null;
   const levelCfg = LEVEL_CONFIG[profile.level];
+  const profileCode = profile.profile ?? (profile.level === "básico" ? "A" : profile.level === "intermedio" ? "B" : "C");
+  const profileDetails = PROFILE_DETAILS[profileCode];
+  const assignedRoute = LEARNING_ROUTES[
+    profile.route ?? (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3")
+  ];
 
   return (
     <ScrollView
@@ -368,6 +374,17 @@ export default function DiagnosticoScreen() {
         </Text>
       </View>
 
+      <View style={[styles.profileCard, { backgroundColor: profileDetails.color + "12", borderColor: profileDetails.color + "35" }]}>
+        <Text style={styles.profileIcon}>{profileDetails.icon}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.profileLabel, { color: profileDetails.color }]}>{profileDetails.label}</Text>
+          <Text style={[styles.profileSummary, { color: colors.foreground }]}>{profileDetails.summary}</Text>
+        </View>
+        <View style={[styles.profileThreshold, { backgroundColor: profileDetails.color + "18" }]}>
+          <Text style={[styles.profileThresholdText, { color: profileDetails.color }]}>75%</Text>
+        </View>
+      </View>
+
       {/* Category breakdown */}
       <Text style={[styles.breakdownTitle, { color: colors.foreground }]}>
         Resultados por área:
@@ -375,7 +392,7 @@ export default function DiagnosticoScreen() {
 
       {profile.results.map((r) => {
         const info = DIAGNOSTIC_CATEGORY_INFO[r.category];
-        const needsWork = r.score < 60;
+        const needsWork = r.score < 75;
         return (
           <View
             key={r.category}
@@ -428,6 +445,33 @@ export default function DiagnosticoScreen() {
         );
       })}
 
+      <Text style={[styles.breakdownTitle, { color: colors.foreground, marginTop: 10 }]}>
+        {assignedRoute.icon} {assignedRoute.title}
+      </Text>
+      <View style={[styles.actionPlanCard, { backgroundColor: colors.card, borderColor: assignedRoute.color + "45" }]}>
+        <Text style={[styles.planIntro, { color: colors.mutedForeground }]}>
+          {assignedRoute.subtitle} Cada competencia se considera lograda desde el 75%.
+        </Text>
+        {assignedRoute.steps.map((step, index) => (
+          <TouchableOpacity
+            key={step.id}
+            style={[styles.planStep, { backgroundColor: assignedRoute.color + "08", borderColor: assignedRoute.color + "22" }]}
+            onPress={() => router.push((step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any)}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.planStepNum, { backgroundColor: assignedRoute.color }]}>
+              <Text style={styles.planStepNumText}>{index + 1}</Text>
+            </View>
+            <Text style={styles.planStepIcon}>{step.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
+              <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.description}</Text>
+            </View>
+            <Feather name="arrow-right" size={14} color={assignedRoute.color} />
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* ── Plan de Acción ── */}
       {(() => {
         const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
@@ -441,7 +485,7 @@ export default function DiagnosticoScreen() {
         };
 
         const weakAreas = profile.results
-          .filter((r) => r.score < 70)
+          .filter((r) => r.score < 75)
           .sort((a, b) => a.score - b.score);
 
         if (weakAreas.length === 0) {
@@ -493,7 +537,7 @@ export default function DiagnosticoScreen() {
                 <Text style={styles.planStepIcon}>🔍</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.planStepTitle, { color: "#92400e" }]}>Paso final: Sección 4 — Factorización</Text>
-                  <Text style={[styles.planStepSub, { color: "#78350f" }]}>8 casos progresivos con práctica y evaluación</Text>
+                  <Text style={[styles.planStepSub, { color: "#78350f" }]}>Secuencia progresiva con práctica y evaluación</Text>
                 </View>
               </View>
             </View>
@@ -653,6 +697,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   messageText: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: "500" },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 20,
+  },
+  profileIcon: { fontSize: 28 },
+  profileLabel: { fontSize: 15, fontWeight: "900", marginBottom: 2 },
+  profileSummary: { fontSize: 12, lineHeight: 18, fontWeight: "500" },
+  profileThreshold: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  profileThresholdText: { fontSize: 12, fontWeight: "900" },
   breakdownTitle: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
   resultCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 10, gap: 10 },
   resultHeader: { flexDirection: "row", alignItems: "center", gap: 12 },

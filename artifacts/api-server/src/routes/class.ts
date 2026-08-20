@@ -15,6 +15,7 @@ function toStudentData(s: typeof students.$inferSelect) {
     completedTopics: s.completedTopics ?? [],
     completedModules: s.completedModules ?? [],
     completedExercises: s.completedExercises ?? [],
+    diagnosticProfile: s.diagnosticProfile ?? null,
   };
 }
 

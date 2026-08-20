@@ -38,9 +38,61 @@ export interface Exercise {
 
 export const MODULES: FactorizationModule[] = [
   {
+    id: "reconocimiento-patrones",
+    title: "Reconocimiento de Patrones",
+    subtitle: "El punto de partida para factorizar",
+    description: "Aprende a detectar semejanzas, términos repetidos y estructuras antes de elegir una estrategia.",
+    icon: "🔎",
+    color: "#0f766e",
+    level: 1,
+    xpReward: 80,
+    realWorldExample: "Así como clasificar objetos por color o forma ayuda a organizarlos, reconocer patrones en una expresión permite decidir cómo factorizarla.",
+    theory: [
+      {
+        id: "rp-1",
+        title: "Mira antes de operar",
+        content: "Antes de aplicar un caso de factorización, observa cuántos términos hay, qué números o letras se repiten y si aparecen cuadrados o cubos perfectos.",
+        formula: "3x + 6 = 3(x + 2)",
+        example: "En 3x + 6, ambos términos son múltiplos de 3.",
+        visualHint: "Subraya primero lo que se repite; después decide qué estrategia sirve.",
+        steps: ["Cuenta los términos", "Busca números comunes", "Busca letras comunes", "Reconoce potencias o estructuras repetidas"],
+      },
+      {
+        id: "rp-2",
+        title: "Términos semejantes y términos repetidos",
+        content: "Los términos semejantes tienen la misma parte literal. Al reconocerlos puedes agrupar, simplificar o detectar un factor que se repite.",
+        formula: "4x + 7x = 11x",
+        example: "En 2a + 5a − 3, los dos primeros términos son semejantes.",
+        visualHint: "Misma letra y mismo exponente: son semejantes.",
+      },
+      {
+        id: "rp-3",
+        title: "Estrategia antes del procedimiento",
+        content: "No todas las expresiones se factorizan igual. Reconocer el patrón evita aplicar una regla memorizada donde no corresponde.",
+        formula: "x² − 25 = x² − 5²",
+        example: "Dos cuadrados perfectos separados por resta sugieren diferencia de cuadrados.",
+        visualHint: "Pregúntate: ¿qué estructura veo?, antes de preguntarte ¿qué fórmula uso?",
+      },
+    ],
+    exercises: [
+      { id: "reconocimiento-patrones-ex-1", question: "¿Qué tienen en común los términos de 3x + 6?", expression: "3x + 6", options: ["Ambos son múltiplos de 3", "Ambos tienen x²", "No tienen nada en común", "Ambos son negativos"], correctAnswer: "Ambos son múltiplos de 3", errorCategory: "factor_comun_no_identificado", explanation: "3x y 6 se pueden dividir entre 3; por eso 3 es un factor común numérico.", hint: "Observa qué número divide exactamente a 3 y a 6.", steps: ["3x ÷ 3 = x", "6 ÷ 3 = 2", "Factor común: 3"] },
+      { id: "reconocimiento-patrones-ex-2", question: "¿Cuáles son términos semejantes?", expression: "4x², −7x, 3x², 5", options: ["4x² y 3x²", "−7x y 5", "4x² y −7x", "Todos los términos"], correctAnswer: "4x² y 3x²", errorCategory: "terminos_semejantes", explanation: "4x² y 3x² comparten exactamente la misma parte literal x².", hint: "Compara letra y exponente.", steps: ["4x²: parte literal x²", "3x²: parte literal x²", "Son semejantes"] },
+      { id: "reconocimiento-patrones-ex-3", question: "¿Qué patrón aparece en x² − 25?", expression: "x² − 25", options: ["Diferencia de cuadrados", "Factor común literal", "Trinomio cuadrado perfecto", "Suma de cubos"], correctAnswer: "Diferencia de cuadrados", errorCategory: "estructura_no_reconocida", explanation: "x² y 25 = 5² son cuadrados perfectos separados por una resta.", hint: "¿Puedes escribir ambos términos como un cuadrado?", steps: ["x² = (x)²", "25 = 5²", "Es una diferencia de cuadrados"] },
+      { id: "reconocimiento-patrones-ex-4", question: "¿Cuál expresión tiene un factor común literal?", expression: "8a²b + 12ab²", options: ["8a²b + 12ab²", "x² + 9", "x² − 16", "x² + 5x + 6"], correctAnswer: "8a²b + 12ab²", errorCategory: "factor_comun_no_identificado", explanation: "Ambos términos contienen a y b; además los coeficientes tienen un factor común.", hint: "Busca letras que aparezcan en todos los términos.", steps: ["a aparece en ambos términos", "b aparece en ambos términos", "Existe factor común literal ab"] },
+      { id: "reconocimiento-patrones-ex-5", question: "Antes de factorizar, ¿qué conviene hacer primero?", options: ["Reconocer la estructura de la expresión", "Aplicar siempre la misma fórmula", "Sumar todos los exponentes", "Eliminar los paréntesis sin mirar"], correctAnswer: "Reconocer la estructura de la expresión", errorCategory: "estrategia_incorrecta", explanation: "La estrategia correcta depende del patrón que aparece en la expresión.", hint: "La observación guía el método.", steps: ["Observa términos y signos", "Busca elementos repetidos", "Elige el caso adecuado"] },
+    ],
+    evaluationExercises: [
+      { id: "reconocimiento-patrones-eval-1", question: "¿Qué factor común numérico tiene 12x + 18?", expression: "12x + 18", options: ["6", "3", "12", "No tiene"], correctAnswer: "6", errorCategory: "factor_comun_no_identificado", explanation: "6 divide a 12 y a 18.", hint: "Busca el MCD de 12 y 18.", steps: ["MCD(12,18)=6"] },
+      { id: "reconocimiento-patrones-eval-2", question: "¿Qué términos son semejantes?", expression: "2a, 3b, −5a, a²", options: ["2a y −5a", "2a y a²", "3b y a²", "Todos"], correctAnswer: "2a y −5a", errorCategory: "terminos_semejantes", explanation: "Ambos tienen la parte literal a.", hint: "La letra y el exponente deben coincidir.", steps: ["2a → a¹", "−5a → a¹"] },
+      { id: "reconocimiento-patrones-eval-3", question: "¿Cuál es una diferencia de cuadrados?", options: ["y² − 49", "y² + 49", "y² + 14y + 49", "2y + 8"], correctAnswer: "y² − 49", errorCategory: "estructura_no_reconocida", explanation: "y² y 49 = 7² son cuadrados perfectos con resta.", hint: "Busca dos cuadrados separados por −.", steps: ["y²=(y)²", "49=7²"] },
+      { id: "reconocimiento-patrones-eval-4", question: "¿Qué se repite en 5m(n + 1) + 2(n + 1)?", expression: "5m(n + 1) + 2(n + 1)", options: ["(n + 1)", "5m", "2", "n²"], correctAnswer: "(n + 1)", errorCategory: "factor_comun_no_identificado", explanation: "El binomio (n + 1) aparece completo en ambos términos.", hint: "Busca un grupo idéntico.", steps: ["Primer término: 5m(n+1)", "Segundo término: 2(n+1)"] },
+      { id: "reconocimiento-patrones-eval-5", question: "¿Cuál estrategia es adecuada para x² − 36?", expression: "x² − 36", options: ["Reconocer diferencia de cuadrados", "Buscar tres términos semejantes", "Aplicar suma de cubos", "Sumar los términos"], correctAnswer: "Reconocer diferencia de cuadrados", errorCategory: "estrategia_incorrecta", explanation: "x² − 36 = x² − 6².", hint: "36 es un cuadrado perfecto.", steps: ["36=6²", "Usa a²−b²"] },
+    ],
+  },
+  {
     id: "factor-comun",
     title: "Factor Común",
-    subtitle: "El primer paso en la factorización",
+    subtitle: "Módulo 2 · De lo numérico a lo mixto",
     description: "Aprende a extraer el mayor factor común de un polinomio",
     icon: "🔢",
     color: "#7c3aed",
@@ -1418,6 +1470,7 @@ export const MODULES: FactorizationModule[] = [
 ];
 
 export const MODULE_CASE_ORDER = [
+  "reconocimiento-patrones",
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",

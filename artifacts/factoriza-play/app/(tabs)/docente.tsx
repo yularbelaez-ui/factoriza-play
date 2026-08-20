@@ -19,6 +19,25 @@ import { MODULES, MODULE_CASE_ORDER } from "@/data/modules";
 import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
+import { PROFILE_DETAILS } from "@/data/learningRoutes";
+
+const ERROR_CATEGORY_LABELS: Record<string, string> = {
+  operaciones: "operaciones básicas",
+  ley_signos: "ley de signos",
+  potenciacion: "potenciación",
+  radicacion: "radicación",
+  variables: "uso de variables",
+  equality: "signo igual",
+  terminos_semejantes: "términos semejantes",
+  estructura_no_reconocida: "reconocimiento de estructuras",
+  factor_comun_no_identificado: "factor común",
+  extraccion_factor_incorrecta: "extracción del factor",
+  caso_incorrecto: "caso de factorización",
+  estrategia_incorrecta: "elección de estrategia",
+  sin_verificacion: "verificación del resultado",
+  error_repetido: "repetición del error",
+  feedback_ignorado: "uso de retroalimentación",
+};
 
 // Mapa: categoría de error → tema de S1/S2/S3 recomendado para el docente
 const ERROR_TO_TOPIC_DOCENTE: Record<string, { title: string; section: string; color: string; icon: string }> = {
@@ -333,6 +352,30 @@ export default function DocenteScreen() {
               const wrongCount = student.exerciseResults.filter((r) => !r.correct).length;
               const totalResults = student.exerciseResults.length;
               const pct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0;
+              const profileCode = student.diagnosticProfile?.profile ??
+                (student.diagnosticProfile?.level === "básico" ? "A" : student.diagnosticProfile?.level === "intermedio" ? "B" : "C");
+              const profileDetails = student.diagnosticProfile ? PROFILE_DETAILS[profileCode] : null;
+              const competencyLabels: Record<string, string> = {
+                aritmetica: "aritmética",
+                propiedades: "propiedades",
+                terminos: "términos",
+                variables: "variables",
+                igualdad: "signo igual",
+              };
+              const weakCompetencies = (student.diagnosticProfile?.competencyResults ?? [])
+                .filter((result) => result.score < 75)
+                .map((result) => competencyLabels[result.competency] ?? result.competency);
+              const errorCounts = student.exerciseResults
+                .filter((result) => !result.correct && result.errorCategory)
+                .reduce<Record<string, number>>((counts, result) => {
+                  const key = result.errorCategory!;
+                  counts[key] = (counts[key] ?? 0) + 1;
+                  return counts;
+                }, {});
+              const frequentErrors = Object.entries(errorCounts)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 2)
+                .map(([category]) => ERROR_CATEGORY_LABELS[category] ?? category);
               return (
                 <View
                   key={student.id}
@@ -350,6 +393,33 @@ export default function DocenteScreen() {
                     </View>
                     <Text style={[styles.rank, { color: colors.primary }]}>#{index + 1}</Text>
                   </View>
+
+                  {profileDetails && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: profileDetails.color + "12", borderColor: profileDetails.color + "30", borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 }}>
+                      <Text style={{ fontSize: 16 }}>{profileDetails.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: profileDetails.color, fontSize: 11, fontWeight: "800" }}>
+                          {profileDetails.label} · {student.diagnosticProfile?.route?.replace("ruta-", "Ruta ") ?? "Ruta por actualizar"}
+                        </Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 1 }}>
+                          {profileDetails.summary}
+                        </Text>
+                        {weakCompetencies.length > 0 && (
+                          <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 3 }}>
+                            Por fortalecer: {weakCompetencies.join(", ")}
+                          </Text>
+                        )}
+                        {frequentErrors.length > 0 && (
+                          <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 2 }}>
+                            Errores frecuentes: {frequentErrors.join(" · ")}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={{ color: profileDetails.color, fontSize: 11, fontWeight: "800" }}>
+                        {student.diagnosticProfile?.overallScore ?? 0}%
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Section progress summary */}
                   <View style={styles.sectionProgressRow}>
@@ -375,7 +445,7 @@ export default function DocenteScreen() {
 
                   <View style={styles.statsRow}>
                     {[
-                      { value: `${casesDone}/8`, label: "Casos", color: colors.primary },
+                      { value: `${casesDone}/${MODULES.length}`, label: "Módulos", color: colors.primary },
                       { value: `${correctCount}`, label: "Correctas", color: colors.success },
                       { value: `${wrongCount}`, label: "Errores", color: colors.error },
                     ].map((s) => (
@@ -499,7 +569,7 @@ export default function DocenteScreen() {
                       <View style={styles.commQuickStats}>
                         <Text style={[styles.commStat, { color: "#d97706" }]}>⭐ {student.totalXP} XP</Text>
                         <Text style={[styles.commStat, { color: "#dc2626" }]}>🔥 {student.streak}</Text>
-                        <Text style={[styles.commStat, { color: colors.success }]}>📚 {casesDone}/8</Text>
+                        <Text style={[styles.commStat, { color: colors.success }]}>📚 {casesDone}/{MODULES.length}</Text>
                         <Text style={[styles.commStat, { color: colors.mutedForeground }]}>📖 {topicsDone} temas</Text>
                       </View>
 

@@ -72,6 +72,7 @@ router.post("/auth/student", async (req, res) => {
       completedTopics: s.completedTopics ?? [],
       completedModules: s.completedModules ?? [],
       completedExercises: s.completedExercises ?? [],
+      diagnosticProfile: s.diagnosticProfile ?? null,
     },
   });
 });

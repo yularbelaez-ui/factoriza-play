@@ -5,9 +5,22 @@ export type DiagnosticCategory =
   | "irracionales"
   | "reales"
   | "potencias"
+  | "fracciones"
   | "factorizacion"
-  | "algebra"
-  | "operaciones";
+  | "propiedades"
+  | "terminos"
+  | "variables"
+  | "igualdad";
+
+export type DiagnosticCompetency =
+  | "aritmetica"
+  | "propiedades"
+  | "terminos"
+  | "variables"
+  | "igualdad";
+
+export type LearningProfileCode = "A" | "B" | "C";
+export type LearningRouteCode = "ruta-1" | "ruta-2" | "ruta-3";
 
 export interface DiagnosticQuestion {
   id: string;
@@ -26,11 +39,20 @@ export interface DiagnosticResult {
   score: number;
 }
 
+export interface CompetencyResult {
+  competency: DiagnosticCompetency;
+  score: number;
+  meetsThreshold: boolean;
+}
+
 export interface DiagnosticProfile {
   completedAt: number;
   results: DiagnosticResult[];
+  competencyResults: CompetencyResult[];
   overallScore: number;
   level: "básico" | "intermedio" | "avanzado";
+  profile: LearningProfileCode;
+  route: LearningRouteCode;
 }
 
 export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
@@ -207,7 +229,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   // ── ÁLGEBRA BÁSICA (S2) ──────────────────────────────────────────
   {
     id: "alg-1",
-    category: "algebra",
+    category: "variables",
     question: "Evalúa la expresión para x = 3:",
     expression: "2x² − 5x + 1",
     options: ["4", "7", "10", "−2"],
@@ -216,7 +238,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   },
   {
     id: "alg-2",
-    category: "algebra",
+    category: "terminos",
     question: "¿Cuál es el resultado de simplificar los términos semejantes?",
     expression: "3x² + 5x − 2x² + x",
     options: ["x² + 6x", "5x² + 6x", "x² + 4x", "5x + x²"],
@@ -225,7 +247,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   },
   {
     id: "alg-3",
-    category: "algebra",
+    category: "terminos",
     question: "¿Cuál es el grado del polinomio?",
     expression: "4x³ − 7x + 2",
     options: ["3", "4", "2", "1"],
@@ -236,7 +258,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   // ── OPERACIONES ALGEBRAICAS (S3) ─────────────────────────────────
   {
     id: "op-1",
-    category: "operaciones",
+    category: "propiedades",
     question: "Multiplica y simplifica:",
     expression: "3x(2x + 5)",
     options: ["6x² + 15x", "6x + 15", "5x² + 8x", "6x² + 5"],
@@ -245,7 +267,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   },
   {
     id: "op-2",
-    category: "operaciones",
+    category: "propiedades",
     question: "Aplica el producto notable (cuadrado de la suma):",
     expression: "(x + 4)²",
     options: ["x² + 8x + 16", "x² + 4", "x² + 16", "x² + 4x + 16"],
@@ -254,7 +276,7 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
   },
   {
     id: "op-3",
-    category: "operaciones",
+    category: "igualdad",
     question: "Multiplica usando la diferencia de cuadrados:",
     expression: "(x + 3)(x − 3)",
     options: ["x² − 9", "x² + 9", "x² − 6x + 9", "x² + 6x − 9"],
@@ -286,6 +308,87 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
     options: ["3", "2", "4", "5"],
     correctAnswer: "3",
     explanation: "30 = 2 × 3 × 5. Tiene tres factores primos distintos: 2, 3 y 5.",
+  },
+  // ── FRACCIONES Y RACIONALES ──────────────────────────────────────
+  {
+    id: "frac-1",
+    category: "fracciones",
+    question: "¿Cuál fracción es equivalente a 3/4?",
+    options: ["6/8", "4/6", "9/16", "3/8"],
+    correctAnswer: "6/8",
+    explanation: "Multiplicar numerador y denominador por el mismo número mantiene el valor: 3/4 × 2/2 = 6/8.",
+  },
+  {
+    id: "frac-2",
+    category: "fracciones",
+    question: "¿Cuánto es 2/3 + 1/6?",
+    options: ["5/6", "3/9", "1/2", "3/6"],
+    correctAnswer: "5/6",
+    explanation: "Convierte 2/3 a sextos: 2/3 = 4/6. Luego 4/6 + 1/6 = 5/6.",
+  },
+  {
+    id: "frac-3",
+    category: "fracciones",
+    question: "¿Cuánto es 3/5 ÷ 1/2?",
+    options: ["6/5", "3/10", "3/7", "2/5"],
+    correctAnswer: "6/5",
+    explanation: "Dividir entre una fracción equivale a multiplicar por su inversa: 3/5 × 2/1 = 6/5.",
+  },
+  // ── COMPETENCIAS ALGEBRAICAS ─────────────────────────────────────
+  {
+    id: "prop-3",
+    category: "propiedades",
+    question: "¿Cuál expresión es equivalente a 4(x + 3)?",
+    expression: "4(x + 3)",
+    options: ["4x + 12", "4x + 3", "7x", "4x × 3"],
+    correctAnswer: "4x + 12",
+    explanation: "Por la propiedad distributiva, 4 multiplica a cada término: 4·x + 4·3 = 4x + 12.",
+  },
+  {
+    id: "term-3",
+    category: "terminos",
+    question: "¿Cuál grupo contiene solo términos semejantes?",
+    options: ["3x², −5x², x²", "2x, 2y, 2", "4a, 4a², a", "x, xy, y"],
+    correctAnswer: "3x², −5x², x²",
+    explanation: "Los términos semejantes tienen exactamente la misma parte literal: aquí todos contienen x².",
+  },
+  {
+    id: "var-2",
+    category: "variables",
+    question: "En la expresión 5n + 2, ¿qué representa n?",
+    options: ["Una cantidad que puede cambiar", "Siempre el número 5", "Un signo de suma", "Un objeto fijo"],
+    correctAnswer: "Una cantidad que puede cambiar",
+    explanation: "Una variable representa una cantidad cuyo valor puede cambiar según la situación.",
+  },
+  {
+    id: "var-3",
+    category: "variables",
+    question: "Si x representa el número de cuadernos, ¿qué significa 3x?",
+    options: ["Tres veces el número de cuadernos", "x + 3 cuadernos", "El tercer cuaderno", "Un valor fijo igual a 3"],
+    correctAnswer: "Tres veces el número de cuadernos",
+    explanation: "3x indica una multiplicación: tres grupos de x cuadernos.",
+  },
+  {
+    id: "igual-2",
+    category: "igualdad",
+    question: "Completa para que ambos lados sean equivalentes:",
+    expression: "2(x + 4) = 2x + ___",
+    options: ["8", "4", "6x", "x + 8"],
+    correctAnswer: "8",
+    explanation: "Distribuye el 2: 2·x + 2·4 = 2x + 8. Los dos lados tienen el mismo valor.",
+  },
+  {
+    id: "igual-3",
+    category: "igualdad",
+    question: "¿Qué afirma correctamente el signo igual en 3x + 6 = 3(x + 2)?",
+    options: [
+      "Las dos expresiones tienen el mismo valor para cualquier x",
+      "Se debe calcular primero el lado izquierdo",
+      "La expresión de la derecha es mayor",
+      "x siempre vale 2",
+    ],
+    correctAnswer: "Las dos expresiones tienen el mismo valor para cualquier x",
+    explanation: "El signo igual expresa equivalencia: ambas formas representan la misma cantidad.",
   },
 ];
 
@@ -329,40 +432,50 @@ export const DIAGNOSTIC_CATEGORY_INFO: Record<
     color: "#d97706",
     description: "Propiedades y cálculo de potencias",
   },
+  fracciones: {
+    label: "Fracciones",
+    icon: "½",
+    color: "#0f766e",
+    description: "Equivalencias y operaciones con fracciones",
+  },
   factorizacion: {
     label: "Factores Primos",
     icon: "🔍",
     color: "#7c3aed",
     description: "Descomposición de números en factores primos",
   },
-  algebra: {
-    label: "Álgebra Básica",
-    icon: "✏️",
-    color: "#2563eb",
-    description: "Expresiones algebraicas, términos semejantes, grado de polinomios",
-  },
-  operaciones: {
-    label: "Operaciones Algebraicas",
+  propiedades: {
+    label: "Propiedades algebraicas",
     icon: "⚙️",
+    color: "#0891b2",
+    description: "Equivalencias, distributiva y transformación de expresiones",
+  },
+  terminos: {
+    label: "Identificación de términos",
+    icon: "🧩",
+    color: "#7c3aed",
+    description: "Términos, grados y términos semejantes",
+  },
+  variables: {
+    label: "Uso de variables",
+    icon: "🔤",
+    color: "#2563eb",
+    description: "Significado y uso de cantidades que pueden variar",
+  },
+  igualdad: {
+    label: "Interpretación del signo igual",
+    icon: "⚖️",
     color: "#059669",
-    description: "Multiplicación de polinomios y productos notables",
+    description: "El signo igual como equivalencia entre expresiones",
   },
 };
 
 export function buildDiagnosticProfile(
   answers: Record<string, string>
 ): DiagnosticProfile {
-  const categories: DiagnosticCategory[] = [
-    "naturales",
-    "decimales",
-    "enteros",
-    "irracionales",
-    "reales",
-    "potencias",
-    "factorizacion",
-    "algebra",
-    "operaciones",
-  ];
+  const categories = Array.from(
+    new Set(DIAGNOSTIC_QUESTIONS.map((question) => question.category))
+  );
 
   const results: DiagnosticResult[] = categories.map((cat) => {
     const qs = DIAGNOSTIC_QUESTIONS.filter((q) => q.category === cat);
@@ -379,8 +492,54 @@ export function buildDiagnosticProfile(
   const totalQ = DIAGNOSTIC_QUESTIONS.length;
   const overallScore = Math.round((totalCorrect / totalQ) * 100);
 
-  const level: DiagnosticProfile["level"] =
-    overallScore >= 75 ? "avanzado" : overallScore >= 45 ? "intermedio" : "básico";
+  const scoreFor = (category: DiagnosticCategory) =>
+    results.find((result) => result.category === category)?.score ?? 0;
+  const arithmeticCategories: DiagnosticCategory[] = [
+    "naturales",
+    "enteros",
+    "potencias",
+    "fracciones",
+  ];
+  const arithmeticScore = Math.round(
+    arithmeticCategories.reduce((sum, category) => sum + scoreFor(category), 0) /
+      arithmeticCategories.length
+  );
+  const competencyResults: CompetencyResult[] = [
+    {
+      competency: "aritmetica",
+      score: arithmeticScore,
+      meetsThreshold: arithmeticCategories.every((category) => scoreFor(category) >= 75),
+    },
+    ...(["propiedades", "terminos", "variables", "igualdad"] as const).map(
+      (competency) => ({
+        competency,
+        score: scoreFor(competency),
+        meetsThreshold: scoreFor(competency) >= 75,
+      })
+    ),
+  ];
 
-  return { completedAt: Date.now(), results, overallScore, level };
+  const arithmeticReady = competencyResults[0].meetsThreshold;
+  const algebraReady = competencyResults
+    .filter((result) => result.competency !== "aritmetica")
+    .every((result) => result.meetsThreshold);
+  const profile: LearningProfileCode = !arithmeticReady
+    ? "A"
+    : !algebraReady
+      ? "B"
+      : "C";
+  const route: LearningRouteCode =
+    profile === "A" ? "ruta-1" : profile === "B" ? "ruta-2" : "ruta-3";
+  const level: DiagnosticProfile["level"] =
+    profile === "A" ? "básico" : profile === "B" ? "intermedio" : "avanzado";
+
+  return {
+    completedAt: Date.now(),
+    results,
+    competencyResults,
+    overallScore,
+    level,
+    profile,
+    route,
+  };
 }

@@ -1,1 +1,2 @@
 - [FactorIzA-Play producción](factoriza-play-production.md) — URL de producción del backend y patrón de login offline para docente
+- [Rutas adaptativas](factoriza-learning-routes.md) — el diagnóstico clasifica Perfil A/B/C con umbral fijo del 75% por competencia

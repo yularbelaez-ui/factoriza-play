@@ -3,6 +3,7 @@
  * Works on both web (relative URL) and native (uses EXPO_PUBLIC_API_URL).
  */
 import { Platform } from "react-native";
+import type { DiagnosticProfile } from "@/data/diagnostic";
 
 // On native builds, EXPO_PUBLIC_API_URL must be the absolute production URL.
 // Example: https://mi-app.replit.app/api-server
@@ -56,6 +57,7 @@ export interface ApiStudentData {
   completedTopics: string[];
   completedModules: string[];
   completedExercises: string[];
+  diagnosticProfile?: DiagnosticProfile | null;
 }
 
 export async function apiLoginStudent(
@@ -102,6 +104,16 @@ export async function apiCompleteTopic(
   return apiFetch(`/students/${studentId}/topics`, {
     method: "POST",
     body: JSON.stringify({ topicId }),
+  });
+}
+
+export async function apiSaveDiagnosticProfile(
+  studentId: number,
+  diagnosticProfile: DiagnosticProfile
+): Promise<{ student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/diagnostic`, {
+    method: "POST",
+    body: JSON.stringify({ diagnosticProfile }),
   });
 }
 

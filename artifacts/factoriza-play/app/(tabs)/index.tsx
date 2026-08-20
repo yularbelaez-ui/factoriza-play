@@ -16,6 +16,7 @@ import { MODULES } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
+import { LEARNING_ROUTES, PROFILE_DETAILS } from "@/data/learningRoutes";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
 const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
@@ -64,20 +65,15 @@ export default function HomeScreen() {
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
 
-  // Construir pasos de la ruta personalizada
-  const routeSteps = dp
-    ? dp.results
-        .filter((r) => r.score < 70)
-        .sort((a, b) => a.score - b.score)
-        .map((r, i) => {
-          const info = CATEGORY_TOPICS[r.category];
-          if (!info) return null;
-          return { ...info, score: r.score, stepNum: i + 1 };
-        })
-        .filter(Boolean) as Array<{ topicId: string; title: string; icon: string; section: string; score: number; stepNum: number }>
-    : [];
-
-  const allStrong = dp !== undefined && routeSteps.length === 0;
+  const profileCode = dp?.profile ?? (dp?.level === "básico" ? "A" : dp?.level === "intermedio" ? "B" : "C");
+  const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
+  const assignedRoute = dp
+    ? LEARNING_ROUTES[
+        dp.route ?? (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3")
+      ]
+    : null;
+  const routeSteps = assignedRoute?.steps ?? [];
+  const allStrong = profileCode === "C";
 
   return (
     <ScrollView
@@ -137,9 +133,7 @@ export default function HomeScreen() {
               <View>
                 <Text style={[styles.routeTitle, { color: colors.foreground }]}>Tu Ruta Sugerida</Text>
                 <Text style={[styles.routeSub, { color: colors.mutedForeground }]}>
-                  Basada en tu diagnóstico · {levelEmoji[dp.level]} Nivel{" "}
-                  <Text style={{ color: levelColors[dp.level], fontWeight: "700" }}>{dp.level}</Text>
-                  {" "}· {dp.overallScore}%
+                  {profileDetails?.icon} {profileDetails?.label} · {assignedRoute?.title} · {dp.overallScore}%
                 </Text>
               </View>
             </View>
@@ -157,17 +151,22 @@ export default function HomeScreen() {
             /* Pasos de repaso */
             <View style={styles.stepsContainer}>
               {routeSteps.map((step, idx) => {
-                const sc = stepColor(step.score);
+                        const sc = {
+                          bg: (assignedRoute?.color ?? colors.primary) + "0D",
+                          border: (assignedRoute?.color ?? colors.primary) + "35",
+                          badge: assignedRoute?.color ?? colors.primary,
+                          label: assignedRoute?.color ?? colors.primary,
+                        };
                 const isLast = idx === routeSteps.length - 1;
                 return (
-                  <View key={step.topicId}>
+                    <View key={step.id}>
                     <TouchableOpacity
                       style={[styles.stepRow, { backgroundColor: sc.bg, borderColor: sc.border }]}
-                      onPress={() => router.push(`/tema/${step.topicId}` as any)}
+                        onPress={() => router.push((step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any)}
                       activeOpacity={0.8}
                     >
                       <View style={[styles.stepBadge, { backgroundColor: sc.badge }]}>
-                        <Text style={styles.stepNum}>{step.stepNum}</Text>
+                          <Text style={styles.stepNum}>{idx + 1}</Text>
                       </View>
                       <Text style={styles.stepIcon}>{step.icon}</Text>
                       <View style={styles.stepInfo}>
@@ -175,11 +174,11 @@ export default function HomeScreen() {
                           {step.title}
                         </Text>
                         <Text style={[styles.stepSection, { color: colors.mutedForeground }]}>
-                          {step.section}
+                          {step.description}
                         </Text>
                       </View>
                       <View style={styles.stepRight}>
-                        <Text style={[styles.stepScore, { color: sc.label }]}>{step.score}%</Text>
+                        <Text style={[styles.stepScore, { color: sc.label }]}>Ruta</Text>
                         <Feather name="chevron-right" size={16} color={sc.label} />
                       </View>
                     </TouchableOpacity>
@@ -211,7 +210,7 @@ export default function HomeScreen() {
             <Text style={styles.finalStepIcon}>🔢</Text>
             <View style={styles.stepInfo}>
               <Text style={styles.finalStepTitle}>Paso final: Factorización</Text>
-              <Text style={styles.finalStepSub}>Los 8 casos del curso · Sección 4</Text>
+              <Text style={styles.finalStepSub}>{totalModules} módulos progresivos · Sección 4</Text>
             </View>
             <Feather name="arrow-right-circle" size={20} color="#d97706" />
           </TouchableOpacity>

@@ -4,6 +4,7 @@ import {
   text,
   integer,
   boolean,
+  jsonb,
   timestamp,
   varchar,
   unique,
@@ -38,6 +39,7 @@ export const students = pgTable(
     completedTopics: text("completed_topics").array().default([]).notNull(),
     completedModules: text("completed_modules").array().default([]).notNull(),
     completedExercises: text("completed_exercises").array().default([]).notNull(),
+    diagnosticProfile: jsonb("diagnostic_profile").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.pseudonym, t.classCode)]

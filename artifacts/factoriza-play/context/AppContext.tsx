@@ -15,6 +15,7 @@ import {
   apiCompleteTopic,
   apiGetTeacherClasses,
   apiGetClassStudents,
+  apiSaveDiagnosticProfile,
 } from "@/lib/api";
 
 export type UserRole = "student" | "teacher";
@@ -77,16 +78,17 @@ export interface ErrorSummary {
 
 const TEACHER_CODE = "Karyul04";
 
-// Orden de desbloqueo progresivo de los 8 casos de factorización
+// Orden de desbloqueo progresivo: reconocer patrones antes de aplicar cada caso.
 const MODULE_ORDER = [
-  "factor-comun",           // Caso 1
-  "agrupacion-terminos",    // Caso 2
-  "trinomio-cuadrado-perfecto", // Caso 3
-  "diferencia-cuadrados",   // Caso 4
-  "trinomio-forma-x2-bx-c", // Caso 5
-  "trinomio-ax2-bx-c",      // Caso 6
-  "cubo-binomio",           // Caso 7
-  "suma-diferencia-cubos",  // Caso 8
+  "reconocimiento-patrones",
+  "factor-comun",
+  "agrupacion-terminos",
+  "trinomio-cuadrado-perfecto",
+  "diferencia-cuadrados",
+  "trinomio-forma-x2-bx-c",
+  "trinomio-ax2-bx-c",
+  "cubo-binomio",
+  "suma-diferencia-cubos",
 ];
 
 function computeUnlocked(completedModules: string[]): string[] {
@@ -100,15 +102,24 @@ function computeUnlocked(completedModules: string[]): string[] {
 }
 
 const ERROR_CATEGORIES: Record<string, string> = {
-  operaciones: "Operaciones aritméticas básicas",
-  ley_signos: "Ley de signos",
-  variables: "Variables y polinomios",
-  equality: "El signo igual como equivalencia",
-  potenciacion: "Propiedades de potenciación",
-  radicacion: "Propiedades de radicación",
-  arithmetic: "Operaciones aritméticas",
-  powers: "Potenciación y radicación",
-  operations: "Operaciones numéricas",
+  operaciones: "Conocimientos previos · operaciones básicas",
+  ley_signos: "Conocimientos previos · ley de signos",
+  variables: "Pensamiento algebraico · uso de variables",
+  equality: "Pensamiento algebraico · signo igual",
+  potenciacion: "Conocimientos previos · potenciación",
+  radicacion: "Conocimientos previos · radicación",
+  arithmetic: "Conocimientos previos · operaciones aritméticas",
+  powers: "Conocimientos previos · potencias",
+  operations: "Conocimientos previos · operaciones numéricas",
+  terminos_semejantes: "Pensamiento algebraico · términos semejantes",
+  estructura_no_reconocida: "Pensamiento algebraico · reconocimiento de estructuras",
+  estrategia_incorrecta: "Factorización · estrategia no corresponde",
+  factor_comun_no_identificado: "Factorización · no identifica factor común",
+  extraccion_factor_incorrecta: "Factorización · extracción incorrecta",
+  caso_incorrecto: "Factorización · caso aplicado incorrectamente",
+  sin_verificacion: "Factorización · no verifica el resultado",
+  error_repetido: "Autorregulación · repite el mismo error",
+  feedback_ignorado: "Autorregulación · no usa la retroalimentación",
 };
 
 const AVATARS = ["🎓", "🧑‍🎓", "👩‍🎓", "👨‍🎓", "🌟", "🚀", "💡", "🔢"];
@@ -264,6 +275,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: number; pseudonym: string; classCode: string;
       totalXP: number; streak: number;
       completedTopics: string[]; completedModules: string[]; completedExercises: string[];
+      diagnosticProfile?: DiagnosticProfile | null;
     };
     try {
       const res = await apiLoginStudent(trimPseudo, trimCode);
@@ -292,7 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       completedExercises: backendStudent.completedExercises,
       exerciseResults: existing?.exerciseResults ?? [],
       lastLogin: Date.now(),
-      diagnosticProfile: existing?.diagnosticProfile,
+      diagnosticProfile: backendStudent.diagnosticProfile ?? existing?.diagnosticProfile,
     };
 
     const updatedStudents = existing
@@ -450,6 +462,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ allStudents: up });
       return up;
     });
+    if (currentStudent.backendId) {
+      try {
+        await apiSaveDiagnosticProfile(currentStudent.backendId, profile);
+      } catch {
+        // The local profile remains available and will be retried on the next save.
+      }
+    }
   };
 
   const getErrorSummary = (classCode?: string): ErrorSummary[] => {
@@ -494,7 +513,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               completedExercises: bs.completedExercises,
               exerciseResults: existing?.exerciseResults ?? [],
               lastLogin: existing?.lastLogin ?? Date.now(),
-              diagnosticProfile: existing?.diagnosticProfile,
+              diagnosticProfile: bs.diagnosticProfile ?? existing?.diagnosticProfile,
             });
           }
         } catch {
@@ -516,10 +535,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : allStudents
     ).filter((s) => s.diagnosticProfile);
 
-    const categories = ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "factorizacion"];
+    const categories = ["aritmetica", "propiedades", "terminos", "variables", "igualdad"];
     return categories.map((cat) => {
       const scores = students
-        .map((s) => s.diagnosticProfile!.results.find((r) => r.category === cat)?.score ?? null)
+        .map((s) => {
+          if (cat === "aritmetica") {
+            return s.diagnosticProfile!.competencyResults?.find((r) => r.competency === cat)?.score ?? null;
+          }
+          return s.diagnosticProfile!.competencyResults?.find((r) => r.competency === cat)?.score ??
+            s.diagnosticProfile!.results.find((r) => r.category === cat)?.score ?? null;
+        })
         .filter((s): s is number => s !== null);
       const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
       return { category: cat, avgScore: avg, count: scores.length };
