@@ -73,6 +73,15 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+# pnpm v10.26+ requires build scripts to be explicitly reviewed when
+# strictDepBuilds is enabled (as it is in EAS Build). These are the same
+# trusted packages listed above, now expressed in the current pnpm format.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
+
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
