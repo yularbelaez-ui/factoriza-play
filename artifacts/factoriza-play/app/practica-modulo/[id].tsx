@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { useColors } from "@/hooks/useColors";
+import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
 type Phase = "main" | "retry" | "done";
 type Exercise = (typeof MODULES)[0]["exercises"][0];
@@ -80,10 +81,15 @@ export default function PracticaModuloScreen() {
     phase === "retry" ? (retryQueue[retryIdx] ?? null) :
     null;
 
-  const shuffledOptions = useMemo(() => {
+  const orderedOptions = useMemo(() => {
     if (!currentEx) return [];
-    return shuffleArray(currentEx.options);
-  }, [currentEx?.id]);
+    const ordinal = phase === "main" ? mainIdx : mainQueue.length + retryIdx;
+    return getBalancedAnswerOptions(
+      currentEx.options,
+      currentEx.correctAnswer,
+      ordinal
+    );
+  }, [currentEx?.id, mainIdx, mainQueue.length, phase, retryIdx]);
 
   const isCorrect = selected === currentEx?.correctAnswer;
   const errorHint = currentEx ? (ERROR_HINTS[currentEx.errorCategory] ?? ERROR_HINTS["arithmetic"]) : null;
@@ -401,7 +407,7 @@ export default function PracticaModuloScreen() {
 
       {/* Options */}
       <View style={styles.options}>
-        {shuffledOptions.map((option) => {
+        {orderedOptions.map((option) => {
           const c = getOptionStyle(option);
           return (
             <TouchableOpacity

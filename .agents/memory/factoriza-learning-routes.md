@@ -12,3 +12,9 @@ La clasificación debe usar un umbral fijo de 75% por competencia:
 **Why:** La ruta debe atender primero las brechas que impedirían comprender la factorización, en lugar de basarse solo en un promedio global.
 
 **How to apply:** Conserva esta regla al ajustar preguntas, reportes docentes o recomendaciones. La Ruta 3 debe comenzar con reconocimiento de patrones y continuar con factor común antes de los demás casos.
+
+La progresión dentro de cada ruta es secuencial: solo el primer paso pendiente está disponible; los siguientes permanecen bloqueados. Un paso completado sigue abierto para repasar y debe identificarse como “Completada”.
+
+**Why:** Así se evita saltar prerrequisitos sin impedir que el estudiante practique contenidos ya logrados.
+
+**How to apply:** Mantén esta regla cuando se agreguen pasos o nuevas formas de completar contenido, y conserva los avances al sincronizarlos entre dispositivos.

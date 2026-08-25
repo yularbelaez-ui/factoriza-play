@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { teachers, classCodes, students, evalCodes } from "@workspace/db/schema";
-import { eq, count } from "drizzle-orm";
+import {
+  teachers,
+  classCodes,
+  students,
+  exerciseResults,
+  evalCodes,
+} from "@workspace/db/schema";
+import { and, eq, count } from "drizzle-orm";
 
 const router = Router();
 
@@ -84,6 +90,63 @@ router.post(
         classCode: classCode.toUpperCase(),
       },
     });
+  }
+);
+
+// DELETE /api/teacher/:teacherCode/students/:studentId
+router.delete(
+  "/teacher/:teacherCode/students/:studentId",
+  async (req, res) => {
+    const { teacherCode } = req.params;
+    const studentId = parseInt(req.params.studentId, 10);
+    if (isNaN(studentId)) {
+      res.status(400).json({ error: "Invalid studentId" });
+      return;
+    }
+
+    const [teacher] = await db
+      .select({ id: teachers.id })
+      .from(teachers)
+      .where(eq(teachers.teacherCode, teacherCode.trim()))
+      .limit(1);
+    if (!teacher) {
+      res.status(401).json({ error: "Código de docente inválido" });
+      return;
+    }
+
+    const [student] = await db
+      .select({ id: students.id, classCode: students.classCode })
+      .from(students)
+      .where(eq(students.id, studentId))
+      .limit(1);
+    if (!student) {
+      res.status(404).json({ error: "Estudiante no encontrado" });
+      return;
+    }
+
+    const [teacherClass] = await db
+      .select({ code: classCodes.code })
+      .from(classCodes)
+      .where(
+        and(
+          eq(classCodes.teacherId, teacher.id),
+          eq(classCodes.code, student.classCode)
+        )
+      )
+      .limit(1);
+    if (!teacherClass) {
+      res.status(403).json({ error: "El estudiante no pertenece a tus clases" });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(exerciseResults)
+        .where(eq(exerciseResults.studentId, studentId));
+      await tx.delete(students).where(eq(students.id, studentId));
+    });
+
+    res.json({ deleted: true, studentId });
   }
 );
 

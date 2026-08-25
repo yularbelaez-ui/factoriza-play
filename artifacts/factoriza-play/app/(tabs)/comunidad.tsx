@@ -1,25 +1,91 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback } from "react";
 import {
+  ActivityIndicator,
   Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
-import { useApp } from "@/context/AppContext";
+import { StudentRecord, useApp } from "@/context/AppContext";
+import { apiGetClassStudents } from "@/lib/api";
+
+const RANKING_AVATARS = ["🎓", "🧑‍🎓", "👩‍🎓", "👨‍🎓", "🌟", "🚀", "💡", "🔢"];
 
 export default function ComunidadScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { allStudents, currentStudent } = useApp();
+  const {
+    allStudents,
+    currentStudent,
+  } = useApp();
   const isWeb = Platform.OS === "web";
+  const [serverRanking, setServerRanking] = React.useState<StudentRecord[] | null>(null);
+  const [isRefreshingRanking, setIsRefreshingRanking] = React.useState(false);
 
-  const sorted = [...allStudents].sort((a, b) => b.totalXP - a.totalXP);
-  const myRank = sorted.findIndex((s) => s.id === currentStudent?.id) + 1;
+  const refreshRanking = useCallback(async () => {
+    const classCode = currentStudent?.classCode;
+    if (!classCode) return;
+
+    setIsRefreshingRanking(true);
+    try {
+      const { students } = await apiGetClassStudents(classCode);
+      const refreshedRanking: StudentRecord[] = students.map((student) => {
+        const localStudent = allStudents.find(
+          (candidate) => candidate.backendId === student.id
+        );
+        return {
+          id: localStudent?.id ?? `ranking-${student.id}`,
+          backendId: student.id,
+          pseudonym: student.pseudonym,
+          classCode: student.classCode,
+          avatar:
+            localStudent?.avatar ??
+            RANKING_AVATARS[student.id % RANKING_AVATARS.length],
+          streak: student.streak,
+          totalXP: student.totalXP,
+          completedModules: student.completedModules,
+          completedTopics: student.completedTopics,
+          completedExercises: student.completedExercises,
+          exerciseResults: localStudent?.exerciseResults ?? [],
+          lastLogin: localStudent?.lastLogin ?? Date.now(),
+          diagnosticProfile:
+            student.diagnosticProfile ?? localStudent?.diagnosticProfile,
+        };
+      });
+      setServerRanking(refreshedRanking);
+    } finally {
+      setIsRefreshingRanking(false);
+    }
+  }, [allStudents, currentStudent?.classCode]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshRanking();
+    }, [refreshRanking])
+  );
+
+  const rankingStudents =
+    serverRanking ?? allStudents.filter(
+      (student) => student.classCode === currentStudent?.classCode
+    );
+  const sorted = [...rankingStudents].sort(
+    (a, b) =>
+      b.totalXP - a.totalXP ||
+      a.pseudonym.localeCompare(b.pseudonym, "es", { sensitivity: "base" })
+  );
+  const myRank = sorted.findIndex(
+    (student) => student.backendId === currentStudent?.backendId
+  ) + 1;
+  const rankedCurrentStudent = sorted.find(
+    (student) => student.backendId === currentStudent?.backendId
+  );
 
   const medalColors = [colors.gold, colors.silver, colors.bronze];
   const medalIcons = ["🥇", "🥈", "🥉"];
@@ -36,11 +102,33 @@ export default function ComunidadScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        Comunidad Grado 8°
-      </Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleCopy}>
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            Comunidad Grado 8°
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            Comparte el progreso y motívense entre todos
+          </Text>
+        </View>
+        <TouchableOpacity
+          accessibilityLabel="Actualizar ranking"
+          style={[
+            styles.refreshButton,
+            { backgroundColor: colors.secondary, borderColor: colors.border },
+          ]}
+          onPress={() => void refreshRanking()}
+          disabled={isRefreshingRanking}
+        >
+          {isRefreshingRanking ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Feather name="refresh-cw" size={17} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      </View>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Comparte el progreso y motívense entre todos
+        Los puestos se actualizan según los XP acumulados por cada estudiante.
       </Text>
 
       {/* Banner */}
@@ -67,7 +155,7 @@ export default function ComunidadScreen() {
           #{myRank > 0 ? myRank : "?"}
         </Text>
         <Text style={[styles.myPosXP, { color: colors.mutedForeground }]}>
-          {currentStudent?.totalXP ?? 0} XP
+          {rankedCurrentStudent?.totalXP ?? currentStudent?.totalXP ?? 0} XP
         </Text>
       </View>
 
@@ -77,7 +165,7 @@ export default function ComunidadScreen() {
       </Text>
 
       {sorted.map((student, index) => {
-        const isMe = student.id === currentStudent?.id;
+        const isMe = student.backendId === currentStudent?.backendId;
         const rank = index + 1;
 
         return (
@@ -145,8 +233,19 @@ export default function ComunidadScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 4 },
+  titleCopy: { flex: 1 },
   title: { fontSize: 26, fontWeight: "800", marginBottom: 6 },
   subtitle: { fontSize: 14, marginBottom: 16 },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
   banner: {
     width: "100%",
     height: 160,

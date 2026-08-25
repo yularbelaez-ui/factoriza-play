@@ -107,6 +107,16 @@ export async function apiCompleteTopic(
   });
 }
 
+export async function apiCompleteModule(
+  studentId: number,
+  moduleId: string
+): Promise<{ student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/modules`, {
+    method: "POST",
+    body: JSON.stringify({ moduleId }),
+  });
+}
+
 export async function apiSaveDiagnosticProfile(
   studentId: number,
   diagnosticProfile: DiagnosticProfile
@@ -122,7 +132,7 @@ export async function apiSaveDiagnosticProfile(
 export async function apiGetClassStudents(
   classCode: string
 ): Promise<{ students: ApiStudentData[] }> {
-  return apiFetch(`/class/${classCode}/students`);
+  return apiFetch(`/class/${classCode}/students`, { cache: "no-store" });
 }
 
 export async function apiGetClassErrors(
@@ -147,4 +157,14 @@ export async function apiCreateEvalCode(
     method: "POST",
     body: JSON.stringify({ moduleId, code }),
   });
+}
+
+export async function apiDeleteStudent(
+  teacherCode: string,
+  studentId: number
+): Promise<{ deleted: boolean; studentId: number }> {
+  return apiFetch(
+    `/teacher/${encodeURIComponent(teacherCode)}/students/${studentId}`,
+    { method: "DELETE" }
+  );
 }

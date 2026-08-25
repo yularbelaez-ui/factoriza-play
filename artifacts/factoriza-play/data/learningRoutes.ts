@@ -19,6 +19,50 @@ export interface LearningRoute {
   steps: LearningRouteStep[];
 }
 
+export type LearningRouteStepState = "locked" | "available" | "completed";
+
+function isStepCompleted(
+  step: LearningRouteStep,
+  completedTopics: string[],
+  completedModules: string[]
+) {
+  return Boolean(
+    (step.topicId && completedTopics.includes(step.topicId)) ||
+      (step.moduleId && completedModules.includes(step.moduleId))
+  );
+}
+
+export function getRouteStepState(
+  route: LearningRoute,
+  stepIndex: number,
+  completedTopics: string[],
+  completedModules: string[]
+): LearningRouteStepState {
+  const step = route.steps[stepIndex];
+  if (!step) return "locked";
+  if (isStepCompleted(step, completedTopics, completedModules)) {
+    return "completed";
+  }
+  if (stepIndex === 0) return "available";
+
+  const previousStepsAreCompleted = route.steps
+    .slice(0, stepIndex)
+    .every((previousStep) =>
+      isStepCompleted(previousStep, completedTopics, completedModules)
+    );
+  return previousStepsAreCompleted ? "available" : "locked";
+}
+
+export function isLearningRouteCompleted(
+  route: LearningRoute,
+  completedTopics: string[],
+  completedModules: string[]
+) {
+  return route.steps.every((step) =>
+    isStepCompleted(step, completedTopics, completedModules)
+  );
+}
+
 export const PROFILE_DETAILS: Record<
   LearningProfileCode,
   { label: string; summary: string; color: string; icon: string }

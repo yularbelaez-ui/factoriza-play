@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { getTopicById, TopicExercise } from "@/data/sectionTopics";
+import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
 type Tab = "teoria" | "ejemplos" | "practica";
 
@@ -78,6 +79,13 @@ export default function TemaScreen() {
   }
 
   const currentEx = queue[practiceIdx];
+  const orderedOptions = currentEx
+    ? getBalancedAnswerOptions(
+        currentEx.options,
+        currentEx.correctAnswer,
+        practiceIdx
+      )
+    : [];
   const totalEx   = queue.length;
   const maxXP     = totalEx * XP_FIRST_TRY;
 
@@ -250,7 +258,7 @@ export default function TemaScreen() {
 
                 {/* Options */}
                 <Animated.View style={{ gap: 8, transform: [{ translateX: shakeAnim }] }}>
-                  {currentEx.options.map((opt) => {
+                  {orderedOptions.map((opt) => {
                     const s = optionStyle(opt);
                     const isDisabled = disabledOptions.includes(opt) || phase === "revealed";
                     return (

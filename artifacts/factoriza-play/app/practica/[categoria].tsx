@@ -13,15 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PRACTICE_CATEGORIES } from "@/data/practice";
 import { useColors } from "@/hooks/useColors";
-
-function shuffleArray<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
+import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
 export default function PracticaScreen() {
   const { categoria } = useLocalSearchParams<{ categoria: string }>();
@@ -37,9 +29,13 @@ export default function PracticaScreen() {
 
   const shuffledExercises = useMemo(
     () =>
-      cat?.exercises.map((ex) => ({
+      cat?.exercises.map((ex, index) => ({
         ...ex,
-        shuffledOptions: shuffleArray(ex.options),
+        shuffledOptions: getBalancedAnswerOptions(
+          ex.options,
+          ex.correctAnswer,
+          index
+        ),
       })) ?? [],
     [cat?.id]
   );

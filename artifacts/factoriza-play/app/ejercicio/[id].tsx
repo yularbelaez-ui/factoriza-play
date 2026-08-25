@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { useColors } from "@/hooks/useColors";
+import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -131,10 +132,15 @@ export default function EjercicioScreen() {
   const [showHint, setShowHint] = useState(false);
   const [showTheoryBtn, setShowTheoryBtn] = useState(false);
 
-  const shuffledOptions = useMemo(() => {
+  const exerciseOrdinal = module?.exercises.findIndex((item) => item.id === exerciseId) ?? 0;
+  const orderedOptions = useMemo(() => {
     if (!exercise) return [];
-    return shuffleArray(exercise.options);
-  }, [exerciseId]);
+    return getBalancedAnswerOptions(
+      exercise.options,
+      exercise.correctAnswer,
+      exerciseOrdinal
+    );
+  }, [exercise?.id, exerciseOrdinal]);
 
   if (!module || !exercise) {
     return (
@@ -332,7 +338,7 @@ export default function EjercicioScreen() {
 
       {/* Options */}
       <View style={styles.options}>
-        {shuffledOptions.map((option) => {
+          {orderedOptions.map((option) => {
           const c = getOptionColors(option);
           return (
             <TouchableOpacity

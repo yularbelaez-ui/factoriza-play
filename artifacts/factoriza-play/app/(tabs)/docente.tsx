@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -69,6 +70,7 @@ export default function DocenteScreen() {
     evaluationCodes,
     refreshTeacherData,
     isRefreshingTeacher,
+    deleteStudent,
   } = useApp();
   const [activeTab, setActiveTab] = useState<Tab>("students");
   const [evalCode, setEvalCode] = useState("");
@@ -77,6 +79,9 @@ export default function DocenteScreen() {
   const [newCodeLabel, setNewCodeLabel] = useState("");
   const [filterClass, setFilterClass] = useState<string>("all");
   const [expandedSection, setExpandedSection] = useState<string | null>("saberes");
+  const [deletingStudentId, setDeletingStudentId] = useState<number | null>(null);
+  const [studentPendingDelete, setStudentPendingDelete] = useState<(typeof allStudents)[number] | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isWeb = Platform.OS === "web";
 
   // Sync students from backend on mount and every 30 s
@@ -124,6 +129,27 @@ export default function DocenteScreen() {
     Alert.alert("Código creado", `El código "${trimCode}" (${trimLabel}) está listo para compartir con tus estudiantes.`);
   };
 
+  const handleDeleteStudent = (student: (typeof allStudents)[number]) => {
+    if (!student.backendId || deletingStudentId !== null) return;
+    setDeleteError(null);
+    setStudentPendingDelete(student);
+  };
+
+  const confirmDeleteStudent = async () => {
+    const backendId = studentPendingDelete?.backendId;
+    if (!backendId || deletingStudentId !== null) return;
+    const student = studentPendingDelete;
+    setDeletingStudentId(backendId);
+    const result = await deleteStudent(student);
+    setDeletingStudentId(null);
+    if (!result.ok) {
+      setDeleteError(result.error ?? "No se pudo eliminar el perfil. Intenta de nuevo.");
+      return;
+    }
+    setStudentPendingDelete(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   const TABS: { id: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
     { id: "students",   label: "Estudiantes", icon: "users"          },
     { id: "comunidad",  label: "Comunidad",   icon: "award"          },
@@ -156,6 +182,7 @@ export default function DocenteScreen() {
   );
 
   return (
+    <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
@@ -468,6 +495,27 @@ export default function DocenteScreen() {
                       <ProgressBar progress={pct} color={colors.success} height={5} />
                     </View>
                   )}
+                  <TouchableOpacity
+                    accessibilityLabel={`Eliminar perfil de ${student.pseudonym}`}
+                    style={[
+                      styles.deleteStudentBtn,
+                      {
+                        borderColor: colors.error + "45",
+                        backgroundColor: colors.error + "08",
+                      },
+                    ]}
+                    onPress={() => handleDeleteStudent(student)}
+                    disabled={deletingStudentId !== null}
+                  >
+                    {deletingStudentId === student.backendId ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Feather name="trash-2" size={14} color={colors.error} />
+                    )}
+                    <Text style={[styles.deleteStudentText, { color: colors.error }]}>
+                      Eliminar perfil
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               );
             })
@@ -910,6 +958,71 @@ export default function DocenteScreen() {
         </View>
       )}
     </ScrollView>
+      <Modal
+        visible={studentPendingDelete !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (deletingStudentId === null) setStudentPendingDelete(null);
+        }}
+      >
+        <View style={styles.deleteModalBackdrop}>
+          <View style={[styles.deleteModal, { backgroundColor: colors.card }]}>
+            <View style={[styles.deleteModalIcon, { backgroundColor: colors.error + "12" }]}>
+              <Feather name="trash-2" size={22} color={colors.error} />
+            </View>
+            <Text style={[styles.deleteModalTitle, { color: colors.foreground }]}>
+              Eliminar perfil de estudiante
+            </Text>
+            <Text style={[styles.deleteModalText, { color: colors.mutedForeground }]}>
+              Se eliminará el perfil de{" "}
+              <Text style={{ color: colors.foreground, fontWeight: "800" }}>
+                {studentPendingDelete?.pseudonym}
+              </Text>
+              , junto con sus XP, avances y resultados.
+            </Text>
+            <Text style={[styles.deleteModalWarning, { color: colors.error }]}>
+              Esta acción no se puede deshacer.
+            </Text>
+            {deleteError && (
+              <Text style={[styles.deleteModalError, { color: colors.error }]}>
+                {deleteError}
+              </Text>
+            )}
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={[styles.deleteCancelBtn, { borderColor: colors.border }]}
+                onPress={() => {
+                  setDeleteError(null);
+                  setStudentPendingDelete(null);
+                }}
+                disabled={deletingStudentId !== null}
+                accessibilityLabel="Cancelar eliminación"
+              >
+                <Text style={[styles.deleteCancelText, { color: colors.foreground }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, { backgroundColor: colors.error }]}
+                onPress={confirmDeleteStudent}
+                disabled={deletingStudentId !== null}
+                accessibilityLabel="Confirmar eliminación del perfil"
+              >
+                {deletingStudentId !== null ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="trash-2" size={14} color="#fff" />
+                )}
+                <Text style={styles.deleteConfirmText}>
+                  {deletingStudentId !== null ? "Eliminando..." : "Eliminar perfil"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -954,6 +1067,71 @@ const styles = StyleSheet.create({
   miniStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center" },
   miniStatValue: { fontSize: 16, fontWeight: "800" },
   miniStatLabel: { fontSize: 10, fontWeight: "500" },
+  deleteStudentBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 9,
+    marginTop: 2,
+  },
+  deleteStudentText: { fontSize: 12, fontWeight: "700" },
+  deleteModalBackdrop: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+  },
+  deleteModal: {
+    width: "100%",
+    maxWidth: 460,
+    borderRadius: 20,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  deleteModalIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  deleteModalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 8 },
+  deleteModalText: { fontSize: 14, lineHeight: 21 },
+  deleteModalWarning: { fontSize: 13, fontWeight: "800", marginTop: 10 },
+  deleteModalError: { fontSize: 12, fontWeight: "700", marginTop: 10 },
+  deleteModalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 22,
+  },
+  deleteCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 11,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteCancelText: { fontSize: 13, fontWeight: "700" },
+  deleteConfirmBtn: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+    borderRadius: 11,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteConfirmText: { color: "#fff", fontSize: 13, fontWeight: "800" },
   // Section cards (Secciones tab)
   secCard: { borderRadius: 16, marginBottom: 14, borderWidth: 1.5, overflow: "hidden" },
   secCardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },

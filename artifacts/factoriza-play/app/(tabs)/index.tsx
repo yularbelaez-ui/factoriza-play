@@ -16,7 +16,12 @@ import { MODULES } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
-import { LEARNING_ROUTES, PROFILE_DETAILS } from "@/data/learningRoutes";
+import {
+  getRouteStepState,
+  isLearningRouteCompleted,
+  LEARNING_ROUTES,
+  PROFILE_DETAILS,
+} from "@/data/learningRoutes";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
 const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
@@ -74,6 +79,12 @@ export default function HomeScreen() {
     : null;
   const routeSteps = assignedRoute?.steps ?? [];
   const allStrong = profileCode === "C";
+  const completedTopics = currentStudent.completedTopics ?? [];
+  const completedModules = currentStudent.completedModules ?? [];
+  const routeCompleted = assignedRoute
+    ? isLearningRouteCompleted(assignedRoute, completedTopics, completedModules)
+    : false;
+  const canAccessFactorization = allStrong || routeCompleted;
 
   return (
     <ScrollView
@@ -158,15 +169,44 @@ export default function HomeScreen() {
                           label: assignedRoute?.color ?? colors.primary,
                         };
                 const isLast = idx === routeSteps.length - 1;
+                const stepState = getRouteStepState(
+                  assignedRoute!,
+                  idx,
+                  completedTopics,
+                  completedModules
+                );
+                const canOpenStep = stepState !== "locked";
+                const stepStatus =
+                  stepState === "completed"
+                    ? { label: "Completada", icon: "check-circle" as const, color: colors.success }
+                    : stepState === "available"
+                      ? { label: "Disponible", icon: "chevron-right" as const, color: sc.label }
+                      : { label: "Bloqueada", icon: "lock" as const, color: colors.mutedForeground };
                 return (
                     <View key={step.id}>
                     <TouchableOpacity
-                      style={[styles.stepRow, { backgroundColor: sc.bg, borderColor: sc.border }]}
-                        onPress={() => router.push((step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any)}
-                      activeOpacity={0.8}
+                      style={[
+                        styles.stepRow,
+                        {
+                          backgroundColor: canOpenStep ? sc.bg : colors.secondary,
+                          borderColor: canOpenStep ? sc.border : colors.border,
+                          opacity: canOpenStep ? 1 : 0.62,
+                        },
+                      ]}
+                        onPress={() =>
+                          canOpenStep &&
+                          router.push(
+                            (step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any
+                          )
+                        }
+                      activeOpacity={canOpenStep ? 0.8 : 1}
                     >
-                      <View style={[styles.stepBadge, { backgroundColor: sc.badge }]}>
-                          <Text style={styles.stepNum}>{idx + 1}</Text>
+                      <View style={[styles.stepBadge, { backgroundColor: canOpenStep ? sc.badge : colors.mutedForeground }]}>
+                          {stepState === "locked" ? (
+                            <Feather name="lock" size={12} color="#fff" />
+                          ) : (
+                            <Text style={styles.stepNum}>{idx + 1}</Text>
+                          )}
                       </View>
                       <Text style={styles.stepIcon}>{step.icon}</Text>
                       <View style={styles.stepInfo}>
@@ -178,8 +218,8 @@ export default function HomeScreen() {
                         </Text>
                       </View>
                       <View style={styles.stepRight}>
-                        <Text style={[styles.stepScore, { color: sc.label }]}>Ruta</Text>
-                        <Feather name="chevron-right" size={16} color={sc.label} />
+                        <Text style={[styles.stepScore, { color: stepStatus.color }]}>{stepStatus.label}</Text>
+                        <Feather name={stepStatus.icon} size={16} color={stepStatus.color} />
                       </View>
                     </TouchableOpacity>
                     {/* Conector vertical entre pasos */}
@@ -200,9 +240,16 @@ export default function HomeScreen() {
 
           {/* Paso final: Factorización */}
           <TouchableOpacity
-            style={styles.finalStep}
-            onPress={() => router.push("/(tabs)/modulos" as any)}
-            activeOpacity={0.85}
+            style={[
+              styles.finalStep,
+              {
+                backgroundColor: canAccessFactorization ? "#fffbeb" : colors.secondary,
+                borderColor: canAccessFactorization ? "#fde68a" : colors.border,
+                opacity: canAccessFactorization ? 1 : 0.62,
+              },
+            ]}
+            onPress={() => canAccessFactorization && router.push("/(tabs)/modulos" as any)}
+            activeOpacity={canAccessFactorization ? 0.85 : 1}
           >
             <View style={[styles.stepBadge, { backgroundColor: "#d97706" }]}>
               <Feather name="star" size={13} color="#fff" />
@@ -210,9 +257,17 @@ export default function HomeScreen() {
             <Text style={styles.finalStepIcon}>🔢</Text>
             <View style={styles.stepInfo}>
               <Text style={styles.finalStepTitle}>Paso final: Factorización</Text>
-              <Text style={styles.finalStepSub}>{totalModules} módulos progresivos · Sección 4</Text>
+              <Text style={styles.finalStepSub}>
+                {canAccessFactorization
+                  ? `${totalModules} módulos progresivos · Sección 4`
+                  : "Completa los pasos anteriores para desbloquearla"}
+              </Text>
             </View>
-            <Feather name="arrow-right-circle" size={20} color="#d97706" />
+            <Feather
+              name={canAccessFactorization ? "arrow-right-circle" : "lock"}
+              size={20}
+              color={canAccessFactorization ? "#d97706" : colors.mutedForeground}
+            />
           </TouchableOpacity>
         </View>
       ) : (
@@ -277,8 +332,8 @@ export default function HomeScreen() {
                   backgroundColor: completed ? colors.success + "08" : colors.background,
                   borderColor: completed ? colors.success + "40" : colors.border,
                 }]}
-                onPress={() => router.push(`/modulo/${mod.id}` as any)}
-                activeOpacity={0.8}
+                onPress={() => unlocked && router.push(`/modulo/${mod.id}` as any)}
+                activeOpacity={unlocked ? 0.8 : 1}
               >
                 <Text style={styles.modIcon}>{mod.icon}</Text>
                 <View style={styles.modInfo}>

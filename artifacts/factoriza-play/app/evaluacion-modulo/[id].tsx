@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { useColors } from "@/hooks/useColors";
+import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -48,12 +49,18 @@ export default function EvaluacionModuloScreen() {
   // Take max 10 evaluation exercises (shuffled)
   const shuffledExercises = useMemo(() => {
     if (!module) return [];
-    const all = module.evaluationExercises.map((ex) => ({
-      ...ex,
-      shuffledOptions: shuffleArray(ex.options),
-    }));
-    // Show max 10, shuffled
-    return shuffleArray(all).slice(0, 10);
+    // Show max 10 questions in a varied order, then distribute correct
+    // answers over A/B/C/D in the same order students see them.
+    return shuffleArray(module.evaluationExercises)
+      .slice(0, 10)
+      .map((ex, index) => ({
+        ...ex,
+        shuffledOptions: getBalancedAnswerOptions(
+          ex.options,
+          ex.correctAnswer,
+          index
+        ),
+      }));
   }, [id]);
 
   if (!module) {

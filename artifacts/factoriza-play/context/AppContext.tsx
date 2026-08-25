@@ -13,10 +13,13 @@ import {
   apiLoginTeacher,
   apiRecordExercise,
   apiCompleteTopic,
+  apiCompleteModule,
   apiGetTeacherClasses,
   apiGetClassStudents,
+  apiDeleteStudent,
   apiSaveDiagnosticProfile,
 } from "@/lib/api";
+import { LEARNING_ROUTES, isLearningRouteCompleted } from "@/data/learningRoutes";
 
 export type UserRole = "student" | "teacher";
 
@@ -91,7 +94,31 @@ const MODULE_ORDER = [
   "suma-diferencia-cubos",
 ];
 
-function computeUnlocked(completedModules: string[]): string[] {
+function computeUnlocked(student: StudentRecord | null): string[] {
+  if (!student) return [];
+  const profileCode =
+    student.diagnosticProfile?.profile ??
+    (student.diagnosticProfile?.level === "básico"
+      ? "A"
+      : student.diagnosticProfile?.level === "intermedio"
+        ? "B"
+        : "C");
+  const routeId =
+    student.diagnosticProfile?.route ??
+    (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3");
+  const route = student.diagnosticProfile ? LEARNING_ROUTES[routeId] : null;
+  const needsRouteBeforeModules =
+    route &&
+    route.steps.some((step) => step.topicId) &&
+    !isLearningRouteCompleted(
+      route,
+      student.completedTopics ?? [],
+      student.completedModules ?? []
+    );
+
+  if (needsRouteBeforeModules) return [];
+
+  const completedModules = student.completedModules ?? [];
   const unlocked = [MODULE_ORDER[0]];
   for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
     if (completedModules.includes(MODULE_ORDER[i])) {
@@ -155,6 +182,11 @@ interface AppContextValue {
   // Teacher sync
   refreshTeacherData: () => Promise<void>;
   isRefreshingTeacher: boolean;
+  refreshStudentRanking: (
+    student?: Pick<StudentRecord, "backendId" | "classCode"> | null
+  ) => Promise<void>;
+  isRefreshingRanking: boolean;
+  deleteStudent: (student: StudentRecord) => Promise<{ ok: boolean; error?: string }>;
 
   // Analytics
   getErrorSummary: (classCode?: string) => ErrorSummary[];
@@ -173,10 +205,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [evaluationCodes, setEvaluationCodes] = useState<EvaluationSession[]>([]);
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
   const [isRefreshingTeacher, setIsRefreshingTeacher] = useState(false);
+  const [isRefreshingRanking, setIsRefreshingRanking] = useState(false);
+  const [activeTeacherCode, setActiveTeacherCode] = useState<string | null>(null);
 
   // Ref so refreshTeacherData doesn't depend on allStudents (avoids infinite loop)
   const allStudentsRef = useRef<StudentRecord[]>([]);
   useEffect(() => { allStudentsRef.current = allStudents; }, [allStudents]);
+  const currentStudentRef = useRef<StudentRecord | null>(null);
+  useEffect(() => { currentStudentRef.current = currentStudent; }, [currentStudent]);
+  const rankingRequestRef = useRef(0);
+  const sessionChangedDuringLoadRef = useRef(false);
 
   useEffect(() => {
     loadData();
@@ -185,6 +223,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadData = async () => {
     try {
       const raw = await AsyncStorage.getItem("factoriza_v2");
+      if (sessionChangedDuringLoadRef.current) return;
       if (raw) {
         const data = JSON.parse(raw);
         if (data.allStudents) setAllStudents(data.allStudents);
@@ -195,10 +234,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const { role: r, studentId } = data.session;
           setRole(r);
           if (r === "teacher") {
+            setActiveTeacherCode(data.session.teacherCode ?? TEACHER_CODE);
             setIsAuthenticated(true);
           } else if (studentId && data.allStudents) {
             const st = data.allStudents.find((s: StudentRecord) => s.id === studentId);
             if (st) {
+              currentStudentRef.current = st;
               setCurrentStudentState(st);
               setModuleProgress(data.moduleProgress || []);
               setIsAuthenticated(true);
@@ -259,6 +300,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
       setRole("teacher");
+      setActiveTeacherCode(trimCode);
+      sessionChangedDuringLoadRef.current = true;
       setIsAuthenticated(true);
       await persist({ session: { role: "teacher", teacherCode: trimCode } });
       return { ok: true };
@@ -313,6 +356,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setAllStudents(updatedStudents);
     setRole("student");
+    sessionChangedDuringLoadRef.current = true;
+    currentStudentRef.current = student;
     setCurrentStudentState(student);
     setIsAuthenticated(true);
     await persist({ allStudents: updatedStudents, session: { role: "student", studentId: student.id } });
@@ -320,7 +365,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    sessionChangedDuringLoadRef.current = true;
     setIsAuthenticated(false);
+    currentStudentRef.current = null;
+    setActiveTeacherCode(null);
     setCurrentStudentState(null);
     setRole("student");
     setModuleProgress([]);
@@ -346,6 +394,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const deleteStudent = async (student: StudentRecord) => {
+    if (!student.backendId) {
+      return { ok: false, error: "Este perfil no está sincronizado con el servidor." };
+    }
+    const teacherCode = activeTeacherCode ?? TEACHER_CODE;
+    try {
+      await apiDeleteStudent(teacherCode, student.backendId);
+      setAllStudents((previous) => {
+        const updated = previous.filter(
+          (candidate) => candidate.backendId !== student.backendId
+        );
+        persist({ allStudents: updated });
+        return updated;
+      });
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "No se pudo eliminar el perfil.",
+      };
+    }
+  };
+
   const completeModule = (moduleId: string) => {
     if (!currentStudent) return;
     if (currentStudent.completedModules.includes(moduleId)) return;
@@ -353,12 +424,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...currentStudent,
       completedModules: [...currentStudent.completedModules, moduleId],
     };
+    currentStudentRef.current = updated;
     setCurrentStudentState(updated);
     setAllStudents((sts) => {
       const up = sts.map((s) => (s.id === updated.id ? updated : s));
       persist({ allStudents: up });
       return up;
     });
+    if (currentStudent.backendId) {
+      apiCompleteModule(currentStudent.backendId, moduleId).catch(() => {});
+    }
   };
 
   const completeTopicPractice = (topicId: string) => {
@@ -369,6 +444,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...currentStudent,
       completedTopics: [...(currentStudent.completedTopics ?? []), topicId],
     };
+    currentStudentRef.current = updated;
     setCurrentStudentState(updated);
     setAllStudents((sts) => {
       const up = sts.map((s) => (s.id === updated.id ? updated : s));
@@ -417,6 +493,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : prev.completedExercises,
         streak: result.correct ? prev.streak + 1 : prev.streak,
       };
+      currentStudentRef.current = updated;
       setAllStudents((sts) => {
         const up = sts.map((s) => (s.id === updated.id ? updated : s));
         persist({ allStudents: up });
@@ -456,6 +533,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveDiagnosticProfile = async (profile: DiagnosticProfile) => {
     if (!currentStudent) return;
     const updated: StudentRecord = { ...currentStudent, diagnosticProfile: profile };
+    currentStudentRef.current = updated;
     setCurrentStudentState(updated);
     setAllStudents((sts) => {
       const up = sts.map((s) => (s.id === updated.id ? updated : s));
@@ -488,6 +566,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       percentage: Math.round(((counts[key] || 0) / total) * 100),
     }));
   };
+
+  // The API is the source of truth for the XP used by the student ranking.
+  const refreshStudentRanking = useCallback(async (
+    requestedStudent?: Pick<StudentRecord, "backendId" | "classCode"> | null
+  ) => {
+    const studentSnapshot = requestedStudent ?? currentStudentRef.current;
+    if (!studentSnapshot?.classCode) return;
+    const backendId = studentSnapshot.backendId;
+    const requestId = rankingRequestRef.current + 1;
+    rankingRequestRef.current = requestId;
+
+    setIsRefreshingRanking(true);
+    try {
+      const { students: backendStudents } = await apiGetClassStudents(
+        studentSnapshot.classCode
+      );
+      const fetched: StudentRecord[] = backendStudents.map((bs) => {
+        const existing =
+          allStudentsRef.current.find((s) => s.backendId === bs.id) ??
+          (bs.id === backendId &&
+          currentStudentRef.current?.backendId === backendId
+            ? currentStudentRef.current
+            : undefined);
+        return {
+          id: existing?.id ?? `${bs.classCode}-${bs.pseudonym}-${bs.id}`,
+          backendId: bs.id,
+          pseudonym: bs.pseudonym,
+          classCode: bs.classCode,
+          avatar: existing?.avatar ?? getRandomAvatar(),
+          streak: bs.streak,
+          totalXP: bs.totalXP,
+          completedModules: bs.completedModules,
+          completedTopics: bs.completedTopics,
+          completedExercises: bs.completedExercises,
+          exerciseResults: existing?.exerciseResults ?? [],
+          lastLogin: existing?.lastLogin ?? Date.now(),
+          diagnosticProfile: bs.diagnosticProfile ?? existing?.diagnosticProfile,
+        };
+      });
+      const otherClasses = allStudentsRef.current.filter(
+        (student) => student.classCode !== studentSnapshot.classCode
+      );
+      const updatedStudents = [...otherClasses, ...fetched];
+      if (rankingRequestRef.current !== requestId) {
+        return;
+      }
+      setAllStudents(updatedStudents);
+      await persist({ allStudents: updatedStudents });
+    } catch {
+      // Keep the last known ranking visible when the network is unavailable.
+    } finally {
+      if (rankingRequestRef.current === requestId) {
+        setIsRefreshingRanking(false);
+      }
+    }
+  }, [currentStudent?.backendId, currentStudent?.classCode, persist]);
 
   // Fetch all students for all class codes from the backend (teacher panel sync)
   const refreshTeacherData = useCallback(async () => {
@@ -563,7 +697,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addClassCode,
         removeClassCode,
         allStudents,
-        unlockedModules: computeUnlocked(currentStudent?.completedModules ?? []),
+        unlockedModules: computeUnlocked(currentStudent),
         evaluationCodes,
         addEvaluationCode,
         recordExerciseResult,
@@ -575,6 +709,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         saveDiagnosticProfile,
         refreshTeacherData,
         isRefreshingTeacher,
+        refreshStudentRanking,
+        isRefreshingRanking,
+        deleteStudent,
         getErrorSummary,
         getDiagnosticSummary,
       }}

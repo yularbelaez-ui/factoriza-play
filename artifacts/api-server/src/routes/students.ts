@@ -145,6 +145,40 @@ router.post("/students/:studentId/topics", async (req, res) => {
   res.json({ student: toStudentData(updated) });
 });
 
+// POST /api/students/:studentId/modules
+router.post("/students/:studentId/modules", async (req, res) => {
+  const studentId = parseInt(req.params.studentId, 10);
+  const { moduleId } = req.body as { moduleId?: string };
+  if (isNaN(studentId) || !moduleId?.trim()) {
+    res.status(400).json({ error: "studentId and moduleId are required" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(students)
+    .where(eq(students.id, studentId))
+    .limit(1);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
+
+  const student = rows[0];
+  const completedModules = student.completedModules ?? [];
+  if (completedModules.includes(moduleId)) {
+    res.json({ student: toStudentData(student) });
+    return;
+  }
+
+  const [updated] = await db
+    .update(students)
+    .set({ completedModules: [...completedModules, moduleId] })
+    .where(eq(students.id, studentId))
+    .returning();
+  res.json({ student: toStudentData(updated) });
+});
+
 // POST /api/students/:studentId/diagnostic
 router.post("/students/:studentId/diagnostic", async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
