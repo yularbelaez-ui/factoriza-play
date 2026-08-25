@@ -32,3 +32,15 @@ channel = "stable-25_05"
 
 [userenv.shared]
 EXPO_PUBLIC_API_URL = "https://algebra-tutor--yularbelaez.replit.app"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 23923
+externalPort = 3000
