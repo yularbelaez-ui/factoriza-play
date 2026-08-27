@@ -330,6 +330,12 @@ export default function EvaluacionModuloScreen() {
                 </View>
                 <Text style={[styles.qText, { color: colors.foreground }]}>{ex.question}</Text>
               </View>
+              {ex.realWorld && (
+                <View style={[styles.storyCard, { backgroundColor: module.color + "0d", borderColor: module.color + "30" }]}>
+                  <Text style={styles.storyIcon}>📖</Text>
+                  <Text style={[styles.storyText, { color: colors.foreground }]}>{ex.realWorld}</Text>
+                </View>
+              )}
               {ex.expression && (
                 <View style={[styles.exprBox, { backgroundColor: module.color + "08", borderColor: module.color + "30" }]}>
                   <Text style={[styles.expr, { color: module.color }]}>{ex.expression}</Text>
@@ -571,6 +577,9 @@ const styles = StyleSheet.create({
   examProgressBg: { height: 6, borderRadius: 3, overflow: "hidden" },
   examProgressFill: { height: "100%", borderRadius: 3 },
 
+  storyCard: { flexDirection: "row", gap: 10, borderRadius: 14, padding: 12, borderWidth: 1, marginBottom: 12, alignItems: "flex-start" },
+  storyIcon: { fontSize: 16 },
+  storyText: { flex: 1, fontSize: 13, lineHeight: 19, fontStyle: "italic" },
   questionCard: { borderRadius: 16, padding: 18, borderWidth: 1.5, marginBottom: 14 },
   questionHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 12 },
   qNum: { width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center", marginTop: 1, flexShrink: 0 },

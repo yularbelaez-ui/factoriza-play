@@ -280,6 +280,21 @@ export default function EjercicioScreen() {
         <Text style={[styles.moduleTagText, { color: module.color }]}>{module.title}</Text>
       </View>
 
+      {/* Story / real-world situation */}
+      {exercise.realWorld && (
+        <View
+          style={[
+            styles.storyCard,
+            { backgroundColor: module.color + "0d", borderColor: module.color + "30" },
+          ]}
+        >
+          <Text style={styles.storyIcon}>📖</Text>
+          <Text style={[styles.storyText, { color: colors.foreground }]}>
+            {exercise.realWorld}
+          </Text>
+        </View>
+      )}
+
       {/* Question */}
       <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
         <View
@@ -539,6 +554,9 @@ const styles = StyleSheet.create({
   },
   moduleTagIcon: { fontSize: 14 },
   moduleTagText: { fontSize: 12, fontWeight: "700" },
+  storyCard: { flexDirection: "row", gap: 10, borderRadius: 14, padding: 12, borderWidth: 1, marginBottom: 12, alignItems: "flex-start" },
+  storyIcon: { fontSize: 16 },
+  storyText: { flex: 1, fontSize: 13, lineHeight: 19, fontStyle: "italic" },
   questionCard: { borderRadius: 18, padding: 20, borderWidth: 1, marginBottom: 12 },
   questionText: { fontSize: 16, fontWeight: "600", lineHeight: 24, marginBottom: 12 },
   expressionBox: {
