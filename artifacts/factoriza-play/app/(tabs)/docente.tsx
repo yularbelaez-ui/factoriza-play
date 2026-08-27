@@ -21,7 +21,7 @@ import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { PROFILE_DETAILS } from "@/data/learningRoutes";
-import { apiGetClassTopicStats, ApiTopicStat } from "@/lib/api";
+import { apiGetClassTopicStats, ApiTopicStat, apiGetClassStudentAnalytics, ApiStudentAnalytics } from "@/lib/api";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
   "reconocimiento-patrones": "Reconocimiento de patrones",
@@ -42,6 +42,18 @@ function formatDuration(seconds: number | null): string {
   const rest = seconds % 60;
   return rest > 0 ? `${minutes}m ${rest}s` : `${minutes}m`;
 }
+
+// Lookup exerciseId → short question text, used to label each question row
+// in the teacher panel's per-student drill-down.
+const EXERCISE_QUESTION_LOOKUP: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const mod of MODULES) {
+    for (const ex of [...mod.exercises, ...mod.evaluationExercises]) {
+      map[ex.id] = ex.question;
+    }
+  }
+  return map;
+})();
 
 const ERROR_CATEGORY_LABELS: Record<string, string> = {
   operaciones: "operaciones básicas",
@@ -105,7 +117,27 @@ export default function DocenteScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [topicStats, setTopicStats] = useState<ApiTopicStat[]>([]);
   const [isLoadingTopicStats, setIsLoadingTopicStats] = useState(false);
+  const [studentAnalytics, setStudentAnalytics] = useState<Record<number, ApiStudentAnalytics>>({});
+  const [expandedStudentIds, setExpandedStudentIds] = useState<Set<number>>(new Set());
+  const [expandedModuleKeys, setExpandedModuleKeys] = useState<Set<string>>(new Set());
   const isWeb = Platform.OS === "web";
+
+  const toggleStudentExpanded = (studentId: number) => {
+    setExpandedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  };
+  const toggleModuleExpanded = (key: string) => {
+    setExpandedModuleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Sync students from backend on mount and every 30 s
   const stableRefresh = useCallback(() => { refreshTeacherData(); }, [refreshTeacherData]);
@@ -159,6 +191,41 @@ export default function DocenteScreen() {
     const interval = setInterval(refreshTopicStats, 30_000);
     return () => clearInterval(interval);
   }, [refreshTopicStats]);
+
+  // Load per-student, per-module and per-question analytics (correct/
+  // incorrect, attempts, hints, time, repeated exercises) for the
+  // "Estudiantes" tab drill-down. The client-side `exerciseResults` on
+  // each StudentRecord is only ever populated for the device's own
+  // history, so this is the only reliable source for other students.
+  const refreshStudentAnalytics = useCallback(async () => {
+    const codesToFetch = filterClass === "all" ? classCodes.map((c) => c.code) : [filterClass];
+    if (codesToFetch.length === 0) {
+      setStudentAnalytics({});
+      return;
+    }
+    try {
+      const results = await Promise.all(
+        codesToFetch.map((code) =>
+          apiGetClassStudentAnalytics(code).catch(() => ({ students: [] as ApiStudentAnalytics[] }))
+        )
+      );
+      const merged: Record<number, ApiStudentAnalytics> = {};
+      for (const { students: studentRows } of results) {
+        for (const s of studentRows) {
+          merged[s.studentId] = s;
+        }
+      }
+      setStudentAnalytics(merged);
+    } catch {
+      // Keep the last known analytics visible when the network is unavailable.
+    }
+  }, [filterClass, classCodes]);
+
+  useEffect(() => {
+    refreshStudentAnalytics();
+    const interval = setInterval(refreshStudentAnalytics, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshStudentAnalytics]);
 
   const errorSummary = getErrorSummary(filterClass === "all" ? undefined : filterClass);
   const sorted = [...allStudents]
@@ -443,10 +510,22 @@ export default function DocenteScreen() {
             sorted.map((student, index) => {
               const topicsDone = (student.completedTopics ?? []).length;
               const casesDone = student.completedModules.length;
-              const correctCount = student.exerciseResults.filter((r) => r.correct).length;
-              const wrongCount = student.exerciseResults.filter((r) => !r.correct).length;
-              const totalResults = student.exerciseResults.length;
+              // Correct/incorrect counts, attempts, hints and time come from
+              // the server-side analytics endpoint, not `student.exerciseResults`
+              // — that field on a StudentRecord is only ever populated for the
+              // device's own login history, so it's always empty for the
+              // other students the teacher is viewing here.
+              const analytics = student.backendId != null ? studentAnalytics[student.backendId] : undefined;
+              const modulesAnalytics = analytics?.modules ?? [];
+              const correctCount = modulesAnalytics.reduce((sum, m) => sum + m.correctCount, 0);
+              const wrongCount = modulesAnalytics.reduce((sum, m) => sum + m.incorrectCount, 0);
+              const attemptsTotal = modulesAnalytics.reduce((sum, m) => sum + m.attemptsTotal, 0);
+              const hintsTotal = modulesAnalytics.reduce((sum, m) => sum + m.hintsUsed, 0);
+              const timeTotal = modulesAnalytics.reduce((sum, m) => sum + m.totalDurationSeconds, 0);
+              const repeatedTotal = modulesAnalytics.reduce((sum, m) => sum + m.repeatedExercises, 0);
+              const totalResults = correctCount + wrongCount;
               const pct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0;
+              const isStudentExpanded = student.backendId != null && expandedStudentIds.has(student.backendId);
               const profileCode = student.diagnosticProfile?.profile ??
                 (student.diagnosticProfile?.level === "básico" ? "A" : student.diagnosticProfile?.level === "intermedio" ? "B" : "C");
               const profileDetails = student.diagnosticProfile ? PROFILE_DETAILS[profileCode] : null;
@@ -563,6 +642,79 @@ export default function DocenteScreen() {
                       <ProgressBar progress={pct} color={colors.success} height={5} />
                     </View>
                   )}
+
+                  {modulesAnalytics.length > 0 && student.backendId != null && (
+                    <TouchableOpacity
+                      style={styles.detailToggleBtn}
+                      onPress={() => toggleStudentExpanded(student.backendId!)}
+                    >
+                      <Feather name={isStudentExpanded ? "chevron-up" : "chevron-down"} size={14} color={colors.primary} />
+                      <Text style={[styles.detailToggleText, { color: colors.primary }]}>
+                        {isStudentExpanded ? "Ocultar detalle por módulo y pregunta" : "Ver detalle por módulo y pregunta"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {isStudentExpanded && (
+                    <View style={{ marginTop: 6, marginBottom: 4, gap: 10 }}>
+                      <View style={styles.statsRow}>
+                        {[
+                          { value: formatDuration(timeTotal), label: "Tiempo total", color: colors.primary },
+                          { value: `${attemptsTotal}`, label: "Intentos", color: colors.mutedForeground },
+                          { value: `💡${hintsTotal}`, label: "Pistas pedidas", color: "#d97706" },
+                          { value: `🔁${repeatedTotal}`, label: "Repetidos", color: colors.error },
+                        ].map((s) => (
+                          <View key={s.label} style={[styles.miniStat, { backgroundColor: colors.secondary }]}>
+                            <Text style={[styles.miniStatValue, { color: s.color }]}>{s.value}</Text>
+                            <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      {modulesAnalytics
+                        .slice()
+                        .sort((a, b) => {
+                          const orderA = MODULE_CASE_ORDER.indexOf(a.moduleId);
+                          const orderB = MODULE_CASE_ORDER.indexOf(b.moduleId);
+                          return (orderA === -1 ? 99 : orderA) - (orderB === -1 ? 99 : orderB);
+                        })
+                        .map((mod) => {
+                          const moduleKey = `${student.backendId}:${mod.moduleId}`;
+                          const isModuleExpanded = expandedModuleKeys.has(moduleKey);
+                          return (
+                            <View key={mod.moduleId} style={[styles.moduleAnalyticsCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                              <TouchableOpacity onPress={() => toggleModuleExpanded(moduleKey)}>
+                                <View style={styles.moduleAnalyticsHeader}>
+                                  <Text style={[styles.moduleAnalyticsTitle, { color: colors.foreground }]} numberOfLines={1}>
+                                    {MODULE_TOPIC_LABELS[mod.moduleId] ?? mod.moduleId}
+                                  </Text>
+                                  <Feather name={isModuleExpanded ? "chevron-up" : "chevron-down"} size={14} color={colors.mutedForeground} />
+                                </View>
+                                <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                                  ✅{mod.correctCount} · ❌{mod.incorrectCount} · {mod.attemptsTotal} intentos · 💡{mod.hintsUsed} pistas · ⏱ {formatDuration(mod.totalDurationSeconds)} · 🔁{mod.repeatedExercises} repetidos
+                                </Text>
+                              </TouchableOpacity>
+                              {isModuleExpanded && (
+                                <View style={{ marginTop: 8, gap: 6 }}>
+                                  {mod.exercises.map((ex) => (
+                                    <View key={ex.exerciseId} style={[styles.exerciseAnalyticsRow, { borderColor: colors.border }]}>
+                                      <Text style={[styles.exerciseAnalyticsQuestion, { color: colors.foreground }]} numberOfLines={2}>
+                                        {EXERCISE_QUESTION_LOOKUP[ex.exerciseId] ?? ex.exerciseId}
+                                      </Text>
+                                      <Text style={[styles.exerciseAnalyticsMeta, { color: colors.mutedForeground }]}>
+                                        ✅{ex.correctCount} · ❌{ex.incorrectCount} · {ex.attemptsTotal} intentos · 💡{ex.hintsUsed} · ⏱ {formatDuration(ex.totalDurationSeconds)}
+                                        {ex.attemptsTotal > 1 ? " · repetido" : ""}
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
+                    </View>
+                  )}
+
                   <TouchableOpacity
                     accessibilityLabel={`Eliminar perfil de ${student.pseudonym}`}
                     style={[
@@ -1189,6 +1341,15 @@ const styles = StyleSheet.create({
   miniStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center" },
   miniStatValue: { fontSize: 16, fontWeight: "800" },
   miniStatLabel: { fontSize: 10, fontWeight: "500" },
+  detailToggleBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, marginBottom: 2, alignSelf: "flex-start" },
+  detailToggleText: { fontSize: 11.5, fontWeight: "700" },
+  moduleAnalyticsCard: { borderRadius: 12, padding: 10, borderWidth: 1 },
+  moduleAnalyticsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  moduleAnalyticsTitle: { fontSize: 12.5, fontWeight: "700", flex: 1 },
+  moduleAnalyticsMeta: { fontSize: 10.5, marginTop: 4, lineHeight: 15 },
+  exerciseAnalyticsRow: { borderLeftWidth: 2, paddingLeft: 8, paddingBottom: 4 },
+  exerciseAnalyticsQuestion: { fontSize: 11.5, fontWeight: "600", lineHeight: 15 },
+  exerciseAnalyticsMeta: { fontSize: 10, marginTop: 2 },
   deleteStudentBtn: {
     flexDirection: "row",
     alignItems: "center",

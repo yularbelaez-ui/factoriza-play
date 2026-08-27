@@ -45,11 +45,25 @@ export default function EvaluacionModuloScreen() {
   const [started, setStarted] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoStep, setPhotoStep] = useState(false); // show photo step before submit
+  const [hintsShown, setHintsShown] = useState<Record<string, boolean>>({});
 
   // Total time spent on the evaluation, for the teacher panel's per-topic
   // time analytics (attributed evenly across the answered questions since
   // the evaluation is submitted as a single batch, not question by question).
   const startTimeRef = useRef<number | null>(null);
+  // Counts how many times each question's hint was requested, for the
+  // teacher panel's per-question hint analytics.
+  const hintsUsedRef = useRef<Record<string, number>>({});
+
+  const toggleHint = (exerciseId: string) => {
+    setHintsShown((prev) => {
+      const next = { ...prev, [exerciseId]: !prev[exerciseId] };
+      if (next[exerciseId] && !prev[exerciseId]) {
+        hintsUsedRef.current[exerciseId] = (hintsUsedRef.current[exerciseId] ?? 0) + 1;
+      }
+      return next;
+    });
+  };
 
   // Take max 10 evaluation exercises (shuffled)
   const shuffledExercises = useMemo(() => {
@@ -160,7 +174,7 @@ export default function EvaluacionModuloScreen() {
           errorCategory: ex.errorCategory,
           attempts: 1,
         },
-        { hintsUsed: 0, durationSeconds: perQuestionSeconds }
+        { hintsUsed: hintsUsedRef.current[ex.id] ?? 0, durationSeconds: perQuestionSeconds }
       );
     });
   };
@@ -341,6 +355,21 @@ export default function EvaluacionModuloScreen() {
                   );
                 })}
               </View>
+
+              <TouchableOpacity
+                style={styles.hintBtn}
+                onPress={() => toggleHint(ex.id)}
+              >
+                <Feather name="help-circle" size={13} color={module.color} />
+                <Text style={[styles.hintBtnText, { color: module.color }]}>
+                  {hintsShown[ex.id] ? "Ocultar pista" : "Pedir ayuda"}
+                </Text>
+              </TouchableOpacity>
+              {hintsShown[ex.id] && (
+                <View style={[styles.hintBox, { backgroundColor: module.color + "0c", borderColor: module.color + "30" }]}>
+                  <Text style={[styles.hintText, { color: colors.foreground }]}>💡 {ex.hint}</Text>
+                </View>
+              )}
             </View>
           ))}
 
@@ -552,6 +581,10 @@ const styles = StyleSheet.create({
   optBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, padding: 12, borderWidth: 1.5 },
   optBullet: { width: 18, height: 18, borderRadius: 9, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   optText: { fontSize: 14, fontWeight: "500", flex: 1 },
+  hintBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, alignSelf: "flex-start" },
+  hintBtnText: { fontSize: 12, fontWeight: "700" },
+  hintBox: { borderRadius: 10, padding: 12, borderWidth: 1, marginTop: 8 },
+  hintText: { fontSize: 12.5, lineHeight: 18 },
 
   submitBtn: { borderRadius: 16, padding: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14 },
   submitBtnText: { fontSize: 16, fontWeight: "700" },

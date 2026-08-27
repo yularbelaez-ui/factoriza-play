@@ -161,6 +161,39 @@ export async function apiGetClassTopicStats(
   return apiFetch(`/class/${classCode}/topic-stats`);
 }
 
+export interface ApiExerciseAnalytics {
+  exerciseId: string;
+  correctCount: number;
+  incorrectCount: number;
+  attemptsTotal: number;
+  hintsUsed: number;
+  totalDurationSeconds: number;
+  avgDurationSeconds: number | null;
+}
+
+export interface ApiModuleAnalytics {
+  moduleId: string;
+  correctCount: number;
+  incorrectCount: number;
+  attemptsTotal: number;
+  hintsUsed: number;
+  totalDurationSeconds: number;
+  avgDurationSeconds: number | null;
+  repeatedExercises: number;
+  exercises: ApiExerciseAnalytics[];
+}
+
+export interface ApiStudentAnalytics {
+  studentId: number;
+  modules: ApiModuleAnalytics[];
+}
+
+export async function apiGetClassStudentAnalytics(
+  classCode: string
+): Promise<{ students: ApiStudentAnalytics[] }> {
+  return apiFetch(`/class/${classCode}/student-analytics`);
+}
+
 export async function apiGetTeacherClasses(
   teacherCode: string
 ): Promise<{ classes: { code: string; label: string; studentCount: number }[] }> {
