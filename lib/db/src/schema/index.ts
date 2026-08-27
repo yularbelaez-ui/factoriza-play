@@ -46,18 +46,27 @@ export const students = pgTable(
 );
 
 // ── Exercise results ─────────────────────────────────────────────
-export const exerciseResults = pgTable("exercise_results", {
-  id: serial("id").primaryKey(),
-  studentId: integer("student_id")
-    .notNull()
-    .references(() => students.id),
-  exerciseId: varchar("exercise_id", { length: 80 }).notNull(),
-  correct: boolean("correct").notNull(),
-  errorCategory: varchar("error_category", { length: 50 }),
-  attempts: integer("attempts").default(1).notNull(),
-  answer: text("answer"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const exerciseResults = pgTable(
+  "exercise_results",
+  {
+    id: serial("id").primaryKey(),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.id),
+    exerciseId: varchar("exercise_id", { length: 80 }).notNull(),
+    moduleId: varchar("module_id", { length: 60 }),
+    correct: boolean("correct").notNull(),
+    errorCategory: varchar("error_category", { length: 50 }),
+    attempts: integer("attempts").default(1).notNull(),
+    answer: text("answer"),
+    hintsUsed: integer("hints_used").default(0).notNull(),
+    durationSeconds: integer("duration_seconds"),
+    // Client-generated idempotency key so retried syncs never double-count XP.
+    clientId: varchar("client_id", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.studentId, t.clientId)]
+);
 
 // ── Eval codes (per module, per class) ──────────────────────────
 export const evalCodes = pgTable("eval_codes", {

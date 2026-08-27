@@ -82,4 +82,87 @@ router.get("/class/:classCode/errors", async (req, res) => {
   res.json({ errors });
 });
 
+// GET /api/class/:classCode/topic-stats
+// Aggregates, per module/topic, the time spent, hints used and errors made
+// by every student in the class — used by the teacher panel.
+router.get("/class/:classCode/topic-stats", async (req, res) => {
+  const { classCode } = req.params;
+
+  const classStudents = await db
+    .select({ id: students.id })
+    .from(students)
+    .where(eq(students.classCode, classCode.toUpperCase()));
+
+  if (classStudents.length === 0) {
+    res.json({ topics: [] });
+    return;
+  }
+
+  const studentIds = classStudents.map((s) => s.id);
+
+  const results = await db
+    .select({
+      moduleId: exerciseResults.moduleId,
+      correct: exerciseResults.correct,
+      hintsUsed: exerciseResults.hintsUsed,
+      durationSeconds: exerciseResults.durationSeconds,
+      studentId: exerciseResults.studentId,
+    })
+    .from(exerciseResults)
+    .where(inArray(exerciseResults.studentId, studentIds));
+
+  type Agg = {
+    moduleId: string;
+    exerciseCount: number;
+    errorCount: number;
+    hintsUsed: number;
+    totalDurationSeconds: number;
+    durationSamples: number;
+    studentIds: Set<number>;
+  };
+  const byModule = new Map<string, Agg>();
+
+  for (const r of results) {
+    if (!r.moduleId) continue;
+    let agg = byModule.get(r.moduleId);
+    if (!agg) {
+      agg = {
+        moduleId: r.moduleId,
+        exerciseCount: 0,
+        errorCount: 0,
+        hintsUsed: 0,
+        totalDurationSeconds: 0,
+        durationSamples: 0,
+        studentIds: new Set(),
+      };
+      byModule.set(r.moduleId, agg);
+    }
+    agg.exerciseCount += 1;
+    if (!r.correct) agg.errorCount += 1;
+    agg.hintsUsed += r.hintsUsed ?? 0;
+    agg.studentIds.add(r.studentId);
+    if (typeof r.durationSeconds === "number" && r.durationSeconds > 0) {
+      agg.totalDurationSeconds += r.durationSeconds;
+      agg.durationSamples += 1;
+    }
+  }
+
+  const topics = Array.from(byModule.values())
+    .map((agg) => ({
+      moduleId: agg.moduleId,
+      studentsInvolved: agg.studentIds.size,
+      exerciseCount: agg.exerciseCount,
+      errorCount: agg.errorCount,
+      hintsUsed: agg.hintsUsed,
+      avgDurationSeconds:
+        agg.durationSamples > 0
+          ? Math.round(agg.totalDurationSeconds / agg.durationSamples)
+          : null,
+      totalDurationSeconds: agg.totalDurationSeconds,
+    }))
+    .sort((a, b) => b.exerciseCount - a.exerciseCount);
+
+  res.json({ topics });
+});
+
 export default router;

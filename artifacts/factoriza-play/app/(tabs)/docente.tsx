@@ -21,6 +21,27 @@ import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { PROFILE_DETAILS } from "@/data/learningRoutes";
+import { apiGetClassTopicStats, ApiTopicStat } from "@/lib/api";
+
+const MODULE_TOPIC_LABELS: Record<string, string> = {
+  "reconocimiento-patrones": "Reconocimiento de patrones",
+  "factor-comun": "Factor común",
+  "agrupacion-terminos": "Agrupación de términos",
+  "trinomio-cuadrado-perfecto": "Trinomio cuadrado perfecto",
+  "diferencia-cuadrados": "Diferencia de cuadrados",
+  "trinomio-forma-x2-bx-c": "Trinomio x² + bx + c",
+  "trinomio-ax2-bx-c": "Trinomio ax² + bx + c",
+  "cubo-binomio": "Cubo de un binomio",
+  "suma-diferencia-cubos": "Suma / diferencia de cubos",
+};
+
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds <= 0) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest > 0 ? `${minutes}m ${rest}s` : `${minutes}m`;
+}
 
 const ERROR_CATEGORY_LABELS: Record<string, string> = {
   operaciones: "operaciones básicas",
@@ -82,6 +103,8 @@ export default function DocenteScreen() {
   const [deletingStudentId, setDeletingStudentId] = useState<number | null>(null);
   const [studentPendingDelete, setStudentPendingDelete] = useState<(typeof allStudents)[number] | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [topicStats, setTopicStats] = useState<ApiTopicStat[]>([]);
+  const [isLoadingTopicStats, setIsLoadingTopicStats] = useState(false);
   const isWeb = Platform.OS === "web";
 
   // Sync students from backend on mount and every 30 s
@@ -91,6 +114,51 @@ export default function DocenteScreen() {
     const interval = setInterval(stableRefresh, 30_000);
     return () => clearInterval(interval);
   }, [stableRefresh]);
+
+  // Load per-topic time/hints/error stats for the "Errores" tab, refreshed
+  // whenever the class filter changes or on the same 30 s cadence as the rest
+  // of the teacher panel.
+  const refreshTopicStats = useCallback(async () => {
+    const codesToFetch = filterClass === "all" ? classCodes.map((c) => c.code) : [filterClass];
+    if (codesToFetch.length === 0) {
+      setTopicStats([]);
+      return;
+    }
+    setIsLoadingTopicStats(true);
+    try {
+      const results = await Promise.all(
+        codesToFetch.map((code) => apiGetClassTopicStats(code).catch(() => ({ topics: [] as ApiTopicStat[] })))
+      );
+      const merged = new Map<string, ApiTopicStat>();
+      for (const { topics } of results) {
+        for (const t of topics) {
+          const existing = merged.get(t.moduleId);
+          if (!existing) {
+            merged.set(t.moduleId, { ...t });
+          } else {
+            existing.studentsInvolved += t.studentsInvolved;
+            existing.exerciseCount += t.exerciseCount;
+            existing.errorCount += t.errorCount;
+            existing.hintsUsed += t.hintsUsed;
+            existing.totalDurationSeconds += t.totalDurationSeconds;
+            existing.avgDurationSeconds =
+              existing.totalDurationSeconds > 0 && existing.exerciseCount > 0
+                ? Math.round(existing.totalDurationSeconds / existing.exerciseCount)
+                : null;
+          }
+        }
+      }
+      setTopicStats(Array.from(merged.values()).sort((a, b) => b.exerciseCount - a.exerciseCount));
+    } finally {
+      setIsLoadingTopicStats(false);
+    }
+  }, [filterClass, classCodes]);
+
+  useEffect(() => {
+    refreshTopicStats();
+    const interval = setInterval(refreshTopicStats, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshTopicStats]);
 
   const errorSummary = getErrorSummary(filterClass === "all" ? undefined : filterClass);
   const sorted = [...allStudents]
@@ -874,6 +942,60 @@ export default function DocenteScreen() {
               </View>
             );
           })}
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 22 }]}>
+            Tiempo y ayudas por tema
+          </Text>
+          <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+            Tiempo promedio por ejercicio, veces que usaron la ayuda y errores por tema
+          </Text>
+
+          {isLoadingTopicStats && topicStats.length === 0 ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
+          ) : topicStats.length === 0 ? (
+            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+              Aún no hay datos suficientes de tiempo o ayudas para este filtro.
+            </Text>
+          ) : (
+            topicStats.map((t) => (
+              <View
+                key={t.moduleId}
+                style={[styles.errorCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <View style={styles.errorHeader}>
+                  <Text style={[styles.errorLabel, { color: colors.foreground }]} numberOfLines={2}>
+                    {MODULE_TOPIC_LABELS[t.moduleId] ?? t.moduleId}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 6 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="clock" size={13} color={colors.mutedForeground} />
+                    <Text style={{ fontSize: 12, color: colors.foreground }}>
+                      {formatDuration(t.avgDurationSeconds)} promedio
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="help-circle" size={13} color={colors.mutedForeground} />
+                    <Text style={{ fontSize: 12, color: colors.foreground }}>
+                      {t.hintsUsed} ayuda{t.hintsUsed !== 1 ? "s" : ""} usada{t.hintsUsed !== 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="alert-circle" size={13} color={colors.mutedForeground} />
+                    <Text style={{ fontSize: 12, color: colors.foreground }}>
+                      {t.errorCount} error{t.errorCount !== 1 ? "es" : ""}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Feather name="users" size={13} color={colors.mutedForeground} />
+                    <Text style={{ fontSize: 12, color: colors.foreground }}>
+                      {t.studentsInvolved} estudiante{t.studentsInvolved !== 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       )}
 

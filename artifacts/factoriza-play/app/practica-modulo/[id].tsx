@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -81,6 +81,15 @@ export default function PracticaModuloScreen() {
     phase === "retry" ? (retryQueue[retryIdx] ?? null) :
     null;
 
+  // Time and hint usage per exercise, for the teacher panel's per-topic
+  // analytics. Reset whenever a new exercise is shown.
+  const startTimeRef = useRef(Date.now());
+  const hintsUsedRef = useRef(0);
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+    hintsUsedRef.current = 0;
+  }, [currentEx?.id]);
+
   const orderedOptions = useMemo(() => {
     if (!currentEx) return [];
     const ordinal = phase === "main" ? mainIdx : mainQueue.length + retryIdx;
@@ -110,20 +119,24 @@ export default function PracticaModuloScreen() {
     const correct = selected === currentEx.correctAnswer;
     setSubmitted(true);
     setAnswered(a => a + 1);
+    const elapsedSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
 
     if (correct) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (phase === "main") setCorrectMain(c => c + 1);
       else setCorrectRetry(c => c + 1);
-      recordExerciseResult({
-        exerciseId: currentEx.id,
-        moduleId: module.id,
-        correct: true,
-        selectedAnswer: selected,
-        correctAnswer: currentEx.correctAnswer,
-        errorCategory: currentEx.errorCategory,
-        attempts: 1,
-      });
+      recordExerciseResult(
+        {
+          exerciseId: currentEx.id,
+          moduleId: module.id,
+          correct: true,
+          selectedAnswer: selected,
+          correctAnswer: currentEx.correctAnswer,
+          errorCategory: currentEx.errorCategory,
+          attempts: 1,
+        },
+        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+      );
       // Check level/module completion
       const doneSet = new Set([...(currentStudent?.completedExercises ?? []), currentEx.id]);
       const perLevel = Math.ceil(module.exercises.length / 3);
@@ -143,16 +156,20 @@ export default function PracticaModuloScreen() {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerShake();
+      if (!showHint) hintsUsedRef.current += 1;
       setShowHint(true); // Auto-show hint
-      recordExerciseResult({
-        exerciseId: currentEx.id,
-        moduleId: module.id,
-        correct: false,
-        selectedAnswer: selected,
-        correctAnswer: currentEx.correctAnswer,
-        errorCategory: currentEx.errorCategory,
-        attempts: 1,
-      });
+      recordExerciseResult(
+        {
+          exerciseId: currentEx.id,
+          moduleId: module.id,
+          correct: false,
+          selectedAnswer: selected,
+          correctAnswer: currentEx.correctAnswer,
+          errorCategory: currentEx.errorCategory,
+          attempts: 1,
+        },
+        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+      );
       // Add to retry queue (only if in main phase)
       if (phase === "main") {
         setRetryQueue(prev => [...prev, currentEx]);
@@ -368,7 +385,12 @@ export default function PracticaModuloScreen() {
       {!submitted && (
         <TouchableOpacity
           style={[styles.hintToggle, { borderColor: colors.accent + "60", backgroundColor: colors.accent + "10" }]}
-          onPress={() => setShowHint(!showHint)}
+          onPress={() => {
+            setShowHint((prev) => {
+              if (!prev) hintsUsedRef.current += 1;
+              return !prev;
+            });
+          }}
         >
           <Feather name="help-circle" size={15} color={colors.accent} />
           <Text style={[styles.hintToggleText, { color: colors.accent }]}>

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, exerciseResults } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -49,14 +49,27 @@ router.post("/students/:studentId/exercise", async (req, res) => {
     return;
   }
 
-  const { exerciseId, correct, errorCategory, attempts, answer } =
-    req.body as {
-      exerciseId: string;
-      correct: boolean;
-      errorCategory?: string | null;
-      attempts?: number;
-      answer?: string | null;
-    };
+  const {
+    exerciseId,
+    moduleId,
+    correct,
+    errorCategory,
+    attempts,
+    answer,
+    hintsUsed,
+    durationSeconds,
+    clientId,
+  } = req.body as {
+    exerciseId: string;
+    moduleId?: string | null;
+    correct: boolean;
+    errorCategory?: string | null;
+    attempts?: number;
+    answer?: string | null;
+    hintsUsed?: number;
+    durationSeconds?: number | null;
+    clientId?: string | null;
+  };
 
   const rows = await db
     .select()
@@ -71,14 +84,37 @@ router.post("/students/:studentId/exercise", async (req, res) => {
 
   const student = rows[0];
 
+  // Idempotency guard: if this exact client submission was already recorded
+  // (e.g. a retried sync whose earlier response was lost), skip re-applying XP.
+  if (clientId) {
+    const existing = await db
+      .select({ id: exerciseResults.id })
+      .from(exerciseResults)
+      .where(
+        and(
+          eq(exerciseResults.studentId, studentId),
+          eq(exerciseResults.clientId, clientId)
+        )
+      )
+      .limit(1);
+    if (existing.length > 0) {
+      res.json({ student: toStudentData(student) });
+      return;
+    }
+  }
+
   // Record exercise result
   await db.insert(exerciseResults).values({
     studentId,
     exerciseId,
+    moduleId: moduleId ?? null,
     correct,
     errorCategory: errorCategory ?? null,
     attempts: attempts ?? 1,
     answer: answer ?? null,
+    hintsUsed: hintsUsed ?? 0,
+    durationSeconds: durationSeconds ?? null,
+    clientId: clientId ?? null,
   });
 
   // Update student XP, streak, completedExercises

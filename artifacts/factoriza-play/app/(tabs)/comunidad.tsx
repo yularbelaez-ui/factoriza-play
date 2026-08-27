@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -13,10 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
-import { StudentRecord, useApp } from "@/context/AppContext";
-import { apiGetClassStudents } from "@/lib/api";
-
-const RANKING_AVATARS = ["🎓", "🧑‍🎓", "👩‍🎓", "👨‍🎓", "🌟", "🚀", "💡", "🔢"];
+import { useApp } from "@/context/AppContext";
 
 export default function ComunidadScreen() {
   const colors = useColors();
@@ -24,57 +21,32 @@ export default function ComunidadScreen() {
   const {
     allStudents,
     currentStudent,
+    refreshStudentRanking,
+    isRefreshingRanking,
   } = useApp();
   const isWeb = Platform.OS === "web";
-  const [serverRanking, setServerRanking] = React.useState<StudentRecord[] | null>(null);
-  const [isRefreshingRanking, setIsRefreshingRanking] = React.useState(false);
 
-  const refreshRanking = useCallback(async () => {
-    const classCode = currentStudent?.classCode;
-    if (!classCode) return;
-
-    setIsRefreshingRanking(true);
-    try {
-      const { students } = await apiGetClassStudents(classCode);
-      const refreshedRanking: StudentRecord[] = students.map((student) => {
-        const localStudent = allStudents.find(
-          (candidate) => candidate.backendId === student.id
-        );
-        return {
-          id: localStudent?.id ?? `ranking-${student.id}`,
-          backendId: student.id,
-          pseudonym: student.pseudonym,
-          classCode: student.classCode,
-          avatar:
-            localStudent?.avatar ??
-            RANKING_AVATARS[student.id % RANKING_AVATARS.length],
-          streak: student.streak,
-          totalXP: student.totalXP,
-          completedModules: student.completedModules,
-          completedTopics: student.completedTopics,
-          completedExercises: student.completedExercises,
-          exerciseResults: localStudent?.exerciseResults ?? [],
-          lastLogin: localStudent?.lastLogin ?? Date.now(),
-          diagnosticProfile:
-            student.diagnosticProfile ?? localStudent?.diagnosticProfile,
-        };
-      });
-      setServerRanking(refreshedRanking);
-    } finally {
-      setIsRefreshingRanking(false);
-    }
-  }, [allStudents, currentStudent?.classCode]);
-
+  // The context's refreshStudentRanking is the single source of truth for
+  // ranking data — it guards against out-of-order responses (race
+  // protection) and keeps the local cache in sync, so this screen no longer
+  // keeps its own duplicate copy of the fetch logic.
   useFocusEffect(
     useCallback(() => {
-      void refreshRanking();
-    }, [refreshRanking])
+      void refreshStudentRanking();
+    }, [refreshStudentRanking])
   );
 
-  const rankingStudents =
-    serverRanking ?? allStudents.filter(
-      (student) => student.classCode === currentStudent?.classCode
-    );
+  // Also refresh periodically while the tab is open, so XP updates made on
+  // other devices (or synced from a retry queue) show up without needing to
+  // leave and re-enter the tab.
+  useEffect(() => {
+    const interval = setInterval(() => { void refreshStudentRanking(); }, 15_000);
+    return () => clearInterval(interval);
+  }, [refreshStudentRanking]);
+
+  const rankingStudents = allStudents.filter(
+    (student) => student.classCode === currentStudent?.classCode
+  );
   const sorted = [...rankingStudents].sort(
     (a, b) =>
       b.totalXP - a.totalXP ||
@@ -117,7 +89,7 @@ export default function ComunidadScreen() {
             styles.refreshButton,
             { backgroundColor: colors.secondary, borderColor: colors.border },
           ]}
-          onPress={() => void refreshRanking()}
+          onPress={() => void refreshStudentRanking()}
           disabled={isRefreshingRanking}
         >
           {isRefreshingRanking ? (

@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import { DiagnosticProfile } from "@/data/diagnostic";
 import {
   apiLoginStudent,
@@ -48,6 +49,27 @@ export interface ExerciseResult {
   errorCategory: string;
   timestamp: number;
   attempts: number;
+  hintsUsed?: number;
+  durationSeconds?: number;
+}
+
+// A submission that failed to reach the server and must be retried so XP,
+// the community ranking and the teacher panel never silently lose data.
+interface PendingExerciseSync {
+  clientId: string;
+  backendId: number;
+  exerciseId: string;
+  moduleId: string;
+  correct: boolean;
+  errorCategory: string | null;
+  attempts: number;
+  answer: string | null;
+  hintsUsed: number;
+  durationSeconds: number | null;
+}
+
+function generateClientId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export interface ClassCode {
@@ -171,7 +193,10 @@ interface AppContextValue {
   addEvaluationCode: (moduleId: string, code: string) => void;
 
   // Student actions
-  recordExerciseResult: (result: Omit<ExerciseResult, "timestamp">) => void;
+  recordExerciseResult: (
+    result: Omit<ExerciseResult, "timestamp">,
+    extra?: { hintsUsed?: number; durationSeconds?: number }
+  ) => void;
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
   completeModule: (moduleId: string) => void;
@@ -216,6 +241,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const rankingRequestRef = useRef(0);
   const sessionChangedDuringLoadRef = useRef(false);
 
+  // Exercise syncs that failed to reach the server (offline, cold start, etc.)
+  // are queued here and retried on an interval and whenever the app comes
+  // back to the foreground, so XP is never silently lost.
+  const pendingSyncsRef = useRef<PendingExerciseSync[]>([]);
+  const isRetryingSyncsRef = useRef(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -229,6 +260,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (data.allStudents) setAllStudents(data.allStudents);
         if (data.classCodes) setClassCodes(data.classCodes);
         if (data.evaluationCodes) setEvaluationCodes(data.evaluationCodes);
+        if (Array.isArray(data.pendingExerciseSyncs)) {
+          pendingSyncsRef.current = data.pendingExerciseSyncs;
+        }
         // Restore session
         if (data.session) {
           const { role: r, studentId } = data.session;
@@ -468,18 +502,104 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const recordExerciseResult = (result: Omit<ExerciseResult, "timestamp">) => {
+  const persistPendingSyncs = useCallback(() => {
+    persist({ pendingExerciseSyncs: pendingSyncsRef.current });
+  }, [persist]);
+
+  // Attempts a single exercise sync against the server. Returns whether it
+  // succeeded — callers decide whether to queue it for retry on failure.
+  const attemptExerciseSync = useCallback(
+    async (sync: PendingExerciseSync): Promise<boolean> => {
+      try {
+        await apiRecordExercise(sync.backendId, {
+          exerciseId: sync.exerciseId,
+          moduleId: sync.moduleId || null,
+          correct: sync.correct,
+          errorCategory: sync.errorCategory,
+          attempts: sync.attempts,
+          answer: sync.answer,
+          hintsUsed: sync.hintsUsed,
+          durationSeconds: sync.durationSeconds,
+          clientId: sync.clientId,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
+  // Retries every queued sync (e.g. after regaining connectivity or coming
+  // back to the foreground). On success, refreshes the ranking so the
+  // community tab and teacher panel pick up the now-confirmed XP.
+  const retryPendingSyncs = useCallback(async () => {
+    if (isRetryingSyncsRef.current || pendingSyncsRef.current.length === 0) return;
+    isRetryingSyncsRef.current = true;
+    try {
+      let anySucceeded = false;
+      const remaining: PendingExerciseSync[] = [];
+      for (const sync of pendingSyncsRef.current) {
+        const ok = await attemptExerciseSync(sync);
+        if (ok) {
+          anySucceeded = true;
+        } else {
+          remaining.push(sync);
+        }
+      }
+      pendingSyncsRef.current = remaining;
+      persistPendingSyncs();
+      if (anySucceeded) {
+        await refreshStudentRanking();
+      }
+    } finally {
+      isRetryingSyncsRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptExerciseSync, persistPendingSyncs]);
+
+  // Retry on an interval and whenever the app returns to the foreground.
+  useEffect(() => {
+    const interval = setInterval(() => { void retryPendingSyncs(); }, 15_000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void retryPendingSyncs();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [retryPendingSyncs]);
+
+  const recordExerciseResult = (
+    result: Omit<ExerciseResult, "timestamp">,
+    extra?: { hintsUsed?: number; durationSeconds?: number }
+  ) => {
     if (!currentStudent) return;
-    const full: ExerciseResult = { ...result, timestamp: Date.now() };
-    // Sync to backend silently (fire-and-forget)
+    const hintsUsed = extra?.hintsUsed ?? 0;
+    const durationSeconds = extra?.durationSeconds;
+    const full: ExerciseResult = { ...result, timestamp: Date.now(), hintsUsed, durationSeconds };
+    // Sync to backend, retrying later if it fails so XP is never lost.
     if (currentStudent.backendId) {
-      apiRecordExercise(currentStudent.backendId, {
+      const sync: PendingExerciseSync = {
+        clientId: generateClientId(),
+        backendId: currentStudent.backendId,
         exerciseId: result.exerciseId,
+        moduleId: result.moduleId,
         correct: result.correct,
         errorCategory: result.errorCategory || null,
         attempts: result.attempts,
         answer: result.selectedAnswer || null,
-      }).catch(() => {});
+        hintsUsed,
+        durationSeconds: durationSeconds ?? null,
+      };
+      attemptExerciseSync(sync).then((ok) => {
+        if (ok) {
+          void refreshStudentRanking();
+        } else {
+          pendingSyncsRef.current = [...pendingSyncsRef.current, sync];
+          persistPendingSyncs();
+        }
+      });
     }
     setCurrentStudentState((prev) => {
       if (!prev) return prev;

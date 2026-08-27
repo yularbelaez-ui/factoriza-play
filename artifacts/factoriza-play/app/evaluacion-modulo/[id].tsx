@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Image,
   Platform,
@@ -45,6 +45,11 @@ export default function EvaluacionModuloScreen() {
   const [started, setStarted] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoStep, setPhotoStep] = useState(false); // show photo step before submit
+
+  // Total time spent on the evaluation, for the teacher panel's per-topic
+  // time analytics (attributed evenly across the answered questions since
+  // the evaluation is submitted as a single batch, not question by question).
+  const startTimeRef = useRef<number | null>(null);
 
   // Take max 10 evaluation exercises (shuffled)
   const shuffledExercises = useMemo(() => {
@@ -136,9 +141,17 @@ export default function EvaluacionModuloScreen() {
   const handleSubmit = () => {
     setSubmitted(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    shuffledExercises.forEach((ex) => {
-      if (answers[ex.id]) {
-        recordExerciseResult({
+    const answeredExercises = shuffledExercises.filter((ex) => answers[ex.id]);
+    const totalSeconds = startTimeRef.current
+      ? Math.round((Date.now() - startTimeRef.current) / 1000)
+      : null;
+    const perQuestionSeconds =
+      totalSeconds !== null && answeredExercises.length > 0
+        ? Math.round(totalSeconds / answeredExercises.length)
+        : undefined;
+    answeredExercises.forEach((ex) => {
+      recordExerciseResult(
+        {
           exerciseId: ex.id,
           moduleId: module.id,
           correct: answers[ex.id] === ex.correctAnswer,
@@ -146,8 +159,9 @@ export default function EvaluacionModuloScreen() {
           correctAnswer: ex.correctAnswer,
           errorCategory: ex.errorCategory,
           attempts: 1,
-        });
-      }
+        },
+        { hintsUsed: 0, durationSeconds: perQuestionSeconds }
+      );
     });
   };
 
@@ -262,7 +276,10 @@ export default function EvaluacionModuloScreen() {
           </View>
           <TouchableOpacity
             style={[styles.startBtn, { backgroundColor: module.color }]}
-            onPress={() => setStarted(true)}
+            onPress={() => {
+              startTimeRef.current = Date.now();
+              setStarted(true);
+            }}
           >
             <Text style={styles.startBtnText}>Comenzar evaluación →</Text>
           </TouchableOpacity>

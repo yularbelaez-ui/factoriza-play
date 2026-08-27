@@ -132,6 +132,17 @@ export default function EjercicioScreen() {
   const [showHint, setShowHint] = useState(false);
   const [showTheoryBtn, setShowTheoryBtn] = useState(false);
 
+  // Time and hint usage for this exercise, used by the teacher panel's
+  // per-topic analytics (time spent, errors, hint usage).
+  const startTimeRef = useRef(Date.now());
+  const hintsUsedRef = useRef(0);
+  const toggleHint = () => {
+    setShowHint((prev) => {
+      if (!prev) hintsUsedRef.current += 1;
+      return !prev;
+    });
+  };
+
   const exerciseOrdinal = module?.exercises.findIndex((item) => item.id === exerciseId) ?? 0;
   const orderedOptions = useMemo(() => {
     if (!exercise) return [];
@@ -171,17 +182,22 @@ export default function EjercicioScreen() {
     setAttempts(newAttempts);
     setSubmitted(true);
 
+    const elapsedSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+
     if (selected === exercise.correctAnswer) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      recordExerciseResult({
-        exerciseId: exercise.id,
-        moduleId: module.id,
-        correct: true,
-        selectedAnswer: selected,
-        correctAnswer: exercise.correctAnswer,
-        errorCategory: exercise.errorCategory,
-        attempts: newAttempts,
-      });
+      recordExerciseResult(
+        {
+          exerciseId: exercise.id,
+          moduleId: module.id,
+          correct: true,
+          selectedAnswer: selected,
+          correctAnswer: exercise.correctAnswer,
+          errorCategory: exercise.errorCategory,
+          attempts: newAttempts,
+        },
+        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+      );
       const levelIdx = getLevelForExercise(module, exercise.id);
       const doneSet = new Set([...(currentStudent?.completedExercises ?? []), exercise.id]);
       if (levelIdx !== -1) {
@@ -197,15 +213,18 @@ export default function EjercicioScreen() {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerShake();
-      recordExerciseResult({
-        exerciseId: exercise.id,
-        moduleId: module.id,
-        correct: false,
-        selectedAnswer: selected,
-        correctAnswer: exercise.correctAnswer,
-        errorCategory: exercise.errorCategory,
-        attempts: newAttempts,
-      });
+      recordExerciseResult(
+        {
+          exerciseId: exercise.id,
+          moduleId: module.id,
+          correct: false,
+          selectedAnswer: selected,
+          correctAnswer: exercise.correctAnswer,
+          errorCategory: exercise.errorCategory,
+          attempts: newAttempts,
+        },
+        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+      );
       if (newAttempts >= 2) setShowTheoryBtn(true);
     }
   };
@@ -296,7 +315,7 @@ export default function EjercicioScreen() {
           styles.hintToggle,
           { borderColor: colors.accent + "60", backgroundColor: colors.accent + "10" },
         ]}
-        onPress={() => setShowHint(!showHint)}
+        onPress={toggleHint}
       >
         <Feather name="help-circle" size={15} color={colors.accent} />
         <Text style={[styles.hintToggleText, { color: colors.accent }]}>

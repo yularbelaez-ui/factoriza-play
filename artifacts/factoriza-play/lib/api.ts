@@ -85,10 +85,14 @@ export async function apiRecordExercise(
   studentId: number,
   data: {
     exerciseId: string;
+    moduleId?: string | null;
     correct: boolean;
     errorCategory?: string | null;
     attempts?: number;
     answer?: string | null;
+    hintsUsed?: number;
+    durationSeconds?: number | null;
+    clientId?: string | null;
   }
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/exercise`, {
@@ -139,6 +143,22 @@ export async function apiGetClassErrors(
   classCode: string
 ): Promise<{ errors: { category: string; count: number; percentage: string }[] }> {
   return apiFetch(`/class/${classCode}/errors`);
+}
+
+export interface ApiTopicStat {
+  moduleId: string;
+  studentsInvolved: number;
+  exerciseCount: number;
+  errorCount: number;
+  hintsUsed: number;
+  avgDurationSeconds: number | null;
+  totalDurationSeconds: number;
+}
+
+export async function apiGetClassTopicStats(
+  classCode: string
+): Promise<{ topics: ApiTopicStat[] }> {
+  return apiFetch(`/class/${classCode}/topic-stats`);
 }
 
 export async function apiGetTeacherClasses(
