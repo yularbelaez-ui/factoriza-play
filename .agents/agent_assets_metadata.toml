@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "oUOvlIlfRu6PH4ydMRhpE"
@@ -24,3 +23,17 @@ id = "xc53hz1VeYvLut2W4sE0n"
 uri = "file://artifacts/factoriza-play/assets/images/ranking_trophy.png"
 type = "image"
 title = "ranking trophy"
+
+[[outputs]]
+id = "ZhnEFIRf21-khs7gcBgiI"
+uri = "file://attached_assets/factoriza-play-expo-go-qr.png"
+type = "image"
+title = "QR de FactorIzA-Play para Expo Go"
+description = "Muestra esta imagen en la pantalla del computador y escanéala con la cámara del iPhone o desde Expo Go."
+logical_id = "a793af44-4421-45fc-bf00-d937ad4bb0bd"
+content_hash = "sha256:a3fa33deaf686e48b2026d5b31e6e9c5db0d0605d5b4f7b6724501596a8a54e4"
+size = 1360
+mtime_ms = 1788458405278
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:57362ff2-c2b8-4677-a1a6-4d918358d727/a793af44-4421-45fc-bf00-d937ad4bb0bd/b6d87180-7589-4792-845d-194ec324c8d1"
+storage_version_token = "1788458405749984"
+content_type = "image/png"
