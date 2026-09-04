@@ -118,7 +118,16 @@ router.post("/students/:studentId/exercise", async (req, res) => {
   });
 
   // Update student XP, streak, completedExercises
-  const xpGain = correct ? 20 : 3;
+  const isSupportExercise = moduleId?.startsWith("support:") ?? false;
+  const xpGain = isSupportExercise
+    ? correct
+      ? (attempts ?? 1) <= 1
+        ? 10
+        : 5
+      : 0
+    : correct
+      ? 20
+      : 3;
   const alreadyCompleted = (student.completedExercises ?? []).includes(
     exerciseId
   );

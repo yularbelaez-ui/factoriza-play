@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PRACTICE_CATEGORIES } from "@/data/practice";
+import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { getBalancedAnswerOptions } from "@/lib/answerOptions";
 
@@ -20,6 +21,7 @@ export default function PracticaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { recordExerciseResult } = useApp();
 
   const cat = PRACTICE_CATEGORIES.find((c) => c.id === categoria);
 
@@ -57,7 +59,18 @@ export default function PracticaScreen() {
     if (!answers[exId]) return;
     setChecked((prev) => ({ ...prev, [exId]: true }));
     const ex = shuffledExercises.find((e) => e.id === exId);
-    if (answers[exId] === ex?.correctAnswer) {
+    if (!ex) return;
+    const isCorrect = answers[exId] === ex.correctAnswer;
+    recordExerciseResult({
+      exerciseId: ex.id,
+      moduleId: `support:${cat.id}`,
+      correct: isCorrect,
+      selectedAnswer: answers[exId],
+      correctAnswer: ex.correctAnswer,
+      errorCategory: cat.id,
+      attempts: 1,
+    });
+    if (isCorrect) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -285,7 +298,7 @@ export default function PracticaScreen() {
                 ]}
               >
                 <Text style={[styles.feedbackText, { color: isCorrect ? colors.success : colors.error }]}>
-                  {isCorrect ? "✅ ¡Correcto!" : "❌ Incorrecto"}
+                  {isCorrect ? "✅ ¡Correcto! +10 XP" : "❌ Incorrecto · 0 XP"}
                 </Text>
                 <Text style={[styles.feedbackExplan, { color: colors.foreground }]}>
                   {ex.explanation}

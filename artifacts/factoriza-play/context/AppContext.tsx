@@ -72,6 +72,14 @@ function generateClientId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function getExerciseXp(result: Pick<ExerciseResult, "moduleId" | "correct" | "attempts">): number {
+  if (result.moduleId.startsWith("support:")) {
+    if (!result.correct) return 0;
+    return result.attempts <= 1 ? 10 : 5;
+  }
+  return result.correct ? 20 : 3;
+}
+
 export interface ClassCode {
   code: string;
   label: string;
@@ -603,7 +611,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setCurrentStudentState((prev) => {
       if (!prev) return prev;
-      const xpGained = result.correct ? 20 : 3;
+      const xpGained = getExerciseXp(result);
       const updated: StudentRecord = {
         ...prev,
         totalXP: prev.totalXP + xpGained,

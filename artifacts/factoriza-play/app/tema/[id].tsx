@@ -39,7 +39,7 @@ export default function TemaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { completeTopicPractice } = useApp();
+  const { completeTopicPractice, recordExerciseResult } = useApp();
 
   const topic = getTopicById(id ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("teoria");
@@ -117,7 +117,20 @@ export default function TemaScreen() {
     if (correct) {
       // Award XP based on phase
       const xp = phase === "hint" ? XP_SECOND_TRY : XP_FIRST_TRY;
+      const attempts = phase === "hint" ? 2 : 1;
       setEarnedXP((prev) => prev + xp);
+      recordExerciseResult(
+        {
+          exerciseId: currentEx.id,
+          moduleId: `support:${topic.id}`,
+          correct: true,
+          selectedAnswer,
+          correctAnswer: currentEx.correctAnswer,
+          errorCategory: topic.sectionId,
+          attempts,
+        },
+        { hintsUsed: phase === "hint" ? 1 : 0 }
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPhase("revealed");
     } else {
@@ -130,6 +143,18 @@ export default function TemaScreen() {
         setPhase("hint");
       } else {
         // Second wrong attempt → full reveal, no XP
+        recordExerciseResult(
+          {
+            exerciseId: currentEx.id,
+            moduleId: `support:${topic.id}`,
+            correct: false,
+            selectedAnswer,
+            correctAnswer: currentEx.correctAnswer,
+            errorCategory: topic.sectionId,
+            attempts: 2,
+          },
+          { hintsUsed: 1 }
+        );
         setPhase("revealed");
       }
     }
