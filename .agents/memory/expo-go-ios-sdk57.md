@@ -17,14 +17,14 @@ sola versión de React compatible en el catálogo del monorepo, comprobar Expo D
 iOS/Android. El arranque debe autenticar con la sesión administrada de Replit sin exponerla y luego
 iniciar Metro conservando todas las variables del workflow.
 
-Para la vista publicada, no basta con que el dominio de Replit sea público. El manifiesto estático
-de Expo Go tampoco debe incluir el propietario de la cuenta de compilación en `expoClient` ni el
-usuario de Expo CLI en `expoGo`; esos metadatos hacen que Expo Go exija iniciar sesión como el
-propietario aunque el `scopeKey` sea anónimo.
+Expo Go 57 en iOS exige autenticación también para la vista estática publicada. Conservar el
+propietario y el usuario de Expo CLI en el manifiesto hace que cada dispositivo deba iniciar sesión
+con la misma cuenta usada para compilar. Retirarlos no habilita acceso anónimo: Expo Go muestra en
+su lugar un error genérico que exige iniciar sesión tanto en Expo Go como en Expo CLI.
 
-**Why:** el QR público del despliegue seguía mostrando “sign in to Expo Go as yul.arbelaez” porque
-el empaquetador conservaba esos campos del manifiesto obtenido durante la compilación.
+**Why:** se probaron ambas variantes del manifiesto publicado. Con identidad exigía la cuenta del
+propietario; sin identidad seguía bloqueando la apertura anónima.
 
-**How to apply:** retirar únicamente los metadatos de identidad de la copia estática destinada a
-Expo Go público. Mantener la vinculación EAS en la configuración fuente para no romper futuras
-compilaciones de APK ni la administración del proyecto.
+**How to apply:** para pruebas nativas por Expo Go, conservar los metadatos de identidad y usar la
+misma cuenta en cada dispositivo. Para acceso realmente anónimo, usar una versión web pública o
+distribución nativa mediante TestFlight/App Store, no sanitizar el manifiesto.

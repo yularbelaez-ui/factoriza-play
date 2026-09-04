@@ -483,13 +483,6 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
       baseUrl.replace("https://", "") + "/" + platform;
     manifest.extra.expoGo.packagerOpts.dev = false;
 
-    // The deployed Expo Go preview is intentionally public. Expo CLI includes
-    // the account used during the build in these fields, which makes Expo Go
-    // require every viewer to sign in as that account even though the
-    // deployment itself is public.
-    delete manifest.extra.expoClient.owner;
-    delete manifest.extra.expoGo.username;
-
     if (manifest.assets && manifest.assets.length > 0) {
       manifest.assets.forEach((asset) => {
         if (!asset.url) return;
