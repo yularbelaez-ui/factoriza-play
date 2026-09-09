@@ -386,9 +386,14 @@ export default function ModuloScreen() {
                   style={[styles.exerciseRow, {
                     backgroundColor: done ? colors.success + "08" : colors.background,
                     borderColor: done ? colors.success + "40" : colors.border,
+                    opacity: done ? 0.72 : 1,
                   }]}
-                  onPress={() => router.push(`/ejercicio/${module.id}__${exercise.id}` as any)}
+                  onPress={() => {
+                    if (!done) router.push(`/ejercicio/${module.id}__${exercise.id}` as any);
+                  }}
+                  disabled={done}
                   activeOpacity={0.8}
+                  accessibilityState={{ disabled: done }}
                 >
                   <View style={[styles.exerciseNum, { backgroundColor: done ? colors.success : module.color }]}>
                     {done ? (
@@ -406,8 +411,13 @@ export default function ModuloScreen() {
                         🌍 Contexto real
                       </Text>
                     )}
+                    {done && (
+                      <Text style={[styles.exerciseLocked, { color: colors.success }]}>
+                        Completado · respuesta y evidencia registradas
+                      </Text>
+                    )}
                   </View>
-                  <Feather name="chevron-right" size={16} color={done ? colors.success : colors.mutedForeground} />
+                  <Feather name={done ? "lock" : "chevron-right"} size={16} color={done ? colors.success : colors.mutedForeground} />
                 </TouchableOpacity>
               );
             })}
@@ -560,6 +570,7 @@ const styles = StyleSheet.create({
   exerciseInfo: { flex: 1 },
   exerciseQ: { fontSize: 13, fontWeight: "600" },
   exerciseTag: { fontSize: 11, marginTop: 3 },
+  exerciseLocked: { fontSize: 11, fontWeight: "700", marginTop: 3 },
 
   lockedMsg: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
   lockedText: { fontSize: 13 },

@@ -144,6 +144,7 @@ export default function EjercicioScreen() {
 
   const module = MODULES.find((m) => m.id === moduleId);
   const exercise = module?.exercises.find((e) => e.id === exerciseId);
+  const isAlreadyCompleted = currentStudent?.completedExercises.includes(exerciseId) ?? false;
 
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -179,6 +180,43 @@ export default function EjercicioScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.foreground }}>Ejercicio no encontrado</Text>
+      </View>
+    );
+  }
+
+  if (isAlreadyCompleted) {
+    return (
+      <View
+        style={[
+          styles.completedScreen,
+          {
+            backgroundColor: colors.background,
+            paddingTop: isWeb ? 67 + 16 : insets.top + 16,
+            paddingBottom: isWeb ? 34 + 24 : insets.bottom + 24,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="chevron-left" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Volver al caso</Text>
+        </TouchableOpacity>
+        <View style={[styles.completedCard, { backgroundColor: colors.card, borderColor: colors.success + "50" }]}>
+          <View style={[styles.completedIcon, { backgroundColor: colors.success + "18" }]}>
+            <Feather name="lock" size={30} color={colors.success} />
+          </View>
+          <Text style={[styles.completedTitle, { color: colors.success }]}>Ejercicio completado</Text>
+          <Text style={[styles.completedText, { color: colors.foreground }]}>
+            Tu respuesta y la evidencia del procedimiento ya fueron registradas. Este ejercicio está bloqueado para evitar respuestas o fotografías duplicadas.
+          </Text>
+          <TouchableOpacity
+            style={[styles.completedButton, { backgroundColor: module.color }]}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Feather name="arrow-left" size={16} color="#fff" />
+            <Text style={styles.completedButtonText}>Continuar con el caso</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -618,6 +656,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  completedScreen: { flex: 1, paddingHorizontal: 20 },
+  completedCard: { borderRadius: 20, borderWidth: 1.5, padding: 24, alignItems: "center", marginTop: 44, gap: 12 },
+  completedIcon: { width: 66, height: 66, borderRadius: 33, alignItems: "center", justifyContent: "center" },
+  completedTitle: { fontSize: 21, fontWeight: "800", textAlign: "center" },
+  completedText: { fontSize: 14, lineHeight: 21, textAlign: "center" },
+  completedButton: { marginTop: 8, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8 },
+  completedButtonText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   backBtn: { flexDirection: "row", alignItems: "center", marginBottom: 16, gap: 4 },
   backText: { fontSize: 15, fontWeight: "600" },
   moduleTag: {
