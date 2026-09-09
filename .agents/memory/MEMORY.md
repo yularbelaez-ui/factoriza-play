@@ -5,3 +5,4 @@
 - [Bulk-editing nested JS/TS literals](bulk-edit-nested-js-literals.md) — regex spanning "id...steps...}" across many objects silently corrupts data via backtracking; use brace-counting instead
 - [Expo Go iOS con SDK 57](expo-go-ios-sdk57.md) — iPhone exige el SDK vigente y una sesión administrada de Replit para abrir el proyecto físico
 - [Evidencias y reflexiones docentes](factoriza-evidence-reflections.md) — fotos y reflexiones se vinculan al resultado idempotente y se organizan por estudiante, tema y ejercicio
+- [Conectores en producción](connectors-production-republish.md) — añadir o cambiar un conector exige volver a publicar para que la conexión llegue al despliegue

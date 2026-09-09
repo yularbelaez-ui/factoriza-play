@@ -9,14 +9,53 @@ const connectors = new ReplitConnectors();
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 async function driveJson(path: string, init?: RequestInit): Promise<any> {
-  const response = await connectors.proxy("google-drive", path, init);
-  if (!response.ok) throw new Error(`Google Drive API error (${response.status})`);
-  return response.json();
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await connectors.proxy("google-drive", path, init);
+    const responseText = await response.text();
+
+    if (response.ok) {
+      try {
+        return JSON.parse(responseText);
+      } catch {
+        throw new Error("Google Drive devolvió una respuesta inválida");
+      }
+    }
+
+    const retryable = response.status === 429 || response.status >= 500;
+    if (retryable && attempt < maxAttempts) {
+      await wait(300 * 2 ** (attempt - 1));
+      continue;
+    }
+
+    let providerMessage = responseText.slice(0, 500);
+    try {
+      const parsed = JSON.parse(responseText) as {
+        error?: { message?: string } | string;
+        message?: string;
+      };
+      providerMessage =
+        typeof parsed.error === "string"
+          ? parsed.error
+          : parsed.error?.message ?? parsed.message ?? providerMessage;
+    } catch {
+      // Use the bounded text response when the provider did not return JSON.
+    }
+
+    throw new Error(
+      `Google Drive API error (${response.status})${providerMessage ? `: ${providerMessage}` : ""}`
+    );
+  }
+
+  throw new Error("Google Drive upload failed after retries");
 }
 
 async function findOrCreateDriveFolder(name: string, parentId?: string): Promise<string> {
-  const escaped = name.replace(/'/g, "\\'");
+  const escaped = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const parent = parentId ? `'${parentId}' in parents and ` : "";
   const query = encodeURIComponent(`${parent}name='${escaped}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   const found = await driveJson(`/drive/v3/files?q=${query}&fields=files(id,name)`);
@@ -279,7 +318,15 @@ router.post("/students/:studentId/evidence", async (req, res) => {
         }).where(eq(exerciseResults.id, existing[0].id)).returning();
     res.status(201).json({ evidence: { url, driveFileId, resultId: updated?.id ?? null } });
   } catch (error) {
-    res.status(502).json({ error: error instanceof Error ? error.message : "Google Drive upload failed" });
+    const message = error instanceof Error ? error.message : "Google Drive upload failed";
+    console.error("Google Drive evidence upload failed", {
+      studentId,
+      exerciseId,
+      clientId: clientId.trim(),
+      imageBytes: Buffer.byteLength(raw, "base64"),
+      message,
+    });
+    res.status(502).json({ error: message });
   }
 });
 
