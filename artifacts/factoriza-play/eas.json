@@ -10,6 +10,8 @@
     },
     "preview": {
       "distribution": "internal",
+      "corepack": true,
+      "pnpm": "10.26.1",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://algebra-tutor--yularbelaez.replit.app"
       },
