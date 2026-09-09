@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
+import { MODULE_VIDEOS } from "@/data/moduleVideos";
 import { ProcedureDiagram } from "@/components/ProcedureDiagram";
 
 function getExerciseLevels(exercises: typeof MODULES[0]["exercises"]) {
@@ -116,6 +118,7 @@ export default function ModuloScreen() {
   }
 
   const prog = moduleProgress.find((p) => p.moduleId === module.id);
+  const videos = MODULE_VIDEOS[module.id] ?? [];
   const completedLevels = prog?.completedLevels || [];
   const exerciseLevels = getExerciseLevels(module.exercises);
 
@@ -253,6 +256,39 @@ export default function ModuloScreen() {
           </View>
         );
       })}
+
+      {videos.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🎬 Videos para repasar</Text>
+          <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+            Revisa la teoría y después observa ejercicios resueltos del mismo caso.
+          </Text>
+          <View style={styles.videoList}>
+            {videos.map((video) => (
+              <TouchableOpacity
+                key={`${video.kind}-${video.title}`}
+                style={[styles.videoCard, { backgroundColor: colors.card, borderColor: module.color + "35" }]}
+                onPress={() => Linking.openURL(video.url)}
+                activeOpacity={0.8}
+                accessibilityRole="link"
+                accessibilityLabel={`Abrir video: ${video.title}`}
+              >
+                <View style={[styles.videoIcon, { backgroundColor: video.kind === "theory" ? module.color : "#dc2626" }]}>
+                  <Feather name={video.kind === "theory" ? "book-open" : "play"} size={18} color="#fff" />
+                </View>
+                <View style={styles.videoInfo}>
+                  <Text style={[styles.videoKind, { color: video.kind === "theory" ? module.color : "#dc2626" }]}>
+                    {video.kind === "theory" ? "REPASO DE TEORÍA" : "EJERCICIOS RESUELTOS"}
+                  </Text>
+                  <Text style={[styles.videoTitle, { color: colors.foreground }]}>{video.title}</Text>
+                  <Text style={[styles.videoChannel, { color: colors.mutedForeground }]}>{video.channel}</Text>
+                </View>
+                <Feather name="external-link" size={17} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* Procedure Diagram */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🖼️ Diagrama del Procedimiento</Text>
@@ -464,6 +500,26 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 17, fontWeight: "800", marginBottom: 10, marginTop: 6 },
   sectionSub: { fontSize: 13, marginBottom: 14, marginTop: -6 },
+  videoList: { gap: 10, marginBottom: 10 },
+  videoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 11,
+  },
+  videoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoInfo: { flex: 1, gap: 2 },
+  videoKind: { fontSize: 10, fontWeight: "800", letterSpacing: 0.45 },
+  videoTitle: { fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  videoChannel: { fontSize: 11 },
 
   theoryCard: { borderRadius: 14, marginBottom: 10, borderWidth: 1, overflow: "hidden" },
   theoryHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },

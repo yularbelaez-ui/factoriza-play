@@ -113,6 +113,23 @@ function getLevelForExercise(module: (typeof MODULES)[0], exerciseId: string): n
   );
 }
 
+function getSuggestedSteps(steps: string[], correctAnswer: string): string[] {
+  if (steps.length <= 1) return steps;
+
+  const normalizedAnswer = correctAnswer.replace(/\s+/g, "").toLowerCase();
+  const withoutAnswer = steps.filter((step, index) => {
+    if (index === steps.length - 1) return false;
+    const normalizedStep = step.replace(/\s+/g, "").toLowerCase();
+    return (
+      !normalizedStep.startsWith("resultado:") &&
+      !normalizedStep.startsWith("respuesta:") &&
+      !normalizedStep.includes(normalizedAnswer)
+    );
+  });
+
+  return withoutAnswer.slice(0, 3);
+}
+
 export default function EjercicioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -169,6 +186,7 @@ export default function EjercicioScreen() {
   const isCorrect = selected === exercise.correctAnswer;
   const errorHint = ERROR_HINTS[exercise.errorCategory] ?? ERROR_HINTS["arithmetic"];
   const remediation = ERROR_TO_TOPIC[exercise.errorCategory] ?? null;
+  const suggestedSteps = getSuggestedSteps(exercise.steps ?? [], exercise.correctAnswer);
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -388,14 +406,17 @@ export default function EjercicioScreen() {
           {exercise.hint && (
             <Text style={[styles.hintText, { color: colors.foreground }]}>{exercise.hint}</Text>
           )}
-          {exercise.steps && exercise.steps.length > 0 && (
+          {suggestedSteps.length > 0 && (
             <>
               <Text style={[styles.hintStepsTitle, { color: colors.accent }]}>Pasos sugeridos:</Text>
-              {exercise.steps.map((step: string, i: number) => (
+              {suggestedSteps.map((step: string, i: number) => (
                 <Text key={i} style={[styles.hintStep, { color: colors.foreground }]}>
-                  {step}
+                  {i + 1}. {step}
                 </Text>
               ))}
+              <Text style={[styles.hintGuard, { color: colors.mutedForeground }]}>
+                Continúa el procedimiento por tu cuenta y compara tu resultado con las opciones.
+              </Text>
             </>
           )}
         </View>
@@ -646,6 +667,7 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 13, lineHeight: 18 },
   hintStepsTitle: { fontSize: 12, fontWeight: "700", marginTop: 4 },
   hintStep: { fontSize: 12, lineHeight: 18 },
+  hintGuard: { fontSize: 11, lineHeight: 17, fontStyle: "italic", marginTop: 3 },
   options: { gap: 10, marginBottom: 14 },
   option: {
     flexDirection: "row",
