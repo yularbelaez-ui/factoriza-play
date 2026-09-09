@@ -134,6 +134,8 @@ export default function PracticaModuloScreen() {
           correctAnswer: currentEx.correctAnswer,
           errorCategory: currentEx.errorCategory,
           attempts: 1,
+          questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
+          topicName: module.title,
         },
         { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
       );
@@ -167,6 +169,8 @@ export default function PracticaModuloScreen() {
           correctAnswer: currentEx.correctAnswer,
           errorCategory: currentEx.errorCategory,
           attempts: 1,
+          questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
+          topicName: module.title,
         },
         { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
       );

@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -131,6 +133,9 @@ export default function EjercicioScreen() {
   const [attempts, setAttempts] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [showTheoryBtn, setShowTheoryBtn] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState("image/jpeg");
 
   // Time and hint usage for this exercise, used by the teacher panel's
   // per-topic analytics (time spent, errors, hint usage).
@@ -176,8 +181,24 @@ export default function EjercicioScreen() {
     ]).start();
   };
 
+  const captureProcedure = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    const result = permission.status === "granted"
+      ? await ImagePicker.launchCameraAsync({ quality: 0.75, base64: true })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.75,
+          base64: true,
+        });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 ?? null);
+      setPhotoMimeType(result.assets[0].mimeType ?? "image/jpeg");
+    }
+  };
+
   const handleSubmit = () => {
-    if (!selected) return;
+    if (!selected || !photoBase64) return;
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
     setSubmitted(true);
@@ -195,6 +216,10 @@ export default function EjercicioScreen() {
           correctAnswer: exercise.correctAnswer,
           errorCategory: exercise.errorCategory,
           attempts: newAttempts,
+          questionText: `${exercise.question}${exercise.expression ? ` — ${exercise.expression}` : ""}`,
+          topicName: module.title,
+          evidenceBase64: photoBase64,
+          evidenceMimeType: photoMimeType,
         },
         { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
       );
@@ -222,6 +247,10 @@ export default function EjercicioScreen() {
           correctAnswer: exercise.correctAnswer,
           errorCategory: exercise.errorCategory,
           attempts: newAttempts,
+          questionText: `${exercise.question}${exercise.expression ? ` — ${exercise.expression}` : ""}`,
+          topicName: module.title,
+          evidenceBase64: photoBase64,
+          evidenceMimeType: photoMimeType,
         },
         { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
       );
@@ -232,6 +261,8 @@ export default function EjercicioScreen() {
   const handleRetry = () => {
     setSelected(null);
     setSubmitted(false);
+    setPhotoUri(null);
+    setPhotoBase64(null);
   };
 
   const getOptionColors = (option: string) => {
@@ -400,34 +431,61 @@ export default function EjercicioScreen() {
         })}
       </View>
 
+      {!submitted && (
+        <View style={[styles.questionCard, { backgroundColor: colors.card, borderColor: photoBase64 ? colors.success : colors.border }]}>
+          <Text style={[styles.questionText, { color: colors.foreground, fontSize: 15 }]}>
+            📷 Evidencia obligatoria del procedimiento
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18, marginTop: 5 }}>
+            Toma una foto clara del procedimiento que realizaste para resolver este ejercicio.
+          </Text>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={{ width: "100%", height: 190, borderRadius: 12, marginTop: 12 }} resizeMode="contain" />
+          ) : null}
+          <TouchableOpacity
+            onPress={captureProcedure}
+            style={[styles.hintToggle, { borderColor: module.color + "60", backgroundColor: module.color + "10", marginTop: 12 }]}
+          >
+            <Feather name="camera" size={16} color={module.color} />
+            <Text style={[styles.hintToggleText, { color: module.color }]}>
+              {photoBase64 ? "Cambiar foto" : "Tomar o seleccionar foto"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Action button */}
       {(!submitted || !isCorrect) && (
         <TouchableOpacity
           style={[
             styles.submitBtn,
             {
-              backgroundColor: selected ? module.color : colors.secondary,
-              borderColor: selected ? module.color : colors.border,
-              opacity: !selected && !submitted ? 0.6 : 1,
+              backgroundColor: selected && photoBase64 ? module.color : colors.secondary,
+              borderColor: selected && photoBase64 ? module.color : colors.border,
+              opacity: (!selected || !photoBase64) && !submitted ? 0.6 : 1,
             },
           ]}
           onPress={submitted && !isCorrect ? handleRetry : handleSubmit}
-          disabled={!selected && !submitted}
+          disabled={(!selected || !photoBase64) && !submitted}
           activeOpacity={0.85}
         >
           <Text
             style={[
               styles.submitBtnText,
-              { color: selected ? "#fff" : colors.mutedForeground },
+              { color: selected && photoBase64 ? "#fff" : colors.mutedForeground },
             ]}
           >
-            {submitted && !isCorrect ? "🔄  Intentar de nuevo" : "Verificar respuesta"}
+            {submitted && !isCorrect
+              ? "🔄  Intentar de nuevo"
+              : !photoBase64
+                ? "Adjunta la foto para verificar"
+                : "Verificar respuesta"}
           </Text>
           {!submitted && (
             <Feather
               name="check"
               size={17}
-              color={selected ? "#fff" : colors.mutedForeground}
+              color={selected && photoBase64 ? "#fff" : colors.mutedForeground}
             />
           )}
         </TouchableOpacity>

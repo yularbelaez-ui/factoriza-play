@@ -19,6 +19,7 @@ import {
   apiGetClassStudents,
   apiDeleteStudent,
   apiSaveDiagnosticProfile,
+  apiUploadExerciseEvidence,
 } from "@/lib/api";
 import { LEARNING_ROUTES, isLearningRouteCompleted } from "@/data/learningRoutes";
 
@@ -51,6 +52,10 @@ export interface ExerciseResult {
   attempts: number;
   hintsUsed?: number;
   durationSeconds?: number;
+  questionText?: string;
+  topicName?: string;
+  evidenceBase64?: string;
+  evidenceMimeType?: string;
 }
 
 // A submission that failed to reach the server and must be retried so XP,
@@ -66,6 +71,11 @@ interface PendingExerciseSync {
   answer: string | null;
   hintsUsed: number;
   durationSeconds: number | null;
+  questionText: string | null;
+  topicName: string | null;
+  correctAnswer: string | null;
+  evidenceBase64?: string;
+  evidenceMimeType?: string;
 }
 
 function generateClientId(): string {
@@ -529,7 +539,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           hintsUsed: sync.hintsUsed,
           durationSeconds: sync.durationSeconds,
           clientId: sync.clientId,
+          questionText: sync.questionText,
+          topicName: sync.topicName,
+          correctAnswer: sync.correctAnswer,
         });
+        if (sync.evidenceBase64) {
+          await apiUploadExerciseEvidence(sync.backendId, {
+            exerciseId: sync.exerciseId,
+            topicName: sync.topicName || sync.moduleId,
+            imageBase64: sync.evidenceBase64,
+            clientId: sync.clientId,
+            mimeType: sync.evidenceMimeType,
+          });
+        }
         return true;
       } catch {
         return false;
@@ -599,6 +621,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         answer: result.selectedAnswer || null,
         hintsUsed,
         durationSeconds: durationSeconds ?? null,
+        questionText: result.questionText ?? null,
+        topicName: result.topicName ?? null,
+        correctAnswer: result.correctAnswer || null,
+        evidenceBase64: result.evidenceBase64,
+        evidenceMimeType: result.evidenceMimeType,
       };
       attemptExerciseSync(sync).then((ok) => {
         if (ok) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { students, exerciseResults } from "@workspace/db/schema";
+import { students, exerciseResults, moduleReflections } from "@workspace/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 
 const router = Router();
@@ -37,7 +37,13 @@ router.get("/class/:classCode/errors", async (req, res) => {
 
   // Get all students in class
   const classStudents = await db
-    .select({ id: students.id })
+    .select({
+      id: students.id,
+      pseudonym: students.pseudonym,
+      diagnosticProfile: students.diagnosticProfile,
+      completedTopics: students.completedTopics,
+      completedModules: students.completedModules,
+    })
     .from(students)
     .where(eq(students.classCode, classCode.toUpperCase()));
 
@@ -89,7 +95,7 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
   const { classCode } = req.params;
 
   const classStudents = await db
-    .select({ id: students.id })
+    .select({ id: students.id, pseudonym: students.pseudonym })
     .from(students)
     .where(eq(students.classCode, classCode.toUpperCase()));
 
@@ -106,10 +112,23 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
       correct: exerciseResults.correct,
       hintsUsed: exerciseResults.hintsUsed,
       durationSeconds: exerciseResults.durationSeconds,
+      attempts: exerciseResults.attempts,
+      answer: exerciseResults.answer,
+      questionText: exerciseResults.questionText,
+      topicName: exerciseResults.topicName,
+      correctAnswer: exerciseResults.correctAnswer,
+      evidenceUrl: exerciseResults.evidenceUrl,
+      evidenceDriveFileId: exerciseResults.evidenceDriveFileId,
+      evidenceMetadata: exerciseResults.evidenceMetadata,
+      createdAt: exerciseResults.createdAt,
       studentId: exerciseResults.studentId,
     })
     .from(exerciseResults)
     .where(inArray(exerciseResults.studentId, studentIds));
+  const reflections = await db
+    .select()
+    .from(moduleReflections)
+    .where(inArray(moduleReflections.studentId, studentIds));
 
   type Agg = {
     moduleId: string;
@@ -118,6 +137,8 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
     hintsUsed: number;
     totalDurationSeconds: number;
     durationSamples: number;
+    attempts: number;
+    details: Array<Record<string, unknown>>;
     studentIds: Set<number>;
   };
   const byModule = new Map<string, Agg>();
@@ -133,6 +154,8 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
         hintsUsed: 0,
         totalDurationSeconds: 0,
         durationSamples: 0,
+        attempts: 0,
+        details: [],
         studentIds: new Set(),
       };
       byModule.set(r.moduleId, agg);
@@ -174,7 +197,13 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
   const { classCode } = req.params;
 
   const classStudents = await db
-    .select({ id: students.id })
+    .select({
+      id: students.id,
+      pseudonym: students.pseudonym,
+      diagnosticProfile: students.diagnosticProfile,
+      completedTopics: students.completedTopics,
+      completedModules: students.completedModules,
+    })
     .from(students)
     .where(eq(students.classCode, classCode.toUpperCase()));
 
@@ -193,9 +222,22 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
       correct: exerciseResults.correct,
       hintsUsed: exerciseResults.hintsUsed,
       durationSeconds: exerciseResults.durationSeconds,
+      attempts: exerciseResults.attempts,
+      answer: exerciseResults.answer,
+      questionText: exerciseResults.questionText,
+      topicName: exerciseResults.topicName,
+      correctAnswer: exerciseResults.correctAnswer,
+      evidenceUrl: exerciseResults.evidenceUrl,
+      evidenceDriveFileId: exerciseResults.evidenceDriveFileId,
+      evidenceMetadata: exerciseResults.evidenceMetadata,
+      createdAt: exerciseResults.createdAt,
     })
     .from(exerciseResults)
     .where(inArray(exerciseResults.studentId, studentIds));
+  const reflections = await db
+    .select()
+    .from(moduleReflections)
+    .where(inArray(moduleReflections.studentId, studentIds));
 
   type ExAgg = {
     exerciseId: string;
@@ -205,6 +247,7 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
     hintsUsed: number;
     totalDurationSeconds: number;
     durationSamples: number;
+    details: Array<Record<string, unknown>>;
   };
   type ModAgg = {
     moduleId: string;
@@ -250,6 +293,7 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
         hintsUsed: 0,
         totalDurationSeconds: 0,
         durationSamples: 0,
+        details: [],
       };
       mod.exercises.set(r.exerciseId, ex);
     }
@@ -262,9 +306,16 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
       mod.incorrectCount += 1;
       ex.incorrectCount += 1;
     }
-    mod.attemptsTotal += 1;
+    mod.attemptsTotal += r.attempts ?? 1;
     mod.hintsUsed += hints;
-    ex.attemptsTotal += 1;
+    ex.attemptsTotal += r.attempts ?? 1;
+    ex.details.push({
+      correct: r.correct, attempts: r.attempts ?? 1, answer: r.answer,
+      questionText: r.questionText, topicName: r.topicName,
+      correctAnswer: r.correctAnswer, evidenceUrl: r.evidenceUrl,
+      evidenceDriveFileId: r.evidenceDriveFileId,
+      evidenceMetadata: r.evidenceMetadata, createdAt: r.createdAt,
+    });
     ex.hintsUsed += hints;
     if (typeof r.durationSeconds === "number" && r.durationSeconds > 0) {
       mod.totalDurationSeconds += r.durationSeconds;
@@ -302,10 +353,26 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
               ex.durationSamples > 0
                 ? Math.round(ex.totalDurationSeconds / ex.durationSamples)
                 : null,
+            attempts: ex.details,
           })),
+          reflections: reflections.filter((r) => r.studentId === studentId && r.moduleId === mod.moduleId),
         }))
       : [];
-    return { studentId, modules };
+    const student = classStudents.find((s) => s.id === studentId);
+    return {
+      studentId,
+      pseudonym: student?.pseudonym ?? null,
+      diagnosticProfile: student?.diagnosticProfile ?? null,
+      completedTopics: student?.completedTopics ?? [],
+      completedModules: student?.completedModules ?? [],
+      reinforcedTopics: Array.from(new Set(modules.flatMap((m) =>
+        m.exercises.flatMap((e) => e.attempts.map((a) => a.topicName).filter(Boolean)),
+      ))),
+      additionalActivities: modules
+        .filter((m) => m.moduleId.startsWith("support:"))
+        .map((m) => m.moduleId),
+      modules,
+    };
   });
 
   res.json({ students: studentsOut });

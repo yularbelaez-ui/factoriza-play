@@ -128,6 +128,8 @@ export default function TemaScreen() {
           correctAnswer: currentEx.correctAnswer,
           errorCategory: topic.sectionId,
           attempts,
+          questionText: currentEx.question,
+          topicName: topic.title,
         },
         { hintsUsed: phase === "hint" ? 1 : 0 }
       );
@@ -152,6 +154,8 @@ export default function TemaScreen() {
             correctAnswer: currentEx.correctAnswer,
             errorCategory: topic.sectionId,
             attempts: 2,
+            questionText: currentEx.question,
+            topicName: topic.title,
           },
           { hintsUsed: 1 }
         );

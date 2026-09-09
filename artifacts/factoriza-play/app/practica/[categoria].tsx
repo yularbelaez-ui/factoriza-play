@@ -69,6 +69,8 @@ export default function PracticaScreen() {
       correctAnswer: ex.correctAnswer,
       errorCategory: cat.id,
       attempts: 1,
+      questionText: ex.question,
+      topicName: cat.title,
     });
     if (isCorrect) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

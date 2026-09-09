@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -231,6 +232,21 @@ export default function DocenteScreen() {
   const sorted = [...allStudents]
     .filter((s) => filterClass === "all" || s.classCode === filterClass)
     .sort((a, b) => b.totalXP - a.totalXP);
+  const detailedErrors = Object.values(studentAnalytics).flatMap((student) =>
+    student.modules.flatMap((mod) =>
+      mod.exercises.flatMap((exercise) =>
+        exercise.attempts
+          .filter((attempt) => !attempt.correct)
+          .map((attempt) => ({
+            ...attempt,
+            studentId: student.studentId,
+            pseudonym: student.pseudonym ?? `Estudiante ${student.studentId}`,
+            exerciseId: exercise.exerciseId,
+            moduleId: mod.moduleId,
+          }))
+      )
+    )
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleAddEvalCode = () => {
     if (!selectedModuleForEval || !evalCode.trim()) {
@@ -657,6 +673,20 @@ export default function DocenteScreen() {
 
                   {isStudentExpanded && (
                     <View style={{ marginTop: 6, marginBottom: 4, gap: 10 }}>
+                      <View style={[styles.moduleAnalyticsCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "25" }]}>
+                        <Text style={[styles.moduleAnalyticsTitle, { color: colors.foreground }]}>
+                          Ruta y actividades
+                        </Text>
+                        <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                          Ruta asignada: {student.diagnosticProfile?.route?.replace("ruta-", "Ruta ") ?? "Sin diagnóstico"}
+                        </Text>
+                        <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                          Temas reforzados: {analytics?.reinforcedTopics?.length ? analytics.reinforcedTopics.join(", ") : "Ninguno registrado"}
+                        </Text>
+                        <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                          Actividades adicionales: {analytics?.additionalActivities?.length ? analytics.additionalActivities.join(", ") : "Ninguna registrada"}
+                        </Text>
+                      </View>
                       <View style={styles.statsRow}>
                         {[
                           { value: formatDuration(timeTotal), label: "Tiempo total", color: colors.primary },
@@ -705,6 +735,35 @@ export default function DocenteScreen() {
                                         ✅{ex.correctCount} · ❌{ex.incorrectCount} · {ex.attemptsTotal} intentos · 💡{ex.hintsUsed} · ⏱ {formatDuration(ex.totalDurationSeconds)}
                                         {ex.attemptsTotal > 1 ? " · repetido" : ""}
                                       </Text>
+                                      {ex.attempts.map((attempt, attemptIndex) => (
+                                        <View key={`${ex.exerciseId}-${attemptIndex}`} style={{ marginTop: 7, paddingTop: 7, borderTopWidth: 1, borderTopColor: colors.border, gap: 3 }}>
+                                          <Text style={{ color: attempt.correct ? colors.success : colors.error, fontSize: 11, fontWeight: "800" }}>
+                                            {attempt.correct ? "Respuesta correcta" : "Respuesta incorrecta"} · intento {attempt.attempts}
+                                          </Text>
+                                          <Text style={{ color: colors.foreground, fontSize: 11 }}>
+                                            Pregunta: {attempt.questionText ?? EXERCISE_QUESTION_LOOKUP[ex.exerciseId] ?? ex.exerciseId}
+                                          </Text>
+                                          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                                            Respondió: {attempt.answer ?? "(sin respuesta)"} · Tema: {attempt.topicName ?? MODULE_TOPIC_LABELS[mod.moduleId] ?? mod.moduleId}
+                                          </Text>
+                                          <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                                            {new Date(attempt.createdAt).toLocaleString()} · ⏱ {formatDuration(ex.avgDurationSeconds)}
+                                          </Text>
+                                          {attempt.evidenceUrl ? (
+                                            <TouchableOpacity onPress={() => Linking.openURL(attempt.evidenceUrl!)}>
+                                              <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>Ver procedimiento en Drive</Text>
+                                            </TouchableOpacity>
+                                          ) : null}
+                                        </View>
+                                      ))}
+                                    </View>
+                                  ))}
+                                  {mod.reflections.map((reflection) => (
+                                    <View key={reflection.id} style={[styles.exerciseAnalyticsRow, { borderColor: colors.primary + "35", backgroundColor: colors.primary + "07" }]}>
+                                      <Text style={[styles.exerciseAnalyticsQuestion, { color: colors.foreground }]}>Reflexión final</Text>
+                                      <Text style={[styles.exerciseAnalyticsMeta, { color: colors.mutedForeground }]}>Aspectos que funcionaron: {reflection.aspectsWorked || "—"}</Text>
+                                      <Text style={[styles.exerciseAnalyticsMeta, { color: colors.mutedForeground }]}>Dificultades: {reflection.difficulties || "—"}</Text>
+                                      <Text style={[styles.exerciseAnalyticsMeta, { color: colors.mutedForeground }]}>Sugerencias: {reflection.improvementSuggestions || "—"}</Text>
                                     </View>
                                   ))}
                                 </View>
@@ -1067,6 +1126,34 @@ export default function DocenteScreen() {
           </Text>
 
           {classCodes.length > 0 && filterChips}
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 6 }]}>
+            Registro detallado de errores
+          </Text>
+          <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+            Estudiante, respuesta enviada, pregunta exacta, tema y fecha.
+          </Text>
+          {detailedErrors.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No hay errores sincronizados para este filtro.</Text>
+            </View>
+          ) : detailedErrors.slice(0, 100).map((error, index) => (
+            <View key={`${error.studentId}-${error.exerciseId}-${error.createdAt}-${index}`} style={[styles.errorCard, { backgroundColor: colors.card, borderColor: colors.error + "30" }]}>
+              <Text style={{ color: colors.error, fontSize: 13, fontWeight: "800" }}>{error.pseudonym}</Text>
+              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
+                {error.questionText ?? EXERCISE_QUESTION_LOOKUP[error.exerciseId] ?? error.exerciseId}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 4 }}>
+                Respondió: {error.answer ?? "(sin respuesta)"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                Tema: {error.topicName ?? MODULE_TOPIC_LABELS[error.moduleId] ?? error.moduleId} · Intento {error.attempts}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 3 }}>
+                {new Date(error.createdAt).toLocaleString()}
+              </Text>
+            </View>
+          ))}
 
           {errorSummary.sort((a, b) => b.count - a.count).map((err, i) => {
             const remediation = ERROR_TO_TOPIC_DOCENTE[err.category];

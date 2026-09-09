@@ -62,10 +62,34 @@ export const exerciseResults = pgTable(
     hintsUsed: integer("hints_used").default(0).notNull(),
     durationSeconds: integer("duration_seconds"),
     // Client-generated idempotency key so retried syncs never double-count XP.
+    // Nullable for pre-idempotency records; new API submissions require it.
     clientId: varchar("client_id", { length: 64 }),
+    questionText: text("question_text"),
+    topicName: varchar("topic_name", { length: 120 }),
+    correctAnswer: text("correct_answer"),
+    evidenceUrl: text("evidence_url"),
+    evidenceDriveFileId: varchar("evidence_drive_file_id", { length: 200 }),
+    evidenceMetadata: jsonb("evidence_metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [unique().on(t.studentId, t.clientId)]
+);
+
+// End-of-module student reflection. Kept separate so a student can revise a
+// reflection without creating a fake exercise result.
+export const moduleReflections = pgTable(
+  "module_reflections",
+  {
+    id: serial("id").primaryKey(),
+    studentId: integer("student_id").notNull().references(() => students.id),
+    moduleId: varchar("module_id", { length: 60 }).notNull(),
+    aspectsWorked: text("aspects_worked"),
+    difficulties: text("difficulties"),
+    improvementSuggestions: text("improvement_suggestions"),
+    clientId: varchar("client_id", { length: 64 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.studentId, t.moduleId, t.clientId)]
 );
 
 // ── Eval codes (per module, per class) ──────────────────────────

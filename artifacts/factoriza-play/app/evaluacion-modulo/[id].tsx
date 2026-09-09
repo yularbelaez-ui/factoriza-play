@@ -18,6 +18,7 @@ import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { useColors } from "@/hooks/useColors";
 import { getBalancedAnswerOptions } from "@/lib/answerOptions";
+import { apiSaveModuleReflection } from "@/lib/api";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -32,7 +33,7 @@ export default function EvaluacionModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { evaluationCodes, recordExerciseResult } = useApp();
+  const { evaluationCodes, recordExerciseResult, currentStudent } = useApp();
   const isWeb = Platform.OS === "web";
 
   const module = MODULES.find((m) => m.id === id);
@@ -44,6 +45,12 @@ export default function EvaluacionModuloScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [started, setStarted] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState("image/jpeg");
+  const [aspectsWorked, setAspectsWorked] = useState("");
+  const [difficulties, setDifficulties] = useState("");
+  const [improvementSuggestions, setImprovementSuggestions] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoStep, setPhotoStep] = useState(false); // show photo step before submit
   const [hintsShown, setHintsShown] = useState<Record<string, boolean>>({});
 
@@ -126,18 +133,24 @@ export default function EvaluacionModuloScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: false,
+        base64: true,
       });
       if (!galleryResult.canceled && galleryResult.assets[0]) {
         setPhotoUri(galleryResult.assets[0].uri);
+        setPhotoBase64(galleryResult.assets[0].base64 ?? null);
+        setPhotoMimeType(galleryResult.assets[0].mimeType ?? "image/jpeg");
       }
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,
       allowsEditing: false,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 ?? null);
+      setPhotoMimeType(result.assets[0].mimeType ?? "image/jpeg");
     }
   };
 
@@ -146,13 +159,23 @@ export default function EvaluacionModuloScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
       allowsEditing: false,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 ?? null);
+      setPhotoMimeType(result.assets[0].mimeType ?? "image/jpeg");
     }
   };
 
-  const handleSubmit = () => {
+  const reflectionComplete =
+    aspectsWorked.trim().length > 0 &&
+    difficulties.trim().length > 0 &&
+    improvementSuggestions.trim().length > 0;
+
+  const handleSubmit = async () => {
+    if (!photoUri || !photoBase64 || !reflectionComplete || isSubmitting) return;
+    setIsSubmitting(true);
     setSubmitted(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const answeredExercises = shuffledExercises.filter((ex) => answers[ex.id]);
@@ -163,7 +186,7 @@ export default function EvaluacionModuloScreen() {
       totalSeconds !== null && answeredExercises.length > 0
         ? Math.round(totalSeconds / answeredExercises.length)
         : undefined;
-    answeredExercises.forEach((ex) => {
+    answeredExercises.forEach((ex, index) => {
       recordExerciseResult(
         {
           exerciseId: ex.id,
@@ -173,10 +196,28 @@ export default function EvaluacionModuloScreen() {
           correctAnswer: ex.correctAnswer,
           errorCategory: ex.errorCategory,
           attempts: 1,
+          questionText: `${ex.question}${ex.expression ? ` — ${ex.expression}` : ""}`,
+          topicName: module.title,
+          evidenceBase64: index === 0 ? photoBase64 : undefined,
+          evidenceMimeType: index === 0 ? photoMimeType : undefined,
         },
         { hintsUsed: hintsUsedRef.current[ex.id] ?? 0, durationSeconds: perQuestionSeconds }
       );
     });
+    if (currentStudent?.backendId) {
+      try {
+        await apiSaveModuleReflection(currentStudent.backendId, {
+          moduleId: module.id,
+          aspectsWorked: aspectsWorked.trim(),
+          difficulties: difficulties.trim(),
+          improvementSuggestions: improvementSuggestions.trim(),
+          clientId: `reflection-${module.id}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        });
+      } catch {
+        // Exercise evidence remains queued; the reflection can be resubmitted later.
+      }
+    }
+    setIsSubmitting(false);
   };
 
   const getOptionColors = (ex: (typeof shuffledExercises)[0], option: string) => {
@@ -443,16 +484,54 @@ export default function EvaluacionModuloScreen() {
           <View style={[styles.optionalNote, { backgroundColor: colors.accent + "10", borderColor: colors.accent + "20" }]}>
             <Feather name="info" size={14} color={colors.accent} />
             <Text style={[styles.optionalNoteText, { color: colors.foreground }]}>
-              Si no puedes tomar foto ahora, puedes continuar. El docente puede solicitarla después.
+              La foto del procedimiento es obligatoria para enviar esta evaluación.
             </Text>
           </View>
 
+          <View style={{ width: "100%", gap: 10 }}>
+            <Text style={[styles.photoTitle, { color: colors.foreground, fontSize: 16 }]}>
+              Reflexión final obligatoria
+            </Text>
+            {[
+              { label: "Aspectos que funcionaron", value: aspectsWorked, setter: setAspectsWorked },
+              { label: "Aspectos que generaron dificultades", value: difficulties, setter: setDifficulties },
+              { label: "Sugerencias de mejora", value: improvementSuggestions, setter: setImprovementSuggestions },
+            ].map((field) => (
+              <View key={field.label} style={{ gap: 5 }}>
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>{field.label}</Text>
+                <TextInput
+                  value={field.value}
+                  onChangeText={field.setter}
+                  multiline
+                  placeholder="Escribe tu respuesta..."
+                  placeholderTextColor={colors.mutedForeground}
+                  style={{
+                    minHeight: 74,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    padding: 12,
+                    color: colors.foreground,
+                    backgroundColor: colors.background,
+                    textAlignVertical: "top",
+                  }}
+                />
+              </View>
+            ))}
+          </View>
+
           <TouchableOpacity
-            style={[styles.submitBtn, { backgroundColor: module.color }]}
+            style={[styles.submitBtn, {
+              backgroundColor: photoBase64 && reflectionComplete ? module.color : colors.secondary,
+              opacity: photoBase64 && reflectionComplete ? 1 : 0.55,
+            }]}
             onPress={handleSubmit}
+            disabled={!photoBase64 || !reflectionComplete || isSubmitting}
           >
             <Feather name="send" size={18} color="#fff" />
-            <Text style={[styles.submitBtnText, { color: "#fff" }]}>Enviar evaluación</Text>
+            <Text style={[styles.submitBtnText, { color: "#fff" }]}>
+              {isSubmitting ? "Enviando..." : "Enviar evaluación"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backToQBtn} onPress={() => setPhotoStep(false)}>

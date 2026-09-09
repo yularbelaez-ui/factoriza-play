@@ -93,9 +93,44 @@ export async function apiRecordExercise(
     hintsUsed?: number;
     durationSeconds?: number | null;
     clientId?: string | null;
+    questionText?: string | null;
+    topicName?: string | null;
+    correctAnswer?: string | null;
   }
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/exercise`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiUploadExerciseEvidence(
+  studentId: number,
+  data: {
+    exerciseId: string;
+    topicName: string;
+    imageBase64: string;
+    clientId: string;
+    mimeType?: string;
+  }
+): Promise<{ evidence: { url: string | null; driveFileId: string | null } }> {
+  return apiFetch(`/students/${studentId}/evidence`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiSaveModuleReflection(
+  studentId: number,
+  data: {
+    moduleId: string;
+    aspectsWorked: string;
+    difficulties: string;
+    improvementSuggestions: string;
+    clientId: string;
+  }
+): Promise<{ reflection: ApiModuleReflection }> {
+  return apiFetch(`/students/${studentId}/reflection`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -169,6 +204,28 @@ export interface ApiExerciseAnalytics {
   hintsUsed: number;
   totalDurationSeconds: number;
   avgDurationSeconds: number | null;
+  attempts: ApiExerciseAttempt[];
+}
+
+export interface ApiExerciseAttempt {
+  correct: boolean;
+  attempts: number;
+  answer: string | null;
+  questionText: string | null;
+  topicName: string | null;
+  correctAnswer: string | null;
+  evidenceUrl: string | null;
+  evidenceDriveFileId: string | null;
+  createdAt: string;
+}
+
+export interface ApiModuleReflection {
+  id: number;
+  moduleId: string;
+  aspectsWorked: string | null;
+  difficulties: string | null;
+  improvementSuggestions: string | null;
+  createdAt: string;
 }
 
 export interface ApiModuleAnalytics {
@@ -181,10 +238,17 @@ export interface ApiModuleAnalytics {
   avgDurationSeconds: number | null;
   repeatedExercises: number;
   exercises: ApiExerciseAnalytics[];
+  reflections: ApiModuleReflection[];
 }
 
 export interface ApiStudentAnalytics {
   studentId: number;
+  pseudonym: string | null;
+  diagnosticProfile?: DiagnosticProfile | null;
+  completedTopics: string[];
+  completedModules: string[];
+  reinforcedTopics: string[];
+  additionalActivities: string[];
   modules: ApiModuleAnalytics[];
 }
 

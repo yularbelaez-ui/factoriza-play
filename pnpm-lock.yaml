@@ -163,6 +163,9 @@ importers:
 
   artifacts/api-server:
     dependencies:
+      '@replit/connectors-sdk':
+        specifier: ^0.1.0
+        version: 0.1.1
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
@@ -2069,6 +2072,9 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@replit/connectors-sdk@0.1.1':
+    resolution: {integrity: sha512-KgzoOOLBO9/eF7k5yuM8ZOcvUGLCXeLm8awjOt3y6Pv+rQY+K8fbrUN/tX01vRY6xTJqOGFxhJ+nnS5FcHqo/g==}
 
   '@replit/vite-plugin-cartographer@0.5.1':
     resolution: {integrity: sha512-KiaQMx4ssTM8hSjMFscyIV1PN1bRVCWCFqN3fXOfXa39uFFCKUaeL3VvH/sxuy7S7ET+MCFOt+J7lLtL56bRrA==}
@@ -7166,6 +7172,8 @@ snapshots:
       react-native: 0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3)
     optionalDependencies:
       '@types/react': 19.2.14
+
+  '@replit/connectors-sdk@0.1.1': {}
 
   '@replit/vite-plugin-cartographer@0.5.1':
     dependencies:
