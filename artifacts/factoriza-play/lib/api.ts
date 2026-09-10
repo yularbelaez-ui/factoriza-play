@@ -14,6 +14,10 @@ const BASE =
 
 const API = `${BASE}/api`;
 
+export function apiEvidencePreviewUrl(classCode: string, driveFileId: string): string {
+  return `${API}/class/${encodeURIComponent(classCode)}/evidence/${encodeURIComponent(driveFileId)}`;
+}
+
 // Whether the API base URL is usable (non-empty on native)
 export const apiAvailable =
   Platform.OS === "web" || (BASE !== "" && BASE !== "undefined");

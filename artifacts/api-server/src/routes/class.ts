@@ -2,8 +2,10 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { students, exerciseResults, moduleReflections } from "@workspace/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
+const connectors = new ReplitConnectors();
 
 function toStudentData(s: typeof students.$inferSelect) {
   return {
@@ -18,6 +20,42 @@ function toStudentData(s: typeof students.$inferSelect) {
     diagnosticProfile: s.diagnosticProfile ?? null,
   };
 }
+
+// Serves a Drive evidence image only when it belongs to a student in this class.
+router.get("/class/:classCode/evidence/:fileId", async (req, res) => {
+  const { classCode, fileId } = req.params;
+  const [ownedEvidence] = await db
+    .select({ id: exerciseResults.id })
+    .from(exerciseResults)
+    .innerJoin(students, eq(exerciseResults.studentId, students.id))
+    .where(and(
+      eq(students.classCode, classCode.toUpperCase()),
+      eq(exerciseResults.evidenceDriveFileId, fileId),
+    ))
+    .limit(1);
+
+  if (!ownedEvidence) {
+    res.status(404).json({ error: "Evidence not found" });
+    return;
+  }
+
+  try {
+    const driveResponse = await connectors.proxy(
+      "google-drive",
+      `/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+    );
+    if (!driveResponse.ok) {
+      res.status(502).json({ error: "No fue posible cargar la evidencia desde Drive" });
+      return;
+    }
+    const bytes = Buffer.from(await driveResponse.arrayBuffer());
+    res.setHeader("Content-Type", driveResponse.headers.get("content-type") ?? "image/jpeg");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.send(bytes);
+  } catch {
+    res.status(502).json({ error: "No fue posible cargar la evidencia desde Drive" });
+  }
+});
 
 // GET /api/class/:classCode/students
 router.get("/class/:classCode/students", async (req, res) => {

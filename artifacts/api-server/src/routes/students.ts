@@ -9,6 +9,21 @@ const connectors = new ReplitConnectors();
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 
+function safeDriveFilePart(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "estudiante";
+}
+
+function evidenceFileName(pseudonym: string, exerciseId: string, mimeType: string): string {
+  const exerciseNumber = exerciseId.match(/(\d+)(?!.*\d)/)?.[1] ?? safeDriveFilePart(exerciseId);
+  const extension = mimeType === "image/png" ? "png" : "jpg";
+  return `${safeDriveFilePart(pseudonym)}-ejercicio-${exerciseNumber}.${extension}`;
+}
+
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -304,17 +319,23 @@ router.post("/students/:studentId/evidence", async (req, res) => {
   const raw = imageBase64.replace(/^data:[^;]+;base64,/, "");
   if (raw.length > 15_000_000) { res.status(413).json({ error: "Image too large" }); return; }
   try {
-    const name = `${exerciseId}-${clientId.trim()}.jpg`;
+    const resolvedMimeType = typeof mimeType === "string" ? mimeType : "image/jpeg";
+    const name = evidenceFileName(student.pseudonym, exerciseId, resolvedMimeType);
     const uploaded = await uploadDriveEvidence(
       Buffer.from(raw, "base64"), name,
-      typeof mimeType === "string" ? mimeType : "image/jpeg",
+      resolvedMimeType,
       ["FactorIzA-Play", student.pseudonym, topicName, exerciseId],
     );
     const driveFileId = uploaded.id;
     const url = uploaded.webViewLink ?? null;
     const [updated] = await db.update(exerciseResults).set({
           evidenceUrl: url, evidenceDriveFileId: driveFileId,
-          evidenceMetadata: { folder: ["FactorIzA-Play", student.pseudonym, topicName, exerciseId].join("/"), mimeType, size: Buffer.byteLength(raw, "base64") },
+          evidenceMetadata: {
+            folder: ["FactorIzA-Play", student.pseudonym, topicName, exerciseId].join("/"),
+            fileName: name,
+            mimeType: resolvedMimeType,
+            size: Buffer.byteLength(raw, "base64"),
+          },
         }).where(eq(exerciseResults.id, existing[0].id)).returning();
     res.status(201).json({ evidence: { url, driveFileId, resultId: updated?.id ?? null } });
   } catch (error) {

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -22,7 +23,13 @@ import { COURSE_SECTIONS } from "@/data/courseSections";
 import { ProgressBar } from "@/components/ProgressBar";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { PROFILE_DETAILS } from "@/data/learningRoutes";
-import { apiGetClassTopicStats, ApiTopicStat, apiGetClassStudentAnalytics, ApiStudentAnalytics } from "@/lib/api";
+import {
+  apiEvidencePreviewUrl,
+  apiGetClassTopicStats,
+  ApiTopicStat,
+  apiGetClassStudentAnalytics,
+  ApiStudentAnalytics,
+} from "@/lib/api";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
   "reconocimiento-patrones": "Reconocimiento de patrones",
@@ -750,9 +757,29 @@ export default function DocenteScreen() {
                                             {new Date(attempt.createdAt).toLocaleString()} · ⏱ {formatDuration(ex.avgDurationSeconds)}
                                           </Text>
                                           {attempt.evidenceUrl ? (
-                                            <TouchableOpacity onPress={() => Linking.openURL(attempt.evidenceUrl!)}>
-                                              <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>Ver procedimiento en Drive</Text>
-                                            </TouchableOpacity>
+                                            <View style={styles.evidenceCard}>
+                                              {attempt.evidenceDriveFileId ? (
+                                                <TouchableOpacity
+                                                  accessibilityLabel={`Abrir evidencia del ejercicio ${ex.exerciseId}`}
+                                                  onPress={() => Linking.openURL(attempt.evidenceUrl!)}
+                                                >
+                                                  <Image
+                                                    source={{ uri: apiEvidencePreviewUrl(student.classCode, attempt.evidenceDriveFileId) }}
+                                                    style={[styles.evidenceImage, { backgroundColor: colors.muted }]}
+                                                    resizeMode="cover"
+                                                  />
+                                                </TouchableOpacity>
+                                              ) : null}
+                                              <TouchableOpacity
+                                                style={[styles.evidenceButton, { borderColor: colors.primary + "55" }]}
+                                                onPress={() => Linking.openURL(attempt.evidenceUrl!)}
+                                              >
+                                                <Feather name="external-link" size={13} color={colors.primary} />
+                                                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>
+                                                  Abrir imagen en Drive
+                                                </Text>
+                                              </TouchableOpacity>
+                                            </View>
                                           ) : null}
                                         </View>
                                       ))}
@@ -1437,6 +1464,18 @@ const styles = StyleSheet.create({
   exerciseAnalyticsRow: { borderLeftWidth: 2, paddingLeft: 8, paddingBottom: 4 },
   exerciseAnalyticsQuestion: { fontSize: 11.5, fontWeight: "600", lineHeight: 15 },
   exerciseAnalyticsMeta: { fontSize: 10, marginTop: 2 },
+  evidenceCard: { marginTop: 6, gap: 6 },
+  evidenceImage: { width: "100%", height: 180, borderRadius: 10 },
+  evidenceButton: {
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
   deleteStudentBtn: {
     flexDirection: "row",
     alignItems: "center",
