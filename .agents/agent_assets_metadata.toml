@@ -51,3 +51,17 @@ mtime_ms = 1788489410562
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:57362ff2-c2b8-4677-a1a6-4d918358d727/b7d07dc8-617a-4d94-a73b-fc66201522fb/60b6441b-11aa-4d6d-9d43-d44e3dc9892c"
 storage_version_token = "1788491119199126"
 content_type = "image/png"
+
+[[outputs]]
+id = "MbUgOKs27DqdpZCLfOrQA"
+uri = "file://shared-assets/factoriza-play-expo-go-qr.svg"
+type = "image"
+title = "QR de FactorIzA-Play para Expo Go"
+description = "Escanea este código desde un iPhone con Expo Go. El QR funciona mientras la sesión de desarrollo de FactorIzA-Play permanezca activa."
+logical_id = "143290e7-009c-4786-82b9-f88cc0d14bb7"
+content_hash = "sha256:4c0caf97d1c745ca2bd037695a8aa47f5122f537d6e7e7144f01737330118b25"
+size = 29442
+mtime_ms = 1789067211278
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:57362ff2-c2b8-4677-a1a6-4d918358d727/143290e7-009c-4786-82b9-f88cc0d14bb7/1bbaca0f-eb3d-498d-92e8-d909ea8e81e1"
+storage_version_token = "1789067217854967"
+content_type = "image/svg+xml"
