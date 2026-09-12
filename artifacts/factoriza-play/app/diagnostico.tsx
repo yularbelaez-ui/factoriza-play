@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -17,7 +17,12 @@ import {
   DIAGNOSTIC_QUESTIONS,
   DiagnosticCategory,
 } from "@/data/diagnostic";
-import { LEARNING_ROUTES, PROFILE_DETAILS } from "@/data/learningRoutes";
+import {
+  getRouteForProfile,
+  LEARNING_ROUTES,
+  PROFILE_DETAILS,
+  normalizeProfileCode,
+} from "@/data/learningRoutes";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -59,7 +64,7 @@ const LEVEL_CONFIG = {
 export default function DiagnosticoScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { saveDiagnosticProfile, currentStudent } = useApp();
+  const { saveDiagnosticProfile, startActivitySession, currentStudent } = useApp();
   const isWeb = Platform.OS === "web";
 
   const [phase, setPhase] = useState<Phase>("intro");
@@ -67,6 +72,12 @@ export default function DiagnosticoScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    startActivitySession("diagnostico").then((result) => {
+      if (result.ok && result.sessionId) setSessionId(result.sessionId);
+    });
+  }, []);
 
   const shuffledOptions = useMemo(
     () =>
@@ -112,8 +123,12 @@ export default function DiagnosticoScreen() {
     if (!profile || saving) return;
     setSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await saveDiagnosticProfile(profile);
-    router.replace("/(tabs)" as any);
+    if (!sessionId) {
+      setSaving(false);
+      return;
+    }
+    await saveDiagnosticProfile(profile, sessionId);
+    router.replace({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: "diagnostico" } });
   };
 
   const padTop = isWeb ? 67 + 16 : insets.top + 16;
@@ -340,10 +355,10 @@ export default function DiagnosticoScreen() {
   // ── RESULTS ─────────────────────────────────────────────────────
   if (!profile) return null;
   const levelCfg = LEVEL_CONFIG[profile.level];
-  const profileCode = profile.profile ?? (profile.level === "básico" ? "A" : profile.level === "intermedio" ? "B" : "C");
+  const profileCode = normalizeProfileCode(profile.profile, profile.level);
   const profileDetails = PROFILE_DETAILS[profileCode];
   const assignedRoute = LEARNING_ROUTES[
-    profile.route ?? (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3")
+    profile.route ?? getRouteForProfile(profileCode).id
   ];
 
   return (
@@ -378,7 +393,10 @@ export default function DiagnosticoScreen() {
         <Text style={styles.profileIcon}>{profileDetails.icon}</Text>
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileLabel, { color: profileDetails.color }]}>{profileDetails.label}</Text>
-          <Text style={[styles.profileSummary, { color: colors.foreground }]}>{profileDetails.summary}</Text>
+        <Text style={[styles.profileSummary, { color: colors.foreground }]}>{profileDetails.summary}</Text>
+        <Text style={[styles.profileSummary, { color: profileDetails.color, marginTop: 4 }]}>
+          Misión: {profileDetails.mission}
+        </Text>
         </View>
         <View style={[styles.profileThreshold, { backgroundColor: profileDetails.color + "18" }]}>
           <Text style={[styles.profileThresholdText, { color: profileDetails.color }]}>75%</Text>

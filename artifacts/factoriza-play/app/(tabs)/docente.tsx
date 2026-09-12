@@ -29,6 +29,7 @@ import {
   ApiTopicStat,
   apiGetClassStudentAnalytics,
   ApiStudentAnalytics,
+  apiResearchExportUrl,
 } from "@/lib/api";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
@@ -110,6 +111,7 @@ export default function DocenteScreen() {
     refreshTeacherData,
     isRefreshingTeacher,
     deleteStudent,
+    teacherCode,
   } = useApp();
   const [activeTab, setActiveTab] = useState<Tab>("students");
   const [evalCode, setEvalCode] = useState("");
@@ -333,6 +335,15 @@ export default function DocenteScreen() {
             <Text style={{ color: filterClass === cc.code ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>{cc.label}</Text>
           </TouchableOpacity>
         ))}
+        {teacherCode && filterClass !== "all" && (
+          <TouchableOpacity
+            style={[styles.refreshBtn, { backgroundColor: colors.primary }]}
+            onPress={() => Linking.openURL(apiResearchExportUrl(teacherCode, filterClass))}
+            accessibilityLabel="Exportar investigación"
+          >
+            <Feather name="download" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -691,6 +702,19 @@ export default function DocenteScreen() {
                         <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
                           Actividades adicionales: {analytics?.additionalActivities?.length ? analytics.additionalActivities.join(", ") : "Ninguna registrada"}
                         </Text>
+                        <Text style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                          Reflexiones: {analytics?.sessionReflections?.length ?? 0} de sesión · {analytics?.weeklyReflections?.length ?? 0} semanales
+                        </Text>
+                        {analytics?.sessionReflections?.slice(-2).map((reflection) => (
+                          <Text key={`session-${reflection.id}`} style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                            Sesión {new Date(reflection.createdAt).toLocaleDateString()}: {reflection.understood}
+                          </Text>
+                        ))}
+                        {analytics?.weeklyReflections?.slice(-2).map((reflection) => (
+                          <Text key={`weekly-${reflection.id}`} style={[styles.moduleAnalyticsMeta, { color: colors.mutedForeground }]}>
+                            Semana {reflection.weekStart}: {reflection.mostImportant}
+                          </Text>
+                        ))}
                       </View>
                       <View style={styles.statsRow}>
                         {[

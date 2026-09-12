@@ -1,14 +1,110 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { students, exerciseResults, moduleReflections } from "@workspace/db/schema";
-import { eq, sql, and } from "drizzle-orm";
+import {
+  students,
+  exerciseResults,
+  moduleReflections,
+  sessionReflections,
+  weeklyReflections,
+  xpEvents,
+  learningSessions,
+} from "@workspace/db/schema";
+import { eq, sql, and, desc, gt, like } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
 const connectors = new ReplitConnectors();
 const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const ACTIVE_MODULE_IDS = [
+  "factor-comun", "agrupacion-terminos", "trinomio-cuadrado-perfecto",
+  "diferencia-cuadrados", "trinomio-forma-x2-bx-c", "cubo-binomio",
+  "suma-diferencia-cubos",
+];
+const ACTIVE_TOPIC_IDS = [
+  "s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales",
+  "s1-irracionales", "s1-reales", "s1-potencias", "s1-factores",
+  "s2-diferencia", "s2-notacion", "s2-signos", "s2-expresion",
+  "s2-grado", "s2-clasificacion", "s2-orden", "s2-semejantes",
+  "s3-suma-resta", "s3-agrupacion", "s3-multiplicacion", "s3-division",
+  "s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia", "s3-cubo",
+];
+const isValidActivity = (activityId: string) =>
+  activityId === "diagnostico" ||
+  ACTIVE_MODULE_IDS.includes(activityId) ||
+  ACTIVE_TOPIC_IDS.includes(activityId) ||
+  (activityId.startsWith("evaluacion:") && ACTIVE_MODULE_IDS.includes(activityId.slice("evaluacion:".length)));
 const isRetiredExercise = (exerciseId: string) =>
   exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
+const isRetiredTopic = (topicId: string) =>
+  topicId.startsWith("reconocimiento-patrones") || topicId.startsWith("ax2-");
+
+const RANKS = [
+  { name: "Bronce", icon: "🥉", min: 0, max: 500 },
+  { name: "Plata", icon: "🥈", min: 501, max: 1200 },
+  { name: "Oro", icon: "🥇", min: 1201, max: 2200 },
+  { name: "Diamante", icon: "💎", min: 2201, max: 3500 },
+  { name: "Heroico", icon: "🔥", min: 3501, max: 5000 },
+  { name: "Gran Maestro", icon: "👑", min: 5001, max: null },
+] as const;
+
+function rankForXp(totalXP: number) {
+  const rank = [...RANKS].reverse().find((candidate) => totalXP >= candidate.min) ?? RANKS[0];
+  const next = RANKS[RANKS.indexOf(rank) + 1];
+  return {
+    name: rank.name,
+    icon: rank.icon,
+    minXP: rank.min,
+    maxXP: rank.max,
+    nextName: next?.name ?? null,
+    nextIcon: next?.icon ?? null,
+    nextXP: next?.min ?? null,
+    progressPercent: next
+      ? Math.min(100, Math.round(((totalXP - rank.min) / (next.min - rank.min)) * 100))
+      : 100,
+  };
+}
+
+function nextRankHistory(student: typeof students.$inferSelect, projectedXP: number) {
+  const previous = rankForXp(student.totalXP).name;
+  const next = rankForXp(projectedXP).name;
+  return next === previous
+    ? (student.rankHistory ?? [])
+    : [
+        ...(student.rankHistory ?? []),
+        { rank: next, xp: projectedXP, at: new Date().toISOString() },
+      ];
+}
+
+function bogotaWeekStart(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const local = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 12));
+  const day = local.getUTCDay();
+  local.setUTCDate(local.getUTCDate() - (day === 0 ? 6 : day - 1));
+  return local.toISOString().slice(0, 10);
+}
+
+function derivedBadges(student: typeof students.$inferSelect) {
+  const badges: { id: string; label: string; icon: string }[] = [];
+  if ((student.completedExercises ?? []).length >= 10) {
+    badges.push({ id: "persistente", label: "Persistente", icon: "⚡" });
+  }
+  if (ACTIVE_MODULE_IDS.every((moduleId) => (student.completedModules ?? []).includes(moduleId))) {
+    badges.push({ id: "maestro-factorizacion", label: "Maestro de Factorización", icon: "🏆" });
+  }
+  const patternCompetency = (student.diagnosticProfile?.competencyResults as Array<{ competency?: string; meetsThreshold?: boolean }> | undefined)
+    ?.find((result) => result.competency === "patrones");
+  if (patternCompetency?.meetsThreshold === true) {
+    badges.push({ id: "observador-patrones", label: "Observador de Patrones", icon: "🔍" });
+  }
+  return badges;
+}
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 
@@ -110,16 +206,26 @@ async function uploadDriveEvidence(
 }
 
 function toStudentData(s: typeof students.$inferSelect) {
+  const storedProfile = s.diagnosticProfile as Record<string, unknown> | null | undefined;
+  const diagnosticProfile = storedProfile?.profile === "C" && storedProfile.route === "ruta-3"
+    ? { ...storedProfile, route: "ruta-4" }
+    : storedProfile;
   return {
     id: s.id,
     pseudonym: s.pseudonym,
     classCode: s.classCode,
     totalXP: s.totalXP,
     streak: s.streak,
-    completedTopics: s.completedTopics ?? [],
+    rank: rankForXp(s.totalXP),
+    badges: derivedBadges(s),
+    completedTopics: (s.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
     completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
     completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
-    diagnosticProfile: s.diagnosticProfile ?? null,
+    diagnosticProfile: diagnosticProfile ?? null,
+    initialProfile: s.initialProfile,
+    initialRank: s.initialRank,
+    profileHistory: s.profileHistory ?? [],
+    rankHistory: s.rankHistory ?? [],
   };
 }
 
@@ -145,6 +251,37 @@ router.get("/students/:studentId", async (req, res) => {
   res.json({ student: toStudentData(rows[0]) });
 });
 
+// Opens one server-owned lifecycle session. A stable clientId makes retries
+// return the same session instead of creating timestamp-farmed XP opportunities.
+router.post("/students/:studentId/sessions", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const { activityId, clientId } = req.body as { activityId?: string; clientId?: string };
+  if (!Number.isInteger(studentId) || !activityId?.trim() || !clientId?.trim()) {
+    res.status(400).json({ error: "activityId y clientId son obligatorios" });
+    return;
+  }
+  if (!isValidActivity(activityId.trim()) || RETIRED_MODULE_IDS.has(activityId.trim())) {
+    res.status(410).json({ error: "Esta actividad no está disponible" });
+    return;
+  }
+  const [student] = await db.select({ id: students.id }).from(students)
+    .where(eq(students.id, studentId)).limit(1);
+  if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+  const open = await db.select().from(learningSessions).where(and(
+    eq(learningSessions.studentId, studentId),
+    eq(learningSessions.activityId, activityId.trim()),
+    eq(learningSessions.status, "open"),
+  )).orderBy(desc(learningSessions.startedAt)).limit(1);
+  if (open[0]) { res.json({ session: open[0] }); return; }
+  const inserted = await db.insert(learningSessions).values({
+    studentId, activityId: activityId.trim(), clientId: clientId.trim(),
+  }).onConflictDoNothing().returning();
+  const session = inserted[0] ?? (await db.select().from(learningSessions).where(and(
+    eq(learningSessions.studentId, studentId), eq(learningSessions.clientId, clientId.trim()),
+  )).limit(1))[0];
+  res.status(inserted[0] ? 201 : 200).json({ session });
+});
+
 // POST /api/students/:studentId/exercise
 router.post("/students/:studentId/exercise", async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
@@ -161,6 +298,7 @@ router.post("/students/:studentId/exercise", async (req, res) => {
     attempts,
     answer,
     hintsUsed,
+    feedbackViewed,
     durationSeconds,
     clientId,
     questionText,
@@ -174,6 +312,7 @@ router.post("/students/:studentId/exercise", async (req, res) => {
     attempts?: number;
     answer?: string | null;
     hintsUsed?: number;
+    feedbackViewed?: boolean;
     durationSeconds?: number | null;
     clientId?: string | null;
     questionText?: string | null;
@@ -184,88 +323,115 @@ router.post("/students/:studentId/exercise", async (req, res) => {
     res.status(400).json({ error: "exerciseId, correct and clientId are required" });
     return;
   }
-
-  const rows = await db
-    .select()
-    .from(students)
-    .where(eq(students.id, studentId))
-    .limit(1);
-
-  if (rows.length === 0) {
-    res.status(404).json({ error: "Student not found" });
+  if (isRetiredExercise(exerciseId) || (moduleId && RETIRED_MODULE_IDS.has(moduleId))) {
+    res.status(410).json({ error: "Este ejercicio fue retirado" });
     return;
   }
 
-  const student = rows[0];
-
-  // Idempotency guard: if this exact client submission was already recorded
-  // (e.g. a retried sync whose earlier response was lost), skip re-applying XP.
-  if (clientId) {
-    const existing = await db
-      .select({ id: exerciseResults.id })
-      .from(exerciseResults)
-      .where(
-        and(
-          eq(exerciseResults.studentId, studentId),
-          eq(exerciseResults.clientId, clientId)
-        )
-      )
-      .limit(1);
-    if (existing.length > 0) {
-      res.json({ student: toStudentData(student) });
+  try {
+    const updated = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+      const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+      if (!student) throw new Error("STUDENT_NOT_FOUND");
+      const existing = await tx.select().from(exerciseResults).where(and(
+        eq(exerciseResults.studentId, studentId),
+        eq(exerciseResults.clientId, clientId.trim()),
+      )).limit(1);
+      if (existing[0]) return student;
+      const safeAttempts = Number.isFinite(attempts)
+        ? Math.max(1, Math.min(100, Math.floor(attempts as number))) : 1;
+      const safeHints = Number.isFinite(hintsUsed)
+        ? Math.max(0, Math.min(100, Math.floor(hintsUsed as number))) : 0;
+      await tx.insert(exerciseResults).values({
+        studentId, exerciseId, moduleId: moduleId ?? null, correct,
+        errorCategory: errorCategory ?? null, attempts: safeAttempts,
+        answer: answer ?? null, hintsUsed: safeHints,
+        feedbackViews: feedbackViewed ? 1 : 0,
+        durationSeconds: durationSeconds ?? null, clientId: clientId.trim(),
+        questionText: questionText ?? null, topicName: topicName ?? null,
+        correctAnswer: correctAnswer ?? null,
+      });
+      const exerciseBase = correct
+        ? safeAttempts <= 1 ? 25 : safeAttempts === 2 ? 20 : safeAttempts === 3 ? 15 : 10
+        : 5;
+      const correctionBonus = correct && safeAttempts > 1 ? 15 : 0;
+      const hintEvents = correct
+        ? await tx.select({ id: xpEvents.id }).from(xpEvents).where(and(
+            eq(xpEvents.studentId, studentId),
+            eq(xpEvents.eventType, "hint"),
+            like(xpEvents.sourceId, `${exerciseId}:%`),
+          ))
+        : [];
+      const hintBonus = correct && hintEvents.length > 0 ? 10 : 0;
+      const xpGain = exerciseBase + correctionBonus + hintBonus;
+      const alreadyCompleted = (student.completedExercises ?? []).includes(exerciseId);
+      const newCompletedExercises = correct && !alreadyCompleted
+        ? [...(student.completedExercises ?? []), exerciseId]
+        : (student.completedExercises ?? []);
+      const priorErrors = correct
+        ? (await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+            eq(exerciseResults.studentId, studentId),
+            eq(exerciseResults.exerciseId, exerciseId),
+            eq(exerciseResults.correct, false),
+          ))).length
+        : 0;
+      const persistenceAchievement = priorErrors >= 2
+        ? { sourceId: `persistence:${clientId.trim()}`, xp: 20 } : null;
+      const newStreak = correct ? student.streak + 1 : 0;
+      const priorCorrections = correct && safeAttempts > 1
+        ? (await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+            eq(exerciseResults.studentId, studentId),
+            eq(exerciseResults.correct, true),
+            gt(exerciseResults.attempts, 1),
+          ))).length
+        : 0;
+      const correctionAchievement = priorCorrections + 1 === 10
+        ? { sourceId: "corrections-10", xp: 50 } : null;
+      const streakAchievement = correct && newStreak === 5
+        ? { sourceId: "streak-5", xp: 30 }
+        : correct && newStreak === 10 ? { sourceId: "streak-10", xp: 50 } : null;
+      const [achievementEvent] = streakAchievement
+        ? await tx.insert(xpEvents).values({
+            studentId, eventType: "achievement", sourceId: streakAchievement.sourceId, xp: streakAchievement.xp,
+          }).onConflictDoNothing().returning()
+        : [undefined];
+      const feedbackEvent = undefined;
+      const [correctionEvent] = correctionAchievement
+        ? await tx.insert(xpEvents).values({
+            studentId, eventType: "achievement", sourceId: correctionAchievement.sourceId,
+            xp: correctionAchievement.xp,
+          }).onConflictDoNothing().returning()
+        : [undefined];
+      const [persistenceEvent] = persistenceAchievement
+        ? await tx.insert(xpEvents).values({
+            studentId, eventType: "achievement", sourceId: persistenceAchievement.sourceId,
+            xp: persistenceAchievement.xp,
+          }).onConflictDoNothing().returning()
+        : [undefined];
+      const [event] = await tx.insert(xpEvents).values({
+        studentId, eventType: "exercise", sourceId: clientId.trim(), xp: xpGain,
+      }).onConflictDoNothing().returning();
+      const [next] = await tx.update(students).set({
+        ...(event ? {
+          totalXP: sql`${students.totalXP} + ${xpGain + (achievementEvent?.xp ?? 0) + (correctionEvent?.xp ?? 0) + (persistenceEvent?.xp ?? 0)}`,
+          rankHistory: nextRankHistory(
+            student,
+            student.totalXP + xpGain + (achievementEvent?.xp ?? 0) + (correctionEvent?.xp ?? 0) +
+              (correctionEvent?.xp ?? 0) + (persistenceEvent?.xp ?? 0),
+          ),
+        } : {}),
+        streak: newStreak, completedExercises: newCompletedExercises,
+      }).where(eq(students.id, studentId)).returning();
+      return next;
+    });
+    res.json({ student: toStudentData(updated) });
+  } catch (error) {
+    if (error instanceof Error && error.message === "STUDENT_NOT_FOUND") {
+      res.status(404).json({ error: "Student not found" });
       return;
     }
+    res.status(409).json({ error: "No se pudo registrar el ejercicio de forma idempotente." });
   }
-
-  // Record exercise result
-  await db.insert(exerciseResults).values({
-    studentId,
-    exerciseId,
-    moduleId: moduleId ?? null,
-    correct,
-    errorCategory: errorCategory ?? null,
-    attempts: attempts ?? 1,
-    answer: answer ?? null,
-    hintsUsed: hintsUsed ?? 0,
-    durationSeconds: durationSeconds ?? null,
-    clientId: clientId.trim(),
-    questionText: questionText ?? null,
-    topicName: topicName ?? null,
-    correctAnswer: correctAnswer ?? null,
-  });
-
-  // Update student XP, streak, completedExercises
-  const isSupportExercise = moduleId?.startsWith("support:") ?? false;
-  const xpGain = isSupportExercise
-    ? correct
-      ? (attempts ?? 1) <= 1
-        ? 10
-        : 5
-      : 0
-    : correct
-      ? 20
-      : 3;
-  const alreadyCompleted = (student.completedExercises ?? []).includes(
-    exerciseId
-  );
-  const newCompletedExercises =
-    correct && !alreadyCompleted
-      ? [...(student.completedExercises ?? []), exerciseId]
-      : (student.completedExercises ?? []);
-
-  const newStreak = correct ? student.streak + 1 : 0;
-
-  const [updated] = await db
-    .update(students)
-    .set({
-      totalXP: sql`${students.totalXP} + ${xpGain}`,
-      streak: newStreak,
-      completedExercises: newCompletedExercises,
-    })
-    .where(eq(students.id, studentId))
-    .returning();
-
-  res.json({ student: toStudentData(updated) });
 });
 
 // POST /api/students/:studentId/reflection
@@ -292,6 +458,163 @@ router.post("/students/:studentId/reflection", async (req, res) => {
     improvementSuggestions: typeof improvementSuggestions === "string" ? improvementSuggestions : null,
   }).returning();
   res.status(201).json({ reflection });
+});
+
+function requiredText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+// Required reflection at the end of every working session.
+router.post("/students/:studentId/session-reflection", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const { sessionId, understood, mistakes, helpful, remainingQuestions, clientId } =
+    req.body as Record<string, unknown>;
+  const numericSessionId = Number.parseInt(typeof sessionId === "string" ? sessionId : "", 10);
+  if (!Number.isInteger(studentId) || !Number.isInteger(numericSessionId) ||
+      !requiredText(understood) || !requiredText(mistakes) ||
+      !requiredText(helpful) || !requiredText(remainingQuestions) ||
+      !requiredText(clientId)) {
+    res.status(400).json({ error: "La reflexión de sesión requiere completar todos los campos." });
+    return;
+  }
+  try {
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+      const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+      if (!student) throw new Error("STUDENT_NOT_FOUND");
+      const [session] = await tx.select().from(learningSessions).where(and(
+        eq(learningSessions.id, numericSessionId),
+        eq(learningSessions.studentId, studentId),
+      )).limit(1);
+      if (!session) throw new Error("SESSION_NOT_FOUND");
+      if (session.status !== "open") {
+        const [existing] = await tx.select().from(sessionReflections).where(and(
+          eq(sessionReflections.studentId, studentId),
+          eq(sessionReflections.sessionId, String(numericSessionId)),
+        )).limit(1);
+        if (existing) return { reflection: existing, student, duplicate: true };
+        throw new Error("SESSION_ALREADY_CLOSED");
+      }
+      const workRows = session.activityId === "diagnostico"
+        ? (student.diagnosticProfile ? [{ id: 1 }] : [])
+        : await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+            eq(exerciseResults.studentId, studentId),
+            eq(exerciseResults.moduleId,
+              session.activityId.startsWith("evaluacion:")
+                ? session.activityId.slice("evaluacion:".length)
+                : session.activityId.startsWith("s") ? `support:${session.activityId}` : session.activityId),
+          )).limit(1);
+      if (workRows.length === 0) throw new Error("SESSION_WORK_REQUIRED");
+      let reflection: typeof sessionReflections.$inferSelect;
+      try {
+        [reflection] = await tx.insert(sessionReflections).values({
+          studentId, sessionId: String(numericSessionId), understood: understood.trim(),
+          mistakes: mistakes.trim(), helpful: helpful.trim(),
+          remainingQuestions: remainingQuestions.trim(), clientId: clientId.trim(),
+        }).returning();
+      } catch (error) {
+        if (!(error instanceof Error && error.message.includes("unique"))) throw error;
+        const [prior] = await tx.select().from(sessionReflections).where(and(
+          eq(sessionReflections.studentId, studentId),
+          eq(sessionReflections.sessionId, String(numericSessionId)),
+        )).limit(1);
+        if (!prior) throw error;
+        return { reflection: prior, student, duplicate: true };
+      }
+      const now = new Date();
+      const [sessionXpEvent] = await tx.insert(xpEvents).values({
+        studentId, eventType: "session-reflection", sourceId: String(numericSessionId), xp: 30,
+      }).onConflictDoNothing().returning();
+      let awardXp = sessionXpEvent?.xp ?? 0;
+      if (session.activityId === "diagnostico" && student.diagnosticProfile) {
+        const profile = student.diagnosticProfile as { results?: Array<{ category?: string; total?: number }> };
+        const categories = new Set((profile.results ?? []).filter((result) => (result.total ?? 0) > 0).map((result) => result.category));
+        const sections = [
+          ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones"]],
+          ["algebra", ["propiedades", "terminos", "variables", "igualdad", "factorizacion"]],
+          ["patrones", ["patrones"]],
+        ] as const;
+        for (const [section, sectionCategories] of sections) {
+          if (!sectionCategories.some((category) => categories.has(category))) continue;
+          const [sectionEvent] = await tx.insert(xpEvents).values({
+            studentId, eventType: "diagnostic-section", sourceId: `diagnostic-section:${section}`, xp: 10,
+          }).onConflictDoNothing().returning();
+          awardXp += sectionEvent?.xp ?? 0;
+        }
+        const [diagnosticEvent] = await tx.insert(xpEvents).values({
+          studentId, eventType: "diagnostic-completion", sourceId: "diagnostic", xp: 50,
+        }).onConflictDoNothing().returning();
+        awardXp += diagnosticEvent?.xp ?? 0;
+      }
+      const durationSeconds = Math.max(0, Math.floor((now.getTime() - session.startedAt.getTime()) / 1000));
+      const [updated] = awardXp > 0
+        ? await tx.update(students)
+          .set({
+            totalXP: sql`${students.totalXP} + ${awardXp}`,
+            rankHistory: nextRankHistory(student, student.totalXP + awardXp),
+          })
+          .where(eq(students.id, studentId)).returning()
+        : [student];
+      await tx.update(learningSessions).set({
+        status: "reflected",
+        reflectedAt: now,
+        completedAt: now,
+        durationSeconds,
+      }).where(and(eq(learningSessions.id, numericSessionId), eq(learningSessions.status, "open")));
+      return { reflection, student: updated, duplicate: false };
+    });
+    res.status(result.duplicate ? 200 : 201).json({ reflection: result.reflection, student: toStudentData(result.student) });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "STUDENT_NOT_FOUND") { res.status(404).json({ error: "Student not found" }); return; }
+    if (code === "SESSION_NOT_FOUND") { res.status(409).json({ error: "La sesión no existe para este estudiante." }); return; }
+    if (code === "SESSION_WORK_REQUIRED") { res.status(409).json({ error: "La sesión necesita una actividad válida antes de reflexionar." }); return; }
+    if (code === "SESSION_ALREADY_CLOSED") { res.status(409).json({ error: "La sesión ya fue cerrada." }); return; }
+    res.status(409).json({ error: "No se pudo registrar la reflexión de forma idempotente." });
+  }
+});
+
+// One required reflection per calendar week.
+router.post("/students/:studentId/weekly-reflection", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const { weekStart, mostImportant, mainDifficulty, appHelp, advice, clientId } =
+    req.body as Record<string, unknown>;
+  const canonicalWeekStart = bogotaWeekStart();
+  if (!Number.isInteger(studentId) ||
+      (weekStart !== undefined && (!requiredText(weekStart) || weekStart !== canonicalWeekStart)) ||
+      !requiredText(mostImportant) || !requiredText(mainDifficulty) ||
+      !requiredText(appHelp) || !requiredText(advice) || !requiredText(clientId)) {
+    res.status(400).json({ error: "La reflexión semanal requiere completar todos los campos." });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [existing] = await tx.select().from(weeklyReflections).where(and(
+      eq(weeklyReflections.studentId, studentId),
+      eq(weeklyReflections.weekStart, canonicalWeekStart),
+    )).limit(1);
+    if (existing) return { reflection: existing, student, duplicate: true };
+    const [reflection] = await tx.insert(weeklyReflections).values({
+      studentId, weekStart: canonicalWeekStart, mostImportant: mostImportant.trim(),
+      mainDifficulty: mainDifficulty.trim(), appHelp: appHelp.trim(),
+      advice: advice.trim(), clientId: clientId.trim(),
+    }).returning();
+    const [weeklyXpEvent] = await tx.insert(xpEvents).values({
+      studentId, eventType: "weekly-reflection", sourceId: canonicalWeekStart, xp: 50,
+    }).onConflictDoNothing().returning();
+    const [updated] = weeklyXpEvent
+      ? await tx.update(students).set({
+          totalXP: sql`${students.totalXP} + 50`,
+          rankHistory: nextRankHistory(student, student.totalXP + 50),
+        })
+        .where(eq(students.id, studentId)).returning()
+      : [student];
+    return { reflection, student: updated, duplicate: false };
+  });
+  if (!result) { res.status(404).json({ error: "Student not found" }); return; }
+  res.status(result.duplicate ? 200 : 201).json({ reflection: result.reflection, student: toStudentData(result.student) });
 });
 
 // Accepts Expo's data:image/*;base64,... payload. The connector implementation
@@ -366,90 +689,218 @@ router.post("/students/:studentId/topics", async (req, res) => {
     return;
   }
 
-  const { topicId } = req.body as { topicId: string };
-
-  const rows = await db
-    .select()
-    .from(students)
-    .where(eq(students.id, studentId))
-    .limit(1);
-
-  if (rows.length === 0) {
-    res.status(404).json({ error: "Student not found" });
+  const { topicId, sessionId } = req.body as { topicId?: string; sessionId?: string };
+  const numericSessionId = Number.parseInt(sessionId ?? "", 10);
+  if (!topicId || !ACTIVE_TOPIC_IDS.includes(topicId) || !Number.isInteger(numericSessionId)) {
+    res.status(400).json({ error: "topicId activo y sessionId son obligatorios" });
     return;
   }
-
-  const student = rows[0];
-  const alreadyDone = (student.completedTopics ?? []).includes(topicId);
-  if (alreadyDone) {
-    res.json({ student: toStudentData(student) });
-    return;
-  }
-
-  const [updated] = await db
-    .update(students)
-    .set({
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [session] = await tx.select().from(learningSessions).where(and(
+      eq(learningSessions.id, numericSessionId), eq(learningSessions.studentId, studentId),
+      eq(learningSessions.activityId, topicId), eq(learningSessions.status, "reflected"),
+    )).limit(1);
+    if (!session) throw new Error("SESSION_REQUIRED");
+    if ((student.completedTopics ?? []).includes(topicId)) return student;
+    const [next] = await tx.update(students).set({
       completedTopics: [...(student.completedTopics ?? []), topicId],
-    })
-    .where(eq(students.id, studentId))
-    .returning();
-
+    }).where(eq(students.id, studentId)).returning();
+    return next;
+  }).catch((error) => error instanceof Error && error.message === "SESSION_REQUIRED"
+    ? "SESSION_REQUIRED" as const : (() => { throw error; })());
+  if (updated === null) { res.status(404).json({ error: "Student not found" }); return; }
+  if (updated === "SESSION_REQUIRED") {
+    res.status(409).json({ error: "Completa la reflexión de sesión antes de cerrar el tema." });
+    return;
+  }
   res.json({ student: toStudentData(updated) });
+});
+
+// Explicit user actions are separate mutations: an answer payload cannot
+// claim that feedback or a hint was read.
+router.post("/students/:studentId/hint", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const { exerciseId, hintId, clientId } = req.body as Record<string, unknown>;
+  if (!Number.isInteger(studentId) || !requiredText(exerciseId) || !requiredText(hintId) || !requiredText(clientId)) {
+    res.status(400).json({ error: "exerciseId, hintId y clientId son obligatorios" });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [event] = await tx.insert(xpEvents).values({
+      studentId, eventType: "hint", sourceId: `${exerciseId}:${hintId}:${clientId}`, xp: 3,
+    }).onConflictDoNothing().returning();
+    if (!event) return { student, duplicate: true };
+    const [updated] = await tx.update(students).set({
+      totalXP: sql`${students.totalXP} + 3`,
+      rankHistory: nextRankHistory(student, student.totalXP + 3),
+    }).where(eq(students.id, studentId)).returning();
+    return { student: updated, duplicate: false };
+  });
+  if (!result) { res.status(404).json({ error: "Student not found" }); return; }
+  res.status(result.duplicate ? 200 : 201).json({ student: toStudentData(result.student) });
+});
+
+router.post("/students/:studentId/feedback-view", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const { exerciseClientId } = req.body as Record<string, unknown>;
+  if (!Number.isInteger(studentId) || !requiredText(exerciseClientId)) {
+    res.status(400).json({ error: "exerciseClientId es obligatorio" });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [exercise] = await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+      eq(exerciseResults.studentId, studentId), eq(exerciseResults.clientId, exerciseClientId),
+    )).limit(1);
+    if (!exercise) throw new Error("EXERCISE_REQUIRED");
+    const [event] = await tx.insert(xpEvents).values({
+      studentId, eventType: "feedback-read", sourceId: exerciseClientId, xp: 5,
+    }).onConflictDoNothing().returning();
+    if (!event) return { student, duplicate: true };
+    await tx.update(exerciseResults).set({
+      feedbackViews: sql`${exerciseResults.feedbackViews} + 1`,
+    }).where(eq(exerciseResults.id, exercise.id));
+    const [updated] = await tx.update(students).set({
+      totalXP: sql`${students.totalXP} + 5`,
+      rankHistory: nextRankHistory(student, student.totalXP + 5),
+    }).where(eq(students.id, studentId)).returning();
+    return { student: updated, duplicate: false };
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "EXERCISE_REQUIRED") return "EXERCISE_REQUIRED" as const;
+    throw error;
+  });
+  if (result === "EXERCISE_REQUIRED") { res.status(409).json({ error: "La respuesta debe existir antes de leer feedback." }); return; }
+  if (!result) { res.status(404).json({ error: "Student not found" }); return; }
+  res.status(result.duplicate ? 200 : 201).json({ student: toStudentData(result.student) });
 });
 
 // POST /api/students/:studentId/modules
 router.post("/students/:studentId/modules", async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
-  const { moduleId } = req.body as { moduleId?: string };
-  if (isNaN(studentId) || !moduleId?.trim()) {
-    res.status(400).json({ error: "studentId and moduleId are required" });
+  const { moduleId, sessionId } = req.body as { moduleId?: string; sessionId?: string };
+  if (isNaN(studentId) || !moduleId?.trim() || !sessionId?.trim()) {
+    res.status(400).json({ error: "studentId, moduleId y sessionId son obligatorios" });
     return;
   }
-  if (RETIRED_MODULE_IDS.has(moduleId.trim())) {
-    res.status(410).json({ error: "Este módulo fue retirado" });
-    return;
-  }
-
-  const rows = await db
-    .select()
-    .from(students)
-    .where(eq(students.id, studentId))
-    .limit(1);
-  if (rows.length === 0) {
-    res.status(404).json({ error: "Student not found" });
+  if (!ACTIVE_MODULE_IDS.includes(moduleId.trim()) || RETIRED_MODULE_IDS.has(moduleId.trim())) {
+    res.status(410).json({ error: "Este módulo no está disponible" });
     return;
   }
 
-  const student = rows[0];
-  const completedModules = student.completedModules ?? [];
-  if (completedModules.includes(moduleId)) {
-    res.json({ student: toStudentData(student) });
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [session] = await tx.select().from(learningSessions).where(and(
+      eq(learningSessions.id, Number.parseInt(sessionId, 10)),
+      eq(learningSessions.studentId, studentId),
+      eq(learningSessions.status, "reflected"),
+    )).limit(1);
+    if (!session || session.activityId !== moduleId) throw new Error("SESSION_REQUIRED");
+    const completedModules = student.completedModules ?? [];
+    if (completedModules.includes(moduleId)) {
+      if (ACTIVE_MODULE_IDS.every((id) => completedModules.includes(id))) {
+        const [routeEvent] = await tx.insert(xpEvents).values({
+          studentId, eventType: "route-completion", sourceId: "ruta-factorizacion", xp: 150,
+        }).onConflictDoNothing().returning();
+        if (routeEvent) {
+          const [next] = await tx.update(students)
+            .set({
+              totalXP: sql`${students.totalXP} + ${routeEvent.xp}`,
+              rankHistory: nextRankHistory(student, student.totalXP + routeEvent.xp),
+            })
+            .where(eq(students.id, studentId)).returning();
+          return next;
+        }
+      }
+      return student;
+    }
+    const [moduleXpEvent] = await tx.insert(xpEvents).values({
+      studentId, eventType: "module-completion", sourceId: moduleId, xp: 50,
+    }).onConflictDoNothing().returning();
+    const nextModules = [...completedModules, moduleId];
+    const routeComplete = ACTIVE_MODULE_IDS.every((id) => nextModules.includes(id));
+    const [routeEvent] = routeComplete
+      ? await tx.insert(xpEvents).values({
+          studentId, eventType: "route-completion", sourceId: "ruta-factorizacion", xp: 150,
+        }).onConflictDoNothing().returning()
+      : [undefined];
+    const [next] = await tx.update(students).set({
+      completedModules: nextModules,
+      ...((moduleXpEvent || routeEvent) ? {
+        totalXP: sql`${students.totalXP} + ${(moduleXpEvent?.xp ?? 0) + (routeEvent?.xp ?? 0)}`,
+        rankHistory: nextRankHistory(
+          student,
+          student.totalXP + (moduleXpEvent?.xp ?? 0) + (routeEvent?.xp ?? 0),
+        ),
+      } : {}),
+    }).where(eq(students.id, studentId)).returning();
+    return next;
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "SESSION_REQUIRED") return "SESSION_REQUIRED" as const;
+    throw error;
+  });
+  if (updated === null) { res.status(404).json({ error: "Student not found" }); return; }
+  if (updated === "SESSION_REQUIRED") {
+    res.status(409).json({ error: "Completa la reflexión de sesión antes de cerrar el módulo." });
     return;
   }
-
-  const [updated] = await db
-    .update(students)
-    .set({ completedModules: [...completedModules, moduleId] })
-    .where(eq(students.id, studentId))
-    .returning();
   res.json({ student: toStudentData(updated) });
 });
 
 // POST /api/students/:studentId/diagnostic
 router.post("/students/:studentId/diagnostic", async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
-  const { diagnosticProfile } = req.body as { diagnosticProfile?: Record<string, unknown> };
-  if (isNaN(studentId) || !diagnosticProfile || typeof diagnosticProfile !== "object") {
-    res.status(400).json({ error: "Valid studentId and diagnosticProfile are required" });
+  const { diagnosticProfile, sessionId } = req.body as { diagnosticProfile?: Record<string, unknown>; sessionId?: string };
+  const numericSessionId = Number.parseInt(sessionId ?? "", 10);
+  if (isNaN(studentId) || !Number.isInteger(numericSessionId) || !diagnosticProfile || typeof diagnosticProfile !== "object") {
+    res.status(400).json({ error: "Valid studentId, sessionId and diagnosticProfile are required" });
     return;
   }
 
-  const [updated] = await db
-    .update(students)
-    .set({ diagnosticProfile })
-    .where(eq(students.id, studentId))
-    .returning();
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
+    const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
+    if (!student) return null;
+    const [session] = await tx.select().from(learningSessions).where(and(
+      eq(learningSessions.id, numericSessionId),
+      eq(learningSessions.studentId, studentId),
+      eq(learningSessions.activityId, "diagnostico"),
+      eq(learningSessions.status, "open"),
+    )).limit(1);
+    if (!session) throw new Error("DIAGNOSTIC_SESSION_REQUIRED");
+    const now = new Date().toISOString();
+    const profileHistory = [
+      ...(student.profileHistory ?? []),
+      { profile: diagnosticProfile.profile ?? null, route: diagnosticProfile.route ?? null, at: now },
+    ];
+    const [next] = await tx.update(students).set({
+      diagnosticProfile,
+      ...(student.initialProfile ? {} : { initialProfile: String(diagnosticProfile.profile ?? "") }),
+      ...(student.initialRank ? {} : { initialRank: rankForXp(student.totalXP).name }),
+      profileHistory,
+    }).where(eq(students.id, studentId)).returning();
+    await tx.update(learningSessions).set({ qualifyingWorkAt: new Date() })
+      .where(and(eq(learningSessions.id, numericSessionId), eq(learningSessions.status, "open")));
+    return next;
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "DIAGNOSTIC_SESSION_REQUIRED") {
+      return "DIAGNOSTIC_SESSION_REQUIRED" as const;
+    }
+    throw error;
+  });
 
+  if (updated === "DIAGNOSTIC_SESSION_REQUIRED") {
+    res.status(409).json({ error: "Completa la sesión diagnóstica antes de guardar el diagnóstico." });
+    return;
+  }
   if (!updated) {
     res.status(404).json({ error: "Student not found" });
     return;

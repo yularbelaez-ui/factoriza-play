@@ -62,6 +62,21 @@ export interface ApiStudentData {
   completedModules: string[];
   completedExercises: string[];
   diagnosticProfile?: DiagnosticProfile | null;
+  initialProfile?: string | null;
+  initialRank?: string | null;
+  profileHistory?: Array<Record<string, unknown>>;
+  rankHistory?: Array<Record<string, unknown>>;
+  rank?: {
+    name: string;
+    icon: string;
+    minXP: number;
+    maxXP: number | null;
+    nextName: string | null;
+    nextIcon: string | null;
+    nextXP: number | null;
+    progressPercent: number;
+  };
+  badges?: { id: string; label: string; icon: string }[];
 }
 
 export async function apiLoginStudent(
@@ -95,6 +110,7 @@ export async function apiRecordExercise(
     attempts?: number;
     answer?: string | null;
     hintsUsed?: number;
+    feedbackViewed?: boolean;
     durationSeconds?: number | null;
     clientId?: string | null;
     questionText?: string | null;
@@ -105,6 +121,23 @@ export async function apiRecordExercise(
   return apiFetch(`/students/${studentId}/exercise`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function apiRecordHint(
+  studentId: number,
+  data: { exerciseId: string; hintId: string; clientId: string },
+): Promise<{ student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/hint`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function apiRecordFeedbackView(
+  studentId: number,
+  exerciseClientId: string,
+): Promise<{ student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/feedback-view`, {
+    method: "POST",
+    body: JSON.stringify({ exerciseClientId }),
   });
 }
 
@@ -140,33 +173,112 @@ export async function apiSaveModuleReflection(
   });
 }
 
+export interface ApiSessionReflection {
+  id: number;
+  sessionId: string;
+  understood: string;
+  mistakes: string;
+  helpful: string;
+  remainingQuestions: string;
+  createdAt: string;
+}
+
+export interface ApiLearningSession {
+  id: number;
+  activityId: string;
+  clientId: string;
+  status: string;
+  startedAt: string;
+  reflectedAt?: string | null;
+  completedAt?: string | null;
+  durationSeconds?: number | null;
+}
+
+export async function apiStartLearningSession(
+  studentId: number,
+  activityId: string,
+  clientId: string,
+): Promise<{ session: ApiLearningSession }> {
+  return apiFetch(`/students/${studentId}/sessions`, {
+    method: "POST",
+    body: JSON.stringify({ activityId, clientId }),
+  });
+}
+
+export async function apiSaveSessionReflection(
+  studentId: number,
+  data: {
+    sessionId: string;
+    understood: string;
+    mistakes: string;
+    helpful: string;
+    remainingQuestions: string;
+    clientId: string;
+  }
+): Promise<{ reflection: ApiSessionReflection; student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/session-reflection`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export interface ApiWeeklyReflection {
+  id: number;
+  weekStart: string;
+  mostImportant: string;
+  mainDifficulty: string;
+  appHelp: string;
+  advice: string;
+  createdAt: string;
+}
+
+export async function apiSaveWeeklyReflection(
+  studentId: number,
+  data: {
+    weekStart: string;
+    mostImportant: string;
+    mainDifficulty: string;
+    appHelp: string;
+    advice: string;
+    clientId: string;
+  }
+): Promise<{ reflection: ApiWeeklyReflection; student: ApiStudentData }> {
+  return apiFetch(`/students/${studentId}/weekly-reflection`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiCompleteTopic(
   studentId: number,
-  topicId: string
+  topicId: string,
+  sessionId: string,
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/topics`, {
     method: "POST",
-    body: JSON.stringify({ topicId }),
+    body: JSON.stringify({ topicId, sessionId }),
   });
 }
 
 export async function apiCompleteModule(
   studentId: number,
-  moduleId: string
+  moduleId: string,
+  sessionId: string
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/modules`, {
     method: "POST",
-    body: JSON.stringify({ moduleId }),
+    body: JSON.stringify({ moduleId, sessionId }),
   });
 }
 
 export async function apiSaveDiagnosticProfile(
   studentId: number,
-  diagnosticProfile: DiagnosticProfile
+  diagnosticProfile: DiagnosticProfile,
+  sessionId: string,
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/diagnostic`, {
     method: "POST",
-    body: JSON.stringify({ diagnosticProfile }),
+    body: JSON.stringify({ diagnosticProfile, sessionId }),
   });
 }
 
@@ -253,6 +365,8 @@ export interface ApiStudentAnalytics {
   completedModules: string[];
   reinforcedTopics: string[];
   additionalActivities: string[];
+  sessionReflections: ApiSessionReflection[];
+  weeklyReflections: ApiWeeklyReflection[];
   modules: ApiModuleAnalytics[];
 }
 
@@ -288,4 +402,8 @@ export async function apiDeleteStudent(
     `/teacher/${encodeURIComponent(teacherCode)}/students/${studentId}`,
     { method: "DELETE" }
   );
+}
+
+export function apiResearchExportUrl(teacherCode: string, classCode: string): string {
+  return `${API}/teacher/${encodeURIComponent(teacherCode)}/classes/${encodeURIComponent(classCode)}/export`;
 }

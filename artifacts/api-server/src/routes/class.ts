@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { students, exerciseResults, moduleReflections } from "@workspace/db/schema";
+import {
+  students,
+  exerciseResults,
+  moduleReflections,
+  sessionReflections,
+  weeklyReflections,
+} from "@workspace/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 
@@ -9,18 +15,37 @@ const connectors = new ReplitConnectors();
 const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
 const isRetiredExercise = (exerciseId: string) =>
   exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
+const isRetiredTopic = (topicId: string) =>
+  topicId.startsWith("reconocimiento-patrones") || topicId.startsWith("ax2-");
+
+function rankForXp(totalXP: number) {
+  if (totalXP > 5000) return { name: "Gran Maestro", icon: "👑", nextXP: null };
+  if (totalXP > 3500) return { name: "Heroico", icon: "🔥", nextXP: 5001 };
+  if (totalXP > 2200) return { name: "Diamante", icon: "💎", nextXP: 3501 };
+  if (totalXP > 1200) return { name: "Oro", icon: "🥇", nextXP: 2201 };
+  if (totalXP > 500) return { name: "Plata", icon: "🥈", nextXP: 1201 };
+  return { name: "Bronce", icon: "🥉", nextXP: 501 };
+}
 
 function toStudentData(s: typeof students.$inferSelect) {
+  const storedProfile = s.diagnosticProfile as Record<string, unknown> | null | undefined;
+  const diagnosticProfile = storedProfile?.profile === "C" && storedProfile.route === "ruta-3"
+    ? { ...storedProfile, route: "ruta-4" }
+    : storedProfile;
   return {
     id: s.id,
     pseudonym: s.pseudonym,
     classCode: s.classCode,
     totalXP: s.totalXP,
+    rank: rankForXp(s.totalXP),
+    badges: (s.completedExercises ?? []).length >= 10
+      ? [{ id: "persistente", label: "Persistente", icon: "⚡" }]
+      : [],
     streak: s.streak,
-    completedTopics: s.completedTopics ?? [],
+    completedTopics: (s.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
     completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
     completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
-    diagnosticProfile: s.diagnosticProfile ?? null,
+    diagnosticProfile: diagnosticProfile ?? null,
   };
 }
 
@@ -284,6 +309,14 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
     .select()
     .from(moduleReflections)
     .where(inArray(moduleReflections.studentId, studentIds));
+  const sessionReflectionRows = await db
+    .select()
+    .from(sessionReflections)
+    .where(inArray(sessionReflections.studentId, studentIds));
+  const weeklyReflectionRows = await db
+    .select()
+    .from(weeklyReflections)
+    .where(inArray(weeklyReflections.studentId, studentIds));
 
   type ExAgg = {
     exerciseId: string;
@@ -413,14 +446,16 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
       studentId,
       pseudonym: student?.pseudonym ?? null,
       diagnosticProfile: student?.diagnosticProfile ?? null,
-      completedTopics: student?.completedTopics ?? [],
-      completedModules: student?.completedModules ?? [],
+      completedTopics: (student?.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
+      completedModules: (student?.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
       reinforcedTopics: Array.from(new Set(modules.flatMap((m) =>
         m.exercises.flatMap((e) => e.attempts.map((a) => a.topicName).filter(Boolean)),
       ))),
       additionalActivities: modules
         .filter((m) => m.moduleId.startsWith("support:"))
         .map((m) => m.moduleId),
+      sessionReflections: sessionReflectionRows.filter((reflection) => reflection.studentId === studentId),
+      weeklyReflections: weeklyReflectionRows.filter((reflection) => reflection.studentId === studentId),
       modules,
     };
   });

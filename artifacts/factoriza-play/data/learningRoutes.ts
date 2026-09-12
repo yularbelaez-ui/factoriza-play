@@ -1,5 +1,12 @@
-export type LearningProfileCode = "A" | "B" | "C";
-export type LearningRouteCode = "ruta-1" | "ruta-2" | "ruta-3";
+export type LearningProfileCode =
+  | "A"
+  | "B"
+  | "C"
+  | "aprendiz-numerico"
+  | "constructor-algebraico"
+  | "cazador-patrones"
+  | "explorador-factorizacion";
+export type LearningRouteCode = "ruta-1" | "ruta-2" | "ruta-3" | "ruta-4";
 
 export interface LearningRouteStep {
   id: string;
@@ -65,23 +72,54 @@ export function isLearningRouteCompleted(
 
 export const PROFILE_DETAILS: Record<
   LearningProfileCode,
-  { label: string; summary: string; color: string; icon: string }
+  { label: string; summary: string; mission: string; color: string; icon: string }
 > = {
   A: {
-    label: "Perfil A",
+    label: "Perfil A · Aprendiz Numérico",
     summary: "Presenta dificultades aritméticas importantes.",
+    mission: "🛠️ Fortaleciendo mis herramientas matemáticas.",
     color: "#dc2626",
-    icon: "🧮",
+    icon: "🌱",
   },
   B: {
-    label: "Perfil B",
+    label: "Perfil B · Constructor Algebraico",
     summary: "Domina la aritmética, pero necesita fortalecer el pensamiento algebraico.",
+    mission: "🔓 Descifrando el lenguaje del álgebra.",
     color: "#d97706",
-    icon: "✏️",
+    icon: "🔥",
   },
   C: {
-    label: "Perfil C",
-    summary: "Manejo adecuado de los conocimientos previos.",
+    label: "Perfil C · Explorador de la Factorización",
+    summary: "Manejo adecuado de los conocimientos previos y listo para factorizar.",
+    mission: "🚀 Preparado para conquistar la factorización.",
+    color: "#059669",
+    icon: "🚀",
+  },
+  "aprendiz-numerico": {
+    label: "Aprendiz Numérico",
+    summary: "Fortalece operaciones, signos, fracciones y potencias antes de avanzar.",
+    mission: "🛠️ Fortaleciendo mis herramientas matemáticas.",
+    color: "#dc2626",
+    icon: "🌱",
+  },
+  "constructor-algebraico": {
+    label: "Constructor Algebraico",
+    summary: "Descifra variables, expresiones, términos semejantes y equivalencias.",
+    mission: "🔓 Descifrando el lenguaje del álgebra.",
+    color: "#d97706",
+    icon: "🔥",
+  },
+  "cazador-patrones": {
+    label: "Cazador de Patrones",
+    summary: "Reconoce estructuras y relaciones entre expresiones para elegir una estrategia.",
+    mission: "🧩 Descubriendo patrones ocultos.",
+    color: "#2563eb",
+    icon: "🔍",
+  },
+  "explorador-factorizacion": {
+    label: "Explorador de la Factorización",
+    summary: "Presenta bases sólidas y está preparado para iniciar la factorización.",
+    mission: "🚀 Preparado para conquistar la factorización.",
     color: "#059669",
     icon: "🚀",
   },
@@ -164,24 +202,56 @@ export const LEARNING_ROUTES: Record<LearningRouteCode, LearningRoute> = {
   },
   "ruta-3": {
     id: "ruta-3",
-    title: "Ruta 3 · Factorización básica",
-    subtitle: "Tus conocimientos previos están listos para la secuencia de factorización.",
-    color: "#059669",
+    title: "Ruta 3 · Descubrimiento de patrones",
+    subtitle: "Aprende a identificar estructuras antes de escoger un caso de factorización.",
+    color: "#2563eb",
     icon: "🔍",
     steps: [
       {
-        id: "factor-comun",
-        title: "Módulo 1 · Factor común",
-        description: "Avanza de factor numérico a literal y mixto.",
-        icon: "🔢",
-        moduleId: "factor-comun",
+        id: "patrones-expresiones",
+        title: "Estructuras y expresiones equivalentes",
+        description: "Relaciona términos, signos y productos notables para reconocer patrones.",
+        icon: "🧩",
+        topicId: "s3-productos",
       },
     ],
+  },
+  "ruta-4": {
+    id: "ruta-4",
+    title: "Ruta 4 · Exploración de la factorización",
+    subtitle: "Tus conocimientos previos están listos para la secuencia de casos activos.",
+    color: "#059669",
+    icon: "🚀",
+    steps: [],
   },
 };
 
 export function getRouteForProfile(profile: LearningProfileCode): LearningRoute {
+  const routeId =
+    profile === "A" || profile === "aprendiz-numerico"
+      ? "ruta-1"
+      : profile === "B" || profile === "constructor-algebraico"
+        ? "ruta-2"
+        : profile === "cazador-patrones"
+          ? "ruta-3"
+          : "ruta-4";
   return LEARNING_ROUTES[
-    profile === "A" ? "ruta-1" : profile === "B" ? "ruta-2" : "ruta-3"
+    routeId
   ];
+}
+
+/** Normalizes legacy A/B/C records for display and route decisions. */
+export function normalizeProfileCode(
+  profile: LearningProfileCode | undefined,
+  level?: "básico" | "intermedio" | "avanzado"
+): LearningProfileCode {
+  if (profile === "A") return "aprendiz-numerico";
+  if (profile === "B") return "constructor-algebraico";
+  if (profile === "C") return "explorador-factorizacion";
+  if (profile) return profile;
+  return level === "básico"
+    ? "aprendiz-numerico"
+    : level === "intermedio"
+      ? "constructor-algebraico"
+      : "explorador-factorizacion";
 }

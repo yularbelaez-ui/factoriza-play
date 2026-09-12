@@ -46,11 +46,18 @@ export default function PracticaModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { recordExerciseResult, completeLevel, completeModule, currentStudent } = useApp();
+  const { recordExerciseResult, recordHintEvent, completeLevel, startActivitySession, currentStudent } = useApp();
   const isWeb = Platform.OS === "web";
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const module = MODULES.find((m) => m.id === id);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!module) return;
+    startActivitySession(module.id).then((result) => {
+      if (result.ok && result.sessionId) setSessionId(result.sessionId);
+    });
+  }, [module?.id]);
 
   // ── Build main queue: sorted easy→medium→hard, shuffled within each level ──
   const mainQueue = useMemo<Exercise[]>(() => {
@@ -133,7 +140,7 @@ export default function PracticaModuloScreen() {
           selectedAnswer: selected,
           correctAnswer: currentEx.correctAnswer,
           errorCategory: currentEx.errorCategory,
-          attempts: 1,
+          attempts: phase === "retry" ? 2 : 1,
           questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
           topicName: module.title,
         },
@@ -153,12 +160,17 @@ export default function PracticaModuloScreen() {
         }
       });
       if (module.exercises.every(e => doneSet.has(e.id))) {
-        completeModule(module.id);
+        if (sessionId) {
+          router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: module.id } });
+        }
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerShake();
-      if (!showHint) hintsUsedRef.current += 1;
+      if (!showHint) {
+        hintsUsedRef.current += 1;
+        void recordHintEvent(currentEx.id, `${currentEx.id}-hint-${phase}`);
+      }
       setShowHint(true); // Auto-show hint
       recordExerciseResult(
         {
@@ -168,7 +180,7 @@ export default function PracticaModuloScreen() {
           selectedAnswer: selected,
           correctAnswer: currentEx.correctAnswer,
           errorCategory: currentEx.errorCategory,
-          attempts: 1,
+          attempts: phase === "retry" ? 2 : 1,
           questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
           topicName: module.title,
         },
@@ -399,7 +411,10 @@ export default function PracticaModuloScreen() {
           style={[styles.hintToggle, { borderColor: colors.accent + "60", backgroundColor: colors.accent + "10" }]}
           onPress={() => {
             setShowHint((prev) => {
-              if (!prev) hintsUsedRef.current += 1;
+               if (!prev) {
+                 hintsUsedRef.current += 1;
+                 void recordHintEvent(currentEx.id, `${currentEx.id}-manual-hint`);
+               }
               return !prev;
             });
           }}

@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -134,7 +134,7 @@ export default function EjercicioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { recordExerciseResult, completeLevel, completeModule, currentStudent, moduleProgress } = useApp();
+  const { recordExerciseResult, completeLevel, startActivitySession, currentStudent, moduleProgress } = useApp();
   const isWeb = Platform.OS === "web";
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
@@ -144,6 +144,13 @@ export default function EjercicioScreen() {
 
   const module = MODULES.find((m) => m.id === moduleId);
   const exercise = module?.exercises.find((e) => e.id === exerciseId);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!module) return;
+    startActivitySession(module.id).then((result) => {
+      if (result.ok && result.sessionId) setSessionId(result.sessionId);
+    });
+  }, [module?.id]);
   const isAlreadyCompleted = currentStudent?.completedExercises.includes(exerciseId) ?? false;
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -289,7 +296,9 @@ export default function EjercicioScreen() {
       }
       // Si todos los ejercicios del módulo están completados, desbloquear el siguiente caso
       if (module.exercises.every((e) => doneSet.has(e.id))) {
-        completeModule(module.id);
+        if (sessionId) {
+          router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: module.id } });
+        }
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

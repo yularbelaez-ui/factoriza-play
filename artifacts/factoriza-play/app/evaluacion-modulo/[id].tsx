@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Platform,
@@ -33,10 +33,18 @@ export default function EvaluacionModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { evaluationCodes, recordExerciseResult, currentStudent } = useApp();
+  const { evaluationCodes, recordHintEvent, recordExerciseResult, startActivitySession, currentStudent } = useApp();
   const isWeb = Platform.OS === "web";
 
   const module = MODULES.find((m) => m.id === id);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (module) {
+      startActivitySession(`evaluacion:${module.id}`).then((result) => {
+        if (result.ok && result.sessionId) setSessionId(result.sessionId);
+      });
+    }
+  }, [module?.id]);
 
   const [codeInput, setCodeInput] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -67,6 +75,7 @@ export default function EvaluacionModuloScreen() {
       const next = { ...prev, [exerciseId]: !prev[exerciseId] };
       if (next[exerciseId] && !prev[exerciseId]) {
         hintsUsedRef.current[exerciseId] = (hintsUsedRef.current[exerciseId] ?? 0) + 1;
+        void recordHintEvent(exerciseId, `${exerciseId}-evaluation-hint-${hintsUsedRef.current[exerciseId]}`);
       }
       return next;
     });
@@ -216,6 +225,9 @@ export default function EvaluacionModuloScreen() {
       } catch {
         // Exercise evidence remains queued; the reflection can be resubmitted later.
       }
+    }
+    if (sessionId) {
+      router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: module.id } });
     }
     setIsSubmitting(false);
   };

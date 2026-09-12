@@ -10,17 +10,31 @@ export type DiagnosticCategory =
   | "propiedades"
   | "terminos"
   | "variables"
-  | "igualdad";
+  | "igualdad"
+  | "patrones";
 
 export type DiagnosticCompetency =
   | "aritmetica"
   | "propiedades"
   | "terminos"
   | "variables"
-  | "igualdad";
+  | "igualdad"
+  | "patrones";
 
-export type LearningProfileCode = "A" | "B" | "C";
-export type LearningRouteCode = "ruta-1" | "ruta-2" | "ruta-3";
+/**
+ * A/B/C are retained because profiles created by previous versions are stored
+ * in this format. New diagnostics use descriptive, stable identifiers so that
+ * a teacher can understand a profile without consulting a lookup table.
+ */
+export type LearningProfileCode =
+  | "A"
+  | "B"
+  | "C"
+  | "aprendiz-numerico"
+  | "constructor-algebraico"
+  | "cazador-patrones"
+  | "explorador-factorizacion";
+export type LearningRouteCode = "ruta-1" | "ruta-2" | "ruta-3" | "ruta-4";
 
 export interface DiagnosticQuestion {
   id: string;
@@ -390,6 +404,33 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
     correctAnswer: "Las dos expresiones tienen el mismo valor para cualquier x",
     explanation: "El signo igual expresa equivalencia: ambas formas representan la misma cantidad.",
   },
+  // ── LECTURA DE ESTRUCTURAS Y PATRONES (independent gate) ──────────
+  {
+    id: "pat-1",
+    category: "patrones",
+    question: "Sin desarrollar, ¿qué estructura tiene 6x + 6y?",
+    expression: "6x + 6y",
+    options: ["Factor común", "Diferencia de cuadrados", "Trinomio cuadrado perfecto", "Suma de cubos"],
+    correctAnswer: "Factor común",
+    explanation: "Los dos términos comparten el factor 6; la estructura sugiere extraerlo.",
+  },
+  {
+    id: "pat-2",
+    category: "patrones",
+    question: "¿Qué estructura reconoces en x² − 49?",
+    expression: "x² − 49",
+    options: ["Diferencia de cuadrados", "Factor común", "Agrupación de términos", "Cubo de un binomio"],
+    correctAnswer: "Diferencia de cuadrados",
+    explanation: "x² y 49 = 7² son cuadrados perfectos separados por una resta.",
+  },
+  {
+    id: "pat-3",
+    category: "patrones",
+    question: "¿Qué debes observar primero para elegir un caso de factorización?",
+    options: ["La cantidad de términos y sus elementos repetidos", "Aplicar siempre la misma fórmula", "Sumar todos los exponentes", "Eliminar los signos"],
+    correctAnswer: "La cantidad de términos y sus elementos repetidos",
+    explanation: "Leer la estructura permite seleccionar una estrategia adecuada.",
+  },
 ];
 
 export const DIAGNOSTIC_CATEGORY_INFO: Record<
@@ -468,6 +509,12 @@ export const DIAGNOSTIC_CATEGORY_INFO: Record<
     color: "#059669",
     description: "El signo igual como equivalencia entre expresiones",
   },
+  patrones: {
+    label: "Lectura de patrones",
+    icon: "🔍",
+    color: "#2563eb",
+    description: "Reconocimiento independiente de estructuras y estrategias",
+  },
 };
 
 export function buildDiagnosticProfile(
@@ -504,34 +551,62 @@ export function buildDiagnosticProfile(
     arithmeticCategories.reduce((sum, category) => sum + scoreFor(category), 0) /
       arithmeticCategories.length
   );
+  const algebraCompetencies = ["propiedades", "terminos", "variables", "igualdad"] as const;
+  const algebraScore = Math.round(
+    algebraCompetencies.reduce((sum, competency) => sum + scoreFor(competency), 0) /
+      algebraCompetencies.length
+  );
+  // Pattern-readiness is intentionally a separate gate. It measures whether
+  // the student can connect an expression's structure to a strategy, rather
+  // than merely calculating correctly. Existing diagnostic categories provide
+  // the evidence without bringing back the retired pattern module.
+  const patternScore = scoreFor("patrones");
   const competencyResults: CompetencyResult[] = [
     {
       competency: "aritmetica",
       score: arithmeticScore,
       meetsThreshold: arithmeticCategories.every((category) => scoreFor(category) >= 75),
     },
-    ...(["propiedades", "terminos", "variables", "igualdad"] as const).map(
+    ...algebraCompetencies.map(
       (competency) => ({
         competency,
         score: scoreFor(competency),
         meetsThreshold: scoreFor(competency) >= 75,
       })
     ),
+    {
+      competency: "patrones",
+      score: patternScore,
+      meetsThreshold: patternScore >= 75,
+    },
   ];
 
   const arithmeticReady = competencyResults[0].meetsThreshold;
-  const algebraReady = competencyResults
-    .filter((result) => result.competency !== "aritmetica")
-    .every((result) => result.meetsThreshold);
+  const algebraReady = algebraCompetencies.every((competency) =>
+    competencyResults.find((result) => result.competency === competency)?.meetsThreshold
+  );
+  const patternReady = competencyResults.find((result) => result.competency === "patrones")?.meetsThreshold ?? false;
   const profile: LearningProfileCode = !arithmeticReady
-    ? "A"
+    ? "aprendiz-numerico"
     : !algebraReady
-      ? "B"
-      : "C";
+      ? "constructor-algebraico"
+      : !patternReady
+        ? "cazador-patrones"
+        : "explorador-factorizacion";
   const route: LearningRouteCode =
-    profile === "A" ? "ruta-1" : profile === "B" ? "ruta-2" : "ruta-3";
+    profile === "aprendiz-numerico"
+      ? "ruta-1"
+      : profile === "constructor-algebraico"
+        ? "ruta-2"
+        : profile === "cazador-patrones"
+          ? "ruta-3"
+          : "ruta-4";
   const level: DiagnosticProfile["level"] =
-    profile === "A" ? "básico" : profile === "B" ? "intermedio" : "avanzado";
+    profile === "aprendiz-numerico"
+      ? "básico"
+      : profile === "constructor-algebraico"
+        ? "intermedio"
+        : "avanzado";
 
   return {
     completedAt: Date.now(),

@@ -39,9 +39,17 @@ export default function TemaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { completeTopicPractice, recordExerciseResult } = useApp();
+  const { startActivitySession, recordHintEvent, recordExerciseResult } = useApp();
 
   const topic = getTopicById(id ?? "");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (topic) {
+      startActivitySession(topic.id).then((result) => {
+        if (result.ok && result.sessionId) setSessionId(result.sessionId);
+      });
+    }
+  }, [topic?.id]);
   const [activeTab, setActiveTab] = useState<Tab>("teoria");
 
   // ── Practice state ──────────────────────────────────────────────
@@ -143,6 +151,7 @@ export default function TemaScreen() {
         setDisabledOptions((prev) => [...prev, selectedAnswer]);
         setSelectedAnswer(null);
         setPhase("hint");
+        void recordHintEvent(currentEx.id, `${currentEx.id}-hint-1`);
       } else {
         // Second wrong attempt → full reveal, no XP
         recordExerciseResult(
@@ -172,8 +181,9 @@ export default function TemaScreen() {
       setDisabledOptions([]);
       setPhase("idle");
     } else {
-      completeTopicPractice(topic.id);
-      setPracticeFinished(true);
+      if (sessionId) {
+        router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: topic.id, topicId: topic.id } });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };

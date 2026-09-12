@@ -14,6 +14,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { ProgressBar } from "@/components/ProgressBar";
+import { getRankForXp } from "@/data/progression";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 import {
@@ -21,6 +22,8 @@ import {
   isLearningRouteCompleted,
   LEARNING_ROUTES,
   PROFILE_DETAILS,
+  getRouteForProfile,
+  normalizeProfileCode,
 } from "@/data/learningRoutes";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
@@ -67,18 +70,25 @@ export default function HomeScreen() {
   );
 
   const dp = currentStudent.diagnosticProfile;
+  const rank = getRankForXp(currentStudent.totalXP);
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
 
-  const profileCode = dp?.profile ?? (dp?.level === "básico" ? "A" : dp?.level === "intermedio" ? "B" : "C");
+  const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
+  const routeId =
+    dp?.profile === "C" && dp.route === "ruta-3"
+      ? "ruta-4"
+      : dp?.route ?? getRouteForProfile(profileCode).id;
   const assignedRoute = dp
     ? LEARNING_ROUTES[
-        dp.route ?? (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3")
+        routeId
       ]
     : null;
   const routeSteps = assignedRoute?.steps ?? [];
-  const allStrong = profileCode === "C";
+  const allStrong =
+    profileCode === "C" ||
+    profileCode === "explorador-factorizacion";
   const completedTopics = currentStudent.completedTopics ?? [];
   const completedModules = currentStudent.completedModules ?? [];
   const routeCompleted = assignedRoute
@@ -130,6 +140,45 @@ export default function HomeScreen() {
           <Text style={[styles.statValue, { color: colors.success }]}>{completedModulesCount}/{totalModules}</Text>
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Casos</Text>
         </View>
+      </View>
+
+      {currentStudent.rankUpMessage && (
+        <View style={[styles.rankUpBanner, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "35" }]}>
+          <Text style={[styles.rankUpText, { color: colors.primary }]}>{currentStudent.rankUpMessage}</Text>
+        </View>
+      )}
+
+      {/* ── Permanent progress display ── */}
+      <View style={[styles.rankCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.rankHeader}>
+          <View style={[styles.rankIconBox, { backgroundColor: colors.primary + "15" }]}>
+            <Text style={styles.rankIcon}>{rank.icon}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rankTitle, { color: colors.foreground }]}>
+              Rango actual: {rank.name}
+            </Text>
+            <Text style={[styles.rankMeta, { color: colors.mutedForeground }]}>
+              {currentStudent.totalXP} XP{rank.nextXP ? ` · Próximo rango en ${rank.nextXP} XP` : " · Rango máximo"}
+            </Text>
+          </View>
+          <Text style={[styles.rankProgressText, { color: colors.primary }]}>{rank.progressPercent}%</Text>
+        </View>
+        <View style={[styles.rankProgressBg, { backgroundColor: colors.border }]}>
+          <View style={[styles.rankProgressFill, { width: `${rank.progressPercent}%` as any, backgroundColor: colors.primary }]} />
+        </View>
+        {profileDetails && (
+          <View style={{ marginTop: 10 }}>
+            <Text style={[styles.rankMission, { color: colors.foreground }]}>
+              Misión: {profileDetails.mission}
+            </Text>
+            <Text style={[styles.rankBadges, { color: colors.mutedForeground }]}>
+              Insignias: {(currentStudent.badges ?? []).length > 0
+                ? currentStudent.badges!.map((badge) => `${badge.icon} ${badge.label}`).join(" · ")
+                : "Aún no tienes insignias"}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ══════════════════════════════════════════
@@ -509,6 +558,7 @@ export default function HomeScreen() {
           { label: "Casos", icon: "📚", route: "/(tabs)/modulos" },
           { label: "Ranking", icon: "🏆", route: "/(tabs)/comunidad" },
           { label: "Evaluación", icon: "📝", route: "/(tabs)/evaluacion" },
+          { label: "Reflexión", icon: "🧠", route: "/reflexion" },
         ].map((item) => (
           <TouchableOpacity
             key={item.label}
@@ -570,6 +620,19 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 20, fontWeight: "800", marginBottom: 2 },
   statLabel: { fontSize: 11, fontWeight: "500" },
+  rankCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 20 },
+  rankHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  rankIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  rankIcon: { fontSize: 24 },
+  rankTitle: { fontSize: 15, fontWeight: "800" },
+  rankMeta: { fontSize: 11, marginTop: 2 },
+  rankProgressText: { fontSize: 14, fontWeight: "800" },
+  rankProgressBg: { height: 7, borderRadius: 4, overflow: "hidden", marginTop: 12 },
+  rankProgressFill: { height: "100%", borderRadius: 4 },
+  rankMission: { fontSize: 12, fontWeight: "700" },
+  rankBadges: { fontSize: 11, marginTop: 4 },
+  rankUpBanner: { borderRadius: 12, borderWidth: 1, padding: 11, marginBottom: 12 },
+  rankUpText: { fontSize: 13, fontWeight: "800", textAlign: "center" },
 
   // ── Ruta sugerida ─────────────────────────────────────────────────
   routeCard: {

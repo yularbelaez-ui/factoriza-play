@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 import { DiagnosticProfile } from "@/data/diagnostic";
+import { getRouteForProfile, normalizeProfileCode } from "@/data/learningRoutes";
 import {
   apiLoginStudent,
   apiLoginTeacher,
@@ -20,8 +21,15 @@ import {
   apiDeleteStudent,
   apiSaveDiagnosticProfile,
   apiUploadExerciseEvidence,
+  apiSaveSessionReflection,
+  apiSaveWeeklyReflection,
+  apiStartLearningSession,
+  apiRecordHint,
+  apiRecordFeedbackView,
+  ApiStudentData,
 } from "@/lib/api";
 import { LEARNING_ROUTES, isLearningRouteCompleted } from "@/data/learningRoutes";
+import { getRankForXp } from "@/data/progression";
 
 export type UserRole = "student" | "teacher";
 
@@ -39,6 +47,8 @@ export interface StudentRecord {
   exerciseResults: ExerciseResult[];
   lastLogin: number;
   diagnosticProfile?: DiagnosticProfile;
+  badges?: { id: string; label: string; icon: string }[];
+  rankUpMessage?: string;
 }
 
 export interface ExerciseResult {
@@ -51,6 +61,7 @@ export interface ExerciseResult {
   timestamp: number;
   attempts: number;
   hintsUsed?: number;
+  feedbackViewed?: boolean;
   durationSeconds?: number;
   questionText?: string;
   topicName?: string;
@@ -70,6 +81,7 @@ interface PendingExerciseSync {
   attempts: number;
   answer: string | null;
   hintsUsed: number;
+  feedbackViewed?: boolean;
   durationSeconds: number | null;
   questionText: string | null;
   topicName: string | null;
@@ -78,16 +90,26 @@ interface PendingExerciseSync {
   evidenceMimeType?: string;
 }
 
+interface PendingMutation {
+  id: string;
+  kind: "session" | "diagnostic" | "module" | "topic" | "session-reflection" | "weekly-reflection";
+  backendId: number;
+  payload: Record<string, unknown>;
+}
+
 function generateClientId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function getExerciseXp(result: Pick<ExerciseResult, "moduleId" | "correct" | "attempts">): number {
-  if (result.moduleId.startsWith("support:")) {
-    if (!result.correct) return 0;
-    return result.attempts <= 1 ? 10 : 5;
-  }
-  return result.correct ? 20 : 3;
+function getExerciseXp(
+  result: Pick<ExerciseResult, "moduleId" | "correct" | "attempts" | "hintsUsed" | "feedbackViewed">
+): number {
+  const base = result.correct
+    ? result.attempts <= 1 ? 25 : result.attempts === 2 ? 20 : result.attempts === 3 ? 15 : 10
+    : 5;
+  const correction = result.correct && result.attempts > 1 ? 15 : 0;
+  const hints = (result.hintsUsed ?? 0) * 3 + (result.correct && (result.hintsUsed ?? 0) > 0 ? 10 : 0);
+  return base + correction + hints;
 }
 
 export interface ClassCode {
@@ -134,16 +156,16 @@ const MODULE_ORDER = [
 
 function computeUnlocked(student: StudentRecord | null): string[] {
   if (!student) return [];
-  const profileCode =
-    student.diagnosticProfile?.profile ??
-    (student.diagnosticProfile?.level === "básico"
-      ? "A"
-      : student.diagnosticProfile?.level === "intermedio"
-        ? "B"
-        : "C");
+  const storedProfile = student.diagnosticProfile?.profile;
+  const profileCode = normalizeProfileCode(
+    student.diagnosticProfile?.profile,
+    student.diagnosticProfile?.level
+  );
+  const storedRoute = student.diagnosticProfile?.route;
   const routeId =
-    student.diagnosticProfile?.route ??
-    (profileCode === "A" ? "ruta-1" : profileCode === "B" ? "ruta-2" : "ruta-3");
+    storedProfile === "C" && storedRoute === "ruta-3"
+      ? "ruta-4"
+      : storedRoute ?? getRouteForProfile(profileCode).id;
   const route = student.diagnosticProfile ? LEARNING_ROUTES[routeId] : null;
   const needsRouteBeforeModules =
     route &&
@@ -195,6 +217,7 @@ interface AppContextValue {
   // Auth
   isAuthenticated: boolean;
   role: UserRole;
+  teacherCode: string | null;
   currentStudent: StudentRecord | null;
   login: (role: UserRole, pseudonym: string, code: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
@@ -211,14 +234,31 @@ interface AppContextValue {
   // Student actions
   recordExerciseResult: (
     result: Omit<ExerciseResult, "timestamp">,
-    extra?: { hintsUsed?: number; durationSeconds?: number }
+    extra?: { hintsUsed?: number; durationSeconds?: number; feedbackViewed?: boolean }
   ) => void;
+  recordHintEvent: (exerciseId: string, hintId: string) => Promise<{ ok: boolean }>;
+  recordFeedbackView: (exerciseClientId: string) => Promise<{ ok: boolean }>;
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
-  completeModule: (moduleId: string) => void;
-  completeTopicPractice: (topicId: string) => void;
+  completeModule: (moduleId: string, sessionId?: string) => Promise<{ ok: boolean; error?: string }>;
+  startActivitySession: (activityId: string) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
+  completeTopicPractice: (topicId: string, sessionId?: string) => Promise<{ ok: boolean; error?: string }>;
   moduleProgress: ModuleProgress[];
-  saveDiagnosticProfile: (profile: DiagnosticProfile) => Promise<void>;
+  saveDiagnosticProfile: (profile: DiagnosticProfile, sessionId: string) => Promise<void>;
+  saveSessionReflection: (data: {
+    sessionId: string;
+    understood: string;
+    mistakes: string;
+    helpful: string;
+    remainingQuestions: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  saveWeeklyReflection: (data: {
+    weekStart: string;
+    mostImportant: string;
+    mainDifficulty: string;
+    appHelp: string;
+    advice: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
 
   // Teacher sync
   refreshTeacherData: () => Promise<void>;
@@ -261,6 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // are queued here and retried on an interval and whenever the app comes
   // back to the foreground, so XP is never silently lost.
   const pendingSyncsRef = useRef<PendingExerciseSync[]>([]);
+  const pendingMutationsRef = useRef<PendingMutation[]>([]);
   const isRetryingSyncsRef = useRef(false);
 
   useEffect(() => {
@@ -279,6 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(data.pendingExerciseSyncs)) {
           pendingSyncsRef.current = data.pendingExerciseSyncs;
         }
+        if (Array.isArray(data.pendingMutations)) pendingMutationsRef.current = data.pendingMutations;
         // Restore session
         if (data.session) {
           const { role: r, studentId } = data.session;
@@ -369,6 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       totalXP: number; streak: number;
       completedTopics: string[]; completedModules: string[]; completedExercises: string[];
       diagnosticProfile?: DiagnosticProfile | null;
+      badges?: { id: string; label: string; icon: string }[];
     };
     try {
       const res = await apiLoginStudent(trimPseudo, trimCode);
@@ -395,6 +438,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       completedModules: backendStudent.completedModules,
       completedTopics: backendStudent.completedTopics,
       completedExercises: backendStudent.completedExercises,
+      badges: backendStudent.badges ?? existing?.badges,
       exerciseResults: existing?.exerciseResults ?? [],
       lastLogin: Date.now(),
       diagnosticProfile: backendStudent.diagnosticProfile ?? existing?.diagnosticProfile,
@@ -467,12 +511,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const completeModule = (moduleId: string) => {
-    if (!currentStudent) return;
-    if (currentStudent.completedModules.includes(moduleId)) return;
+  const completeModule = async (moduleId: string, sessionId?: string) => {
+    if (!currentStudent) return { ok: false, error: "No hay estudiante activo." };
+    if (currentStudent.completedModules.includes(moduleId)) return { ok: true };
+    if (currentStudent.backendId) {
+      if (!sessionId) return { ok: false, error: "Debes completar la reflexión de sesión." };
+      try {
+        const result = await apiCompleteModule(currentStudent.backendId, moduleId, sessionId);
+        updateStudentFromServer(result.student);
+        return { ok: true };
+      } catch (error) {
+        const mutation: PendingMutation = {
+          id: `module-${currentStudent.backendId}-${moduleId}-${sessionId}`,
+          kind: "module",
+          backendId: currentStudent.backendId,
+          payload: { moduleId, sessionId },
+        };
+        pendingMutationsRef.current = [
+          ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id),
+          mutation,
+        ];
+        void persist({ pendingMutations: pendingMutationsRef.current });
+        return { ok: false, error: error instanceof Error ? error.message : "No se pudo cerrar el módulo." };
+      }
+    }
     const updated: StudentRecord = {
       ...currentStudent,
       completedModules: [...currentStudent.completedModules, moduleId],
+      totalXP: currentStudent.totalXP + 50,
     };
     currentStudentRef.current = updated;
     setCurrentStudentState(updated);
@@ -481,15 +547,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ allStudents: up });
       return up;
     });
-    if (currentStudent.backendId) {
-      apiCompleteModule(currentStudent.backendId, moduleId).catch(() => {});
+    return { ok: true };
+  };
+
+  const startActivitySession = async (activityId: string) => {
+    const student = currentStudentRef.current;
+    if (!student?.backendId) return { ok: false, error: "Estudiante sin conexión al servidor." };
+    try {
+      const result = await apiStartLearningSession(
+        student.backendId,
+        activityId,
+        `activity-session-${student.backendId}-${activityId}-${generateClientId()}`,
+      );
+      return { ok: true, sessionId: String(result.session.id) };
+    } catch (error) {
+      const mutation: PendingMutation = {
+        id: `session-${student.backendId}-${activityId}`,
+        kind: "session",
+        backendId: student.backendId,
+        payload: {
+          activityId,
+          clientId: `activity-session-${student.backendId}-${activityId}-${generateClientId()}`,
+        },
+      };
+      pendingMutationsRef.current = [
+        ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id), mutation,
+      ];
+      void persist({ pendingMutations: pendingMutationsRef.current });
+      return { ok: false, error: error instanceof Error ? error.message : "No se pudo iniciar la sesión." };
     }
   };
 
-  const completeTopicPractice = (topicId: string) => {
-    if (!currentStudent) return;
+  const completeTopicPractice = async (topicId: string, sessionId?: string) => {
+    if (!currentStudent) return { ok: false, error: "No hay estudiante activo." };
     const already = (currentStudent.completedTopics ?? []).includes(topicId);
-    if (already) return;
+    if (already) return { ok: true };
+    if (currentStudent.backendId) {
+      if (!sessionId) return { ok: false, error: "Debes completar la reflexión de sesión." };
+      try {
+        const result = await apiCompleteTopic(currentStudent.backendId, topicId, sessionId);
+        updateStudentFromServer(result.student);
+        return { ok: true };
+      } catch (error) {
+        const mutation: PendingMutation = {
+          id: `topic-${currentStudent.backendId}-${topicId}-${sessionId}`,
+          kind: "topic", backendId: currentStudent.backendId,
+          payload: { topicId, sessionId },
+        };
+        pendingMutationsRef.current = [
+          ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id), mutation,
+        ];
+        void persist({ pendingMutations: pendingMutationsRef.current });
+        return { ok: false, error: error instanceof Error ? error.message : "No se pudo cerrar el tema." };
+      }
+    }
     const updated: StudentRecord = {
       ...currentStudent,
       completedTopics: [...(currentStudent.completedTopics ?? []), topicId],
@@ -501,10 +612,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ allStudents: up });
       return up;
     });
-    // Sync to backend silently
-    if (currentStudent.backendId) {
-      apiCompleteTopic(currentStudent.backendId, topicId).catch(() => {});
-    }
+    return { ok: true };
   };
 
   const addEvaluationCode = (moduleId: string, code: string) => {
@@ -535,6 +643,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           attempts: sync.attempts,
           answer: sync.answer,
           hintsUsed: sync.hintsUsed,
+           feedbackViewed: sync.feedbackViewed,
           durationSeconds: sync.durationSeconds,
           clientId: sync.clientId,
           questionText: sync.questionText,
@@ -586,26 +695,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptExerciseSync, persistPendingSyncs]);
 
+  const retryPendingMutations = useCallback(async () => {
+    if (pendingMutationsRef.current.length === 0) return;
+    const remaining: PendingMutation[] = [];
+    let reconciled = false;
+    for (const mutation of pendingMutationsRef.current) {
+      try {
+        let student: ApiStudentData | undefined;
+        if (mutation.kind === "session") {
+          await apiStartLearningSession(
+            mutation.backendId,
+            String(mutation.payload.activityId),
+            String(mutation.payload.clientId),
+          );
+        } else if (mutation.kind === "diagnostic") {
+          student = (await apiSaveDiagnosticProfile(
+            mutation.backendId, mutation.payload.profile as DiagnosticProfile,
+            String(mutation.payload.sessionId),
+          )).student;
+        } else if (mutation.kind === "module") {
+          student = (await apiCompleteModule(
+            mutation.backendId, String(mutation.payload.moduleId), String(mutation.payload.sessionId),
+          )).student;
+        } else if (mutation.kind === "topic") {
+          student = (await apiCompleteTopic(
+            mutation.backendId, String(mutation.payload.topicId), String(mutation.payload.sessionId),
+          )).student;
+        } else if (mutation.kind === "session-reflection") {
+          student = (await apiSaveSessionReflection(mutation.backendId, mutation.payload as never)).student;
+        } else {
+          student = (await apiSaveWeeklyReflection(mutation.backendId, mutation.payload as never)).student;
+        }
+        if (student) {
+          updateStudentFromServer(student);
+          reconciled = true;
+        }
+      } catch {
+        remaining.push(mutation);
+      }
+    }
+    pendingMutationsRef.current = remaining;
+    await persist({ pendingMutations: remaining });
+    if (reconciled) await refreshStudentRanking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persist]);
+
   // Retry on an interval and whenever the app returns to the foreground.
   useEffect(() => {
     const interval = setInterval(() => { void retryPendingSyncs(); }, 15_000);
+    const mutationInterval = setInterval(() => { void retryPendingMutations(); }, 15_000);
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void retryPendingSyncs();
+      if (state === "active") {
+        void retryPendingSyncs();
+        void retryPendingMutations();
+      }
     });
     return () => {
       clearInterval(interval);
+      clearInterval(mutationInterval);
       subscription.remove();
     };
-  }, [retryPendingSyncs]);
+  }, [retryPendingSyncs, retryPendingMutations]);
 
   const recordExerciseResult = (
     result: Omit<ExerciseResult, "timestamp">,
-    extra?: { hintsUsed?: number; durationSeconds?: number }
+    extra?: { hintsUsed?: number; durationSeconds?: number; feedbackViewed?: boolean }
   ) => {
     if (!currentStudent) return;
     const hintsUsed = extra?.hintsUsed ?? 0;
     const durationSeconds = extra?.durationSeconds;
-    const full: ExerciseResult = { ...result, timestamp: Date.now(), hintsUsed, durationSeconds };
+    const feedbackViewed = extra?.feedbackViewed ?? false;
+    const full: ExerciseResult = { ...result, timestamp: Date.now(), hintsUsed, durationSeconds, feedbackViewed };
     // Sync to backend, retrying later if it fails so XP is never lost.
     if (currentStudent.backendId) {
       const sync: PendingExerciseSync = {
@@ -618,6 +778,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         attempts: result.attempts,
         answer: result.selectedAnswer || null,
         hintsUsed,
+        feedbackViewed,
         durationSeconds: durationSeconds ?? null,
         questionText: result.questionText ?? null,
         topicName: result.topicName ?? null,
@@ -636,7 +797,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setCurrentStudentState((prev) => {
       if (!prev) return prev;
-      const xpGained = getExerciseXp(result);
+       const xpGained = getExerciseXp(full);
       const updated: StudentRecord = {
         ...prev,
         totalXP: prev.totalXP + xpGained,
@@ -646,6 +807,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : prev.completedExercises,
         streak: result.correct ? prev.streak + 1 : prev.streak,
       };
+      const previousRank = getRankForXp(prev.totalXP);
+      const currentRank = getRankForXp(updated.totalXP);
+      if (currentRank.name !== previousRank.name) {
+        updated.rankUpMessage = `🎉 ¡Felicitaciones! Has alcanzado el rango ${currentRank.icon} ${currentRank.name}.`;
+      }
       currentStudentRef.current = updated;
       setAllStudents((sts) => {
         const up = sts.map((s) => (s.id === updated.id ? updated : s));
@@ -655,6 +821,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ session: { role: "student", studentId: updated.id } });
       return updated;
     });
+  };
+
+  const recordHintEvent = async (exerciseId: string, hintId: string) => {
+    const student = currentStudentRef.current;
+    if (!student?.backendId) return { ok: false };
+    try {
+      const result = await apiRecordHint(student.backendId, {
+        exerciseId, hintId, clientId: `hint-${student.backendId}-${exerciseId}-${hintId}`,
+      });
+      updateStudentFromServer(result.student);
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  };
+
+  const recordFeedbackView = async (exerciseClientId: string) => {
+    const student = currentStudentRef.current;
+    if (!student?.backendId) return { ok: false };
+    try {
+      const result = await apiRecordFeedbackView(student.backendId, exerciseClientId);
+      updateStudentFromServer(result.student);
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   };
 
   const markTheoryRead = (moduleId: string) => {
@@ -683,9 +875,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const saveDiagnosticProfile = async (profile: DiagnosticProfile) => {
+  const saveDiagnosticProfile = async (profile: DiagnosticProfile, sessionId: string) => {
     if (!currentStudent) return;
-    const updated: StudentRecord = { ...currentStudent, diagnosticProfile: profile };
+    const firstDiagnostic = !currentStudent.diagnosticProfile;
+    const updated: StudentRecord = {
+      ...currentStudent,
+      diagnosticProfile: profile,
+      totalXP: currentStudent.totalXP + (firstDiagnostic ? 50 : 0),
+    };
     currentStudentRef.current = updated;
     setCurrentStudentState(updated);
     setAllStudents((sts) => {
@@ -695,10 +892,110 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     if (currentStudent.backendId) {
       try {
-        await apiSaveDiagnosticProfile(currentStudent.backendId, profile);
+        const result = await apiSaveDiagnosticProfile(currentStudent.backendId, profile, sessionId);
+        updateStudentFromServer(result.student);
       } catch {
-        // The local profile remains available and will be retried on the next save.
+        const mutation: PendingMutation = {
+          id: `diagnostic-${currentStudent.backendId}-${sessionId}`,
+          kind: "diagnostic",
+          backendId: currentStudent.backendId,
+          payload: { profile, sessionId },
+        };
+        pendingMutationsRef.current = [
+          ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id),
+          mutation,
+        ];
+        void persist({ pendingMutations: pendingMutationsRef.current });
       }
+    }
+  };
+
+  const updateStudentFromServer = (
+    serverStudent: Omit<Partial<Omit<StudentRecord, "id">>, "diagnosticProfile"> & {
+      diagnosticProfile?: DiagnosticProfile | null;
+    }
+  ) => {
+    const previous = currentStudentRef.current;
+    if (!previous) return;
+    const updated: StudentRecord = {
+      ...previous,
+      ...serverStudent,
+      diagnosticProfile: serverStudent.diagnosticProfile ?? previous.diagnosticProfile,
+    };
+    if (getRankForXp(updated.totalXP).name !== getRankForXp(previous.totalXP).name) {
+      const rank = getRankForXp(updated.totalXP);
+      updated.rankUpMessage = `🎉 ¡Felicitaciones! Has alcanzado el rango ${rank.icon} ${rank.name}.`;
+    }
+    currentStudentRef.current = updated;
+    setCurrentStudentState(updated);
+    setAllStudents((studentsList) => {
+      const next = studentsList.map((student) => student.id === updated.id ? updated : student);
+      persist({ allStudents: next });
+      return next;
+    });
+  };
+
+  const saveSessionReflection = async (data: {
+    sessionId: string;
+    understood: string;
+    mistakes: string;
+    helpful: string;
+    remainingQuestions: string;
+  }) => {
+    const student = currentStudentRef.current;
+    if (!student?.backendId) return { ok: false, error: "Estudiante sin conexión al servidor." };
+    try {
+      const result = await apiSaveSessionReflection(student.backendId, {
+        ...data,
+        clientId: `session-reflection-${data.sessionId}`,
+      });
+      updateStudentFromServer(result.student);
+      return { ok: true };
+    } catch (error) {
+      const mutation: PendingMutation = {
+        id: `session-reflection-${student.backendId}-${data.sessionId}`,
+        kind: "session-reflection",
+        backendId: student.backendId,
+        payload: { ...data, clientId: `session-reflection-${data.sessionId}` },
+      };
+      pendingMutationsRef.current = [
+        ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id),
+        mutation,
+      ];
+      void persist({ pendingMutations: pendingMutationsRef.current });
+      return { ok: false, error: error instanceof Error ? error.message : "No se pudo guardar la reflexión." };
+    }
+  };
+
+  const saveWeeklyReflection = async (data: {
+    weekStart: string;
+    mostImportant: string;
+    mainDifficulty: string;
+    appHelp: string;
+    advice: string;
+  }) => {
+    const student = currentStudentRef.current;
+    if (!student?.backendId) return { ok: false, error: "Estudiante sin conexión al servidor." };
+    try {
+      const result = await apiSaveWeeklyReflection(student.backendId, {
+        ...data,
+        clientId: `weekly-reflection-${data.weekStart}`,
+      });
+      updateStudentFromServer(result.student);
+      return { ok: true };
+    } catch (error) {
+      const mutation: PendingMutation = {
+        id: `weekly-reflection-${student.backendId}-${data.weekStart}`,
+        kind: "weekly-reflection",
+        backendId: student.backendId,
+        payload: { ...data, clientId: `weekly-reflection-${data.weekStart}` },
+      };
+      pendingMutationsRef.current = [
+        ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id),
+        mutation,
+      ];
+      void persist({ pendingMutations: pendingMutationsRef.current });
+      return { ok: false, error: error instanceof Error ? error.message : "No se pudo guardar la reflexión." };
     }
   };
 
@@ -753,6 +1050,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completedModules: bs.completedModules,
           completedTopics: bs.completedTopics,
           completedExercises: bs.completedExercises,
+          badges: bs.badges ?? existing?.badges,
           exerciseResults: existing?.exerciseResults ?? [],
           lastLogin: existing?.lastLogin ?? Date.now(),
           diagnosticProfile: bs.diagnosticProfile ?? existing?.diagnosticProfile,
@@ -766,6 +1064,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setAllStudents(updatedStudents);
+      const reconciled = fetched.find((student) => student.backendId === backendId);
+      if (reconciled) {
+        const previous = currentStudentRef.current;
+        if (previous && getRankForXp(reconciled.totalXP).name !== getRankForXp(previous.totalXP).name) {
+          const rank = getRankForXp(reconciled.totalXP);
+          reconciled.rankUpMessage = `🎉 ¡Felicitaciones! Has alcanzado el rango ${rank.icon} ${rank.name}.`;
+        }
+        currentStudentRef.current = reconciled;
+        setCurrentStudentState(reconciled);
+      }
       await persist({ allStudents: updatedStudents });
     } catch {
       // Keep the last known ranking visible when the network is unavailable.
@@ -798,6 +1106,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               completedModules: bs.completedModules,
               completedTopics: bs.completedTopics,
               completedExercises: bs.completedExercises,
+              badges: bs.badges ?? existing?.badges,
               exerciseResults: existing?.exerciseResults ?? [],
               lastLogin: existing?.lastLogin ?? Date.now(),
               diagnosticProfile: bs.diagnosticProfile ?? existing?.diagnosticProfile,
@@ -822,7 +1131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : allStudents
     ).filter((s) => s.diagnosticProfile);
 
-    const categories = ["aritmetica", "propiedades", "terminos", "variables", "igualdad"];
+    const categories = ["aritmetica", "propiedades", "terminos", "variables", "igualdad", "patrones"];
     return categories.map((cat) => {
       const scores = students
         .map((s) => {
@@ -843,6 +1152,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         isAuthenticated,
         role,
+        teacherCode: activeTeacherCode,
         currentStudent,
         login,
         logout,
@@ -854,12 +1164,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         evaluationCodes,
         addEvaluationCode,
         recordExerciseResult,
+        recordHintEvent,
+        recordFeedbackView,
         markTheoryRead,
         completeLevel,
         completeModule,
+        startActivitySession,
         completeTopicPractice,
         moduleProgress,
         saveDiagnosticProfile,
+        saveSessionReflection,
+        saveWeeklyReflection,
         refreshTeacherData,
         isRefreshingTeacher,
         refreshStudentRanking,
