@@ -1,0 +1,194 @@
+Implementación de perfiles, rangos, XP y reflexión metacognitiva en el ITS
+Contexto pedagógico
+La aplicación está diseñada para estudiantes de grado octavo que aún no han estudiado formalmente la factorización.
+Antes de iniciar el aprendizaje de la factorización, los estudiantes realizan un diagnóstico sobre conocimientos previos relacionados con aritmética, pensamiento algebraico y reconocimiento de patrones.
+El objetivo es ofrecer rutas de aprendizaje personalizadas para que cada estudiante fortalezca los conocimientos necesarios antes de abordar los distintos casos de factorización.
+________________________________________
+1. Crear cuatro perfiles pedagógicos
+Los perfiles deben ser definidos automáticamente a partir de los resultados del diagnóstico.
+Estos perfiles representan el punto de partida del estudiante y las necesidades de aprendizaje identificadas.
+Perfil 1: 🌱 Aprendiz Numérico
+Características
+Presenta dificultades importantes en:
+•	Operaciones con números naturales.
+•	Números enteros y ley de signos.
+•	Fracciones y números racionales.
+•	Potencias y sus propiedades.
+Misión visible para el estudiante
+🛠️ Fortaleciendo mis herramientas matemáticas.
+________________________________________
+Perfil 2: 🔥 Constructor Algebraico
+Características
+Posee bases numéricas aceptables, pero presenta dificultades en:
+•	Variables.
+•	Expresiones algebraicas.
+•	Términos semejantes.
+•	Comprensión del signo igual como equivalencia.
+Misión visible
+🔓 Descifrando el lenguaje del álgebra.
+________________________________________
+Perfil 3: 🔍 Cazador de Patrones
+Características
+Comprende razonablemente el lenguaje algebraico, pero presenta dificultades para:
+•	Reconocer estructuras.
+•	Identificar patrones matemáticos.
+•	Relacionar expresiones algebraicas.
+Misión visible
+🧩 Descubriendo patrones ocultos.
+________________________________________
+Perfil 4: 🚀 Explorador de la Factorización
+Características
+Presenta un desempeño sólido en conocimientos previos y está preparado para iniciar directamente el aprendizaje de la factorización.
+Misión visible
+🚀 Preparado para conquistar la factorización.
+________________________________________
+2. Crear sistema de rangos tipo videojuego
+Los perfiles indican necesidades de aprendizaje.
+Los rangos representan progreso y esfuerzo dentro de la plataforma.
+Todos los estudiantes comienzan en:
+🥉 Bronce
+Y pueden avanzar a:
+🥈 Plata
+🥇 Oro
+💎 Diamante
+🔥 Heroico
+👑 Gran Maestro
+Los rangos deben visualizarse permanentemente en el perfil del estudiante.
+________________________________________
+3. Sistema de experiencia (XP)
+Actividades diagnósticas
+Completar diagnóstico completo: +50 XP
+Completar una sección del diagnóstico: +10 XP
+________________________________________
+Ejercicios
+Respuesta correcta en el primer intento
++25 XP
+Respuesta correcta en el segundo intento
++20 XP
+Respuesta correcta en el tercer intento
++15 XP
+Respuesta correcta después de varios intentos
++10 XP
+Respuesta incorrecta
++5 XP
+Esto busca valorar el intento y reducir el miedo al error.
+Respuesta corregida después de equivocarse
++15 XP adicionales
+________________________________________
+Uso de retroalimentación
+Leer una retroalimentación: +5 XP
+Abrir una pista: +3 XP
+Utilizar correctamente una pista y resolver el ejercicio: +10 XP
+________________________________________
+Persistencia
+Resolver una actividad después de varios errores: +20 XP
+Completar una sesión completa: +30 XP
+Completar todas las actividades programadas para una semana: +75 XP
+________________________________________
+Temas de factorización
+Al finalizar exitosamente cada tema:
+•	Reconocimiento de patrones.
+•	Factor común.
+•	Factor común por agrupación.
+•	Trinomio cuadrado perfecto.
+•	Diferencia de cuadrados.
+•	Trinomio de la forma x²+bx+c.
+•	Cubo de un binomio.
+•	Suma y diferencia de cubos.
+Otorgar:
++50 XP
+________________________________________
+Logros especiales
+Resolver 5 ejercicios seguidos correctamente: +30 XP
+Resolver 10 ejercicios seguidos correctamente: +50 XP
+Corregir 10 errores: +50 XP
+Finalizar una ruta completa: +150 XP
+________________________________________
+4. Sistema de rangos a partir del XP
+🥉 Bronce 0 - 500 XP
+🥈 Plata 501 - 1200 XP
+🥇 Oro 1201 - 2200 XP
+💎 Diamante 2201 - 3500 XP
+🔥 Heroico 3501 - 5000 XP
+👑 Gran Maestro Más de 5000 XP
+Cuando el estudiante cambie de rango deberá aparecer una animación o mensaje como:
+🎉 ¡Felicitaciones!
+Has alcanzado el rango:
+💎 Diamante
+Sigue avanzando para convertirte en un verdadero maestro de la factorización.
+________________________________________
+5. Incorporar reflexión metacognitiva
+Actualmente la aplicación no tiene este componente.
+Se debe agregar un espacio obligatorio al finalizar cada sesión de trabajo.
+Reflexión rápida
+El estudiante responderá:
+Hoy comprendí:
+(Cuadro de texto)
+Hoy me equivoqué en:
+(Cuadro de texto)
+Lo que más me ayudó fue:
+(Cuadro de texto)
+Lo que todavía no entiendo es:
+(Cuadro de texto)
+Al completar la reflexión:
++20 XP
+________________________________________
+6. Reflexión semanal
+Al finalizar cada semana:
+¿Qué fue lo más importante que aprendiste esta semana?
+(Cuadro de texto)
+¿Cuál fue tu principal dificultad?
+(Cuadro de texto)
+¿Cómo te ayudó la aplicación a superar esa dificultad?
+(Cuadro de texto)
+¿Qué consejo le darías a otro estudiante?
+(Cuadro de texto)
+Al completar:
++50 XP
+________________________________________
+7. Panel visible para el estudiante
+Mostar siempre:
+Nombre.
+Perfil actual.
+Rango actual.
+XP acumulada.
+XP necesaria para el siguiente nivel.
+Misión actual.
+Porcentaje de avance.
+Insignias obtenidas.
+Ejemplo:
+🌱 Aprendiz Numérico
+🥈 Plata
+XP: 720 / 1200
+Misión: Fortaleciendo mis herramientas matemáticas
+Progreso: 65%
+Insignias: 🎯 Cazador de errores ⚡ Persistente
+Próximo rango: 🥇 Oro
+________________________________________
+8. Insignias
+🎯 Cazador de Errores Corrigió 10 errores.
+🔍 Observador de Patrones Reconoció correctamente varios patrones.
+⚡ Persistente Resolvió actividades después de varios intentos.
+🧠 Pensador Crítico Completó todas las reflexiones metacognitivas.
+🏆 Maestro de Factorización Completó todos los casos de factorización.
+🤝 Mentor Matemático Ayudó a compañeros en actividades colaborativas.
+________________________________________
+9. Información para la investigación
+La aplicación debe almacenar automáticamente:
+•	Perfil inicial.
+•	Perfil final.
+•	Rango inicial.
+•	Rango final.
+•	XP acumulada.
+•	Temas completados.
+•	Tiempo de uso.
+•	Número de intentos.
+•	Número de errores.
+•	Errores más frecuentes.
+•	Pistas utilizadas.
+•	Retroalimentaciones consultadas.
+•	Reflexiones metacognitivas.
+•	Reflexiones semanales.
+•	Fecha de cada actividad.
+Toda esta información debe estar disponible para exportación y análisis posterior dentro de la investigación.
+Importante: el sistema nunca debe castigar el error. La lógica pedagógica debe estar basada en el aprendizaje personalizado, la motivación, la persistencia y la mejora continua.
