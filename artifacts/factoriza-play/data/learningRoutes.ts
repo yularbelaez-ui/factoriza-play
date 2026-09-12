@@ -170,15 +170,8 @@ export const LEARNING_ROUTES: Record<LearningRouteCode, LearningRoute> = {
     icon: "🔍",
     steps: [
       {
-        id: "patrones",
-        title: "Módulo 1 · Reconocimiento de patrones",
-        description: "Detecta semejanzas, términos repetidos y estructuras.",
-        icon: "🔎",
-        moduleId: "reconocimiento-patrones",
-      },
-      {
         id: "factor-comun",
-        title: "Módulo 2 · Factor común",
+        title: "Módulo 1 · Factor común",
         description: "Avanza de factor numérico a literal y mixto.",
         icon: "🔢",
         moduleId: "factor-comun",

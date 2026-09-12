@@ -32,13 +32,11 @@ import {
 } from "@/lib/api";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
-  "reconocimiento-patrones": "Reconocimiento de patrones",
   "factor-comun": "Factor común",
   "agrupacion-terminos": "Agrupación de términos",
   "trinomio-cuadrado-perfecto": "Trinomio cuadrado perfecto",
   "diferencia-cuadrados": "Diferencia de cuadrados",
   "trinomio-forma-x2-bx-c": "Trinomio x² + bx + c",
-  "trinomio-ax2-bx-c": "Trinomio ax² + bx + c",
   "cubo-binomio": "Cubo de un binomio",
   "suma-diferencia-cubos": "Suma / diferencia de cubos",
 };

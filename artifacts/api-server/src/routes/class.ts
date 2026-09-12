@@ -6,6 +6,9 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
 const connectors = new ReplitConnectors();
+const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const isRetiredExercise = (exerciseId: string) =>
+  exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
 
 function toStudentData(s: typeof students.$inferSelect) {
   return {
@@ -15,8 +18,8 @@ function toStudentData(s: typeof students.$inferSelect) {
     totalXP: s.totalXP,
     streak: s.streak,
     completedTopics: s.completedTopics ?? [],
-    completedModules: s.completedModules ?? [],
-    completedExercises: s.completedExercises ?? [],
+    completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
+    completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
     diagnosticProfile: s.diagnosticProfile ?? null,
   };
 }
@@ -147,6 +150,7 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
   const results = await db
     .select({
       moduleId: exerciseResults.moduleId,
+      exerciseId: exerciseResults.exerciseId,
       correct: exerciseResults.correct,
       hintsUsed: exerciseResults.hintsUsed,
       durationSeconds: exerciseResults.durationSeconds,
@@ -182,6 +186,10 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
   const byModule = new Map<string, Agg>();
 
   for (const r of results) {
+    if (
+      (r.moduleId && RETIRED_MODULE_IDS.has(r.moduleId)) ||
+      isRetiredExercise(r.exerciseId)
+    ) continue;
     if (!r.moduleId) continue;
     let agg = byModule.get(r.moduleId);
     if (!agg) {
@@ -301,6 +309,10 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
   const byStudent = new Map<number, Map<string, ModAgg>>();
 
   for (const r of results) {
+    if (
+      (r.moduleId && RETIRED_MODULE_IDS.has(r.moduleId)) ||
+      isRetiredExercise(r.exerciseId)
+    ) continue;
     if (!r.moduleId || !r.exerciseId) continue;
     let moduleMap = byStudent.get(r.studentId);
     if (!moduleMap) {

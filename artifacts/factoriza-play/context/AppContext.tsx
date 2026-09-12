@@ -121,15 +121,13 @@ export interface ErrorSummary {
 
 const TEACHER_CODE = "Karyul04";
 
-// Orden de desbloqueo progresivo: reconocer patrones antes de aplicar cada caso.
+// Orden de desbloqueo progresivo de los casos activos.
 const MODULE_ORDER = [
-  "reconocimiento-patrones",
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",
   "diferencia-cuadrados",
   "trinomio-forma-x2-bx-c",
-  "trinomio-ax2-bx-c",
   "cubo-binomio",
   "suma-diferencia-cubos",
 ];

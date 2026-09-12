@@ -6,6 +6,9 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
 const connectors = new ReplitConnectors();
+const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const isRetiredExercise = (exerciseId: string) =>
+  exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 
@@ -114,8 +117,8 @@ function toStudentData(s: typeof students.$inferSelect) {
     totalXP: s.totalXP,
     streak: s.streak,
     completedTopics: s.completedTopics ?? [],
-    completedModules: s.completedModules ?? [],
-    completedExercises: s.completedExercises ?? [],
+    completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
+    completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
     diagnosticProfile: s.diagnosticProfile ?? null,
   };
 }
@@ -303,6 +306,10 @@ router.post("/students/:studentId/evidence", async (req, res) => {
     res.status(400).json({ error: "exerciseId, topicName, imageBase64 and clientId are required" });
     return;
   }
+  if (isRetiredExercise(exerciseId)) {
+    res.status(410).json({ error: "Este ejercicio fue retirado" });
+    return;
+  }
   const existing = await db.select().from(exerciseResults).where(and(
     eq(exerciseResults.studentId, studentId), eq(exerciseResults.clientId, clientId.trim()),
   )).limit(1);
@@ -396,6 +403,10 @@ router.post("/students/:studentId/modules", async (req, res) => {
   const { moduleId } = req.body as { moduleId?: string };
   if (isNaN(studentId) || !moduleId?.trim()) {
     res.status(400).json({ error: "studentId and moduleId are required" });
+    return;
+  }
+  if (RETIRED_MODULE_IDS.has(moduleId.trim())) {
+    res.status(410).json({ error: "Este módulo fue retirado" });
     return;
   }
 

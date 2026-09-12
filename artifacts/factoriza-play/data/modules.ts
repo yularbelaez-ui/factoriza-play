@@ -36,7 +36,7 @@ export interface Exercise {
   realWorld?: string;
 }
 
-export const MODULES: FactorizationModule[] = [
+const ALL_MODULES: FactorizationModule[] = [
   {
     id: "reconocimiento-patrones",
     title: "Reconocimiento de Patrones",
@@ -1458,14 +1458,21 @@ export const MODULES: FactorizationModule[] = [
   },
 ];
 
-export const MODULE_CASE_ORDER = [
+const RETIRED_MODULE_IDS = new Set([
   "reconocimiento-patrones",
+  "trinomio-ax2-bx-c",
+]);
+
+export const MODULES: FactorizationModule[] = ALL_MODULES.filter(
+  (module) => !RETIRED_MODULE_IDS.has(module.id)
+);
+
+export const MODULE_CASE_ORDER = [
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",
   "diferencia-cuadrados",
   "trinomio-forma-x2-bx-c",
-  "trinomio-ax2-bx-c",
   "cubo-binomio",
   "suma-diferencia-cubos",
 ];
