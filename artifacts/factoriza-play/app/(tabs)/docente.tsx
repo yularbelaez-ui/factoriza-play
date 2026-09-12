@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { File as ExpoFile, Paths as ExpoPaths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES, MODULE_CASE_ORDER } from "@/data/modules";
@@ -30,6 +32,7 @@ import {
   apiGetClassStudentAnalytics,
   ApiStudentAnalytics,
   apiResearchExportUrl,
+  apiStudentPdfUrl,
 } from "@/lib/api";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
@@ -128,6 +131,7 @@ export default function DocenteScreen() {
   const [studentAnalytics, setStudentAnalytics] = useState<Record<number, ApiStudentAnalytics>>({});
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<number>>(new Set());
   const [expandedModuleKeys, setExpandedModuleKeys] = useState<Set<string>>(new Set());
+  const [downloadingStudentId, setDownloadingStudentId] = useState<number | null>(null);
   const isWeb = Platform.OS === "web";
 
   const toggleStudentExpanded = (studentId: number) => {
@@ -145,6 +149,41 @@ export default function DocenteScreen() {
       else next.add(key);
       return next;
     });
+  };
+
+  const downloadStudentReport = async (student: (typeof allStudents)[number]) => {
+    if (!teacherCode || student.backendId == null || downloadingStudentId !== null) return;
+    const studentId = student.backendId;
+    setDownloadingStudentId(studentId);
+    try {
+      const url = await apiStudentPdfUrl(teacherCode, student.classCode, studentId);
+      if (Platform.OS === "web") {
+        await Linking.openURL(url);
+        return;
+      }
+      const fileName = `factoriza-${student.classCode}-${student.pseudonym}`
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 90) || `estudiante-${studentId}`;
+      const destination = new ExpoFile(ExpoPaths.cache, `${fileName}-reporte.pdf`);
+      const downloaded = await ExpoFile.downloadFileAsync(url, destination, { idempotent: true });
+      if (!(await Sharing.isAvailableAsync())) {
+        throw new Error("El dispositivo no tiene disponible la opción para compartir archivos.");
+      }
+      await Sharing.shareAsync(downloaded.uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Compartir informe PDF",
+      });
+    } catch (error) {
+      Alert.alert(
+        "No se pudo descargar el informe",
+        error instanceof Error ? error.message : "Intenta de nuevo más tarde.",
+      );
+    } finally {
+      setDownloadingStudentId(null);
+    }
   };
 
   // Sync students from backend on mount and every 30 s
@@ -689,6 +728,28 @@ export default function DocenteScreen() {
 
                   {isStudentExpanded && (
                     <View style={{ marginTop: 6, marginBottom: 4, gap: 10 }}>
+                      {teacherCode && student.backendId != null && (
+                        <TouchableOpacity
+                          accessibilityLabel={`Descargar informe PDF de ${student.pseudonym}`}
+                          style={[
+                            styles.downloadReportBtn,
+                            { borderColor: colors.primary + "55", backgroundColor: colors.primary + "0d" },
+                          ]}
+                          onPress={() => void downloadStudentReport(student)}
+                          disabled={downloadingStudentId !== null}
+                        >
+                          {downloadingStudentId === student.backendId ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                          ) : (
+                            <Feather name="download" size={15} color={colors.primary} />
+                          )}
+                          <Text style={[styles.downloadReportText, { color: colors.primary }]}>
+                            {downloadingStudentId === student.backendId
+                              ? "Preparando PDF..."
+                              : "Descargar PDF"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                       <View style={[styles.moduleAnalyticsCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "25" }]}>
                         <Text style={[styles.moduleAnalyticsTitle, { color: colors.foreground }]}>
                           Ruta y actividades
@@ -1479,6 +1540,17 @@ const styles = StyleSheet.create({
   miniStatLabel: { fontSize: 10, fontWeight: "500" },
   detailToggleBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, marginBottom: 2, alignSelf: "flex-start" },
   detailToggleText: { fontSize: 11.5, fontWeight: "700" },
+  downloadReportBtn: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  downloadReportText: { fontSize: 12, fontWeight: "800" },
   moduleAnalyticsCard: { borderRadius: 12, padding: 10, borderWidth: 1 },
   moduleAnalyticsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   moduleAnalyticsTitle: { fontSize: 12.5, fontWeight: "700", flex: 1 },

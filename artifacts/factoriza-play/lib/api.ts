@@ -407,3 +407,20 @@ export async function apiDeleteStudent(
 export function apiResearchExportUrl(teacherCode: string, classCode: string): string {
   return `${API}/teacher/${encodeURIComponent(teacherCode)}/classes/${encodeURIComponent(classCode)}/export`;
 }
+
+export async function apiStudentPdfUrl(
+  teacherCode: string,
+  classCode: string,
+  studentId: number,
+): Promise<string> {
+  const response = await apiFetch<{ url: string }>("/teacher/student-report-token", {
+    method: "POST",
+    body: JSON.stringify({ teacherCode, classCode, studentId }),
+  });
+  if (!response.url) throw new Error("El servidor no devolvió un enlace de informe.");
+  if (/^https?:\/\//i.test(response.url)) return response.url;
+  const base = BASE.replace(/\/+$/, "");
+  return response.url.startsWith("/")
+    ? `${base}${response.url}`
+    : `${API}/${response.url}`;
+}
