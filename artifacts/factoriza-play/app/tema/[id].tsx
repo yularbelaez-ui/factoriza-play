@@ -181,9 +181,10 @@ export default function TemaScreen() {
       setDisabledOptions([]);
       setPhase("idle");
     } else {
-      if (sessionId) {
-        router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: topic.id, topicId: topic.id } });
-      }
+      // Show the local result card first. Previously this button only tried
+      // to open a reflection when a session existed, so it appeared to do
+      // nothing for practices without a server session.
+      setPracticeFinished(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
