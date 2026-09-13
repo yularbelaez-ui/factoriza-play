@@ -59,6 +59,9 @@ export interface ApiStudentData {
   classCode: string;
   totalXP: number;
   streak: number;
+  dailyXP: number;
+  dailyXPDate?: string | null;
+  streakLastDate?: string | null;
   completedTopics: string[];
   completedModules: string[];
   completedExercises: string[];

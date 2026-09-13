@@ -7,3 +7,4 @@
 - [Evidencias y reflexiones docentes](factoriza-evidence-reflections.md) — fotos y reflexiones se vinculan al resultado idempotente y se organizan por estudiante, tema y ejercicio
 - [Conectores en producción](connectors-production-republish.md) — añadir o cambiar un conector exige volver a publicar para que la conexión llegue al despliegue
 - [Calificaciones académicas](factoriza-academic-grades.md) — notas 1.0–5.0 coexisten con XP; usan evidencia real 40/30/20/10 y excluyen Reconocimiento de patrones
+- [Racha diaria por XP](factoriza-daily-streak.md) — un día solo cuenta con mínimo 200 XP, calculado en America/Bogota y sin duplicar el día

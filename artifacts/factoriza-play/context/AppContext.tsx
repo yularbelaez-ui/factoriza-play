@@ -41,6 +41,9 @@ export interface StudentRecord {
   avatar: string;
   streak: number;
   totalXP: number;
+  dailyXP: number;
+  dailyXPDate?: string | null;
+  streakLastDate?: string | null;
   completedModules: string[];
   completedTopics: string[];
   completedExercises: string[];
@@ -110,6 +113,44 @@ function getExerciseXp(
   const correction = result.correct && result.attempts > 1 ? 15 : 0;
   const hints = (result.hintsUsed ?? 0) * 3 + (result.correct && (result.hintsUsed ?? 0) > 0 ? 10 : 0);
   return base + correction + hints;
+}
+
+const DAILY_STREAK_XP = 200;
+
+function bogotaDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function previousDateKey(dateKey: string): string {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function applyLocalXp(student: StudentRecord, awardXp: number): Pick<
+  StudentRecord,
+  "streak" | "dailyXP" | "dailyXPDate" | "streakLastDate"
+> {
+  const today = bogotaDateKey();
+  const sameDay = student.dailyXPDate === today;
+  const priorDailyXP = sameDay ? (student.dailyXP ?? 0) : 0;
+  const dailyXP = priorDailyXP + awardXp;
+  let streak = student.streakLastDate ? (student.streak ?? 0) : 0;
+  let streakLastDate = student.streakLastDate ?? null;
+
+  if (dailyXP >= DAILY_STREAK_XP && priorDailyXP < DAILY_STREAK_XP) {
+    streak = streakLastDate === previousDateKey(today) ? streak + 1 : 1;
+    streakLastDate = today;
+  }
+
+  return { streak, dailyXP, dailyXPDate: today, streakLastDate };
 }
 
 export interface ClassCode {
@@ -409,6 +450,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let backendStudent: {
       id: number; pseudonym: string; classCode: string;
       totalXP: number; streak: number;
+      dailyXP: number; dailyXPDate?: string | null; streakLastDate?: string | null;
       completedTopics: string[]; completedModules: string[]; completedExercises: string[];
       diagnosticProfile?: DiagnosticProfile | null;
       badges?: { id: string; label: string; icon: string }[];
@@ -435,6 +477,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       avatar: existing?.avatar ?? getRandomAvatar(),
       streak: backendStudent.streak,
       totalXP: backendStudent.totalXP,
+      dailyXP: backendStudent.dailyXP ?? 0,
+      dailyXPDate: backendStudent.dailyXPDate ?? null,
+      streakLastDate: backendStudent.streakLastDate ?? null,
       completedModules: backendStudent.completedModules,
       completedTopics: backendStudent.completedTopics,
       completedExercises: backendStudent.completedExercises,
@@ -539,6 +584,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...currentStudent,
       completedModules: [...currentStudent.completedModules, moduleId],
       totalXP: currentStudent.totalXP + 50,
+      ...applyLocalXp(currentStudent, 50),
     };
     currentStudentRef.current = updated;
     setCurrentStudentState(updated);
@@ -801,11 +847,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const updated: StudentRecord = {
         ...prev,
         totalXP: prev.totalXP + xpGained,
+        ...applyLocalXp(prev, xpGained),
         exerciseResults: [...prev.exerciseResults, full],
         completedExercises: result.correct
           ? [...new Set([...prev.completedExercises, result.exerciseId])]
           : prev.completedExercises,
-        streak: result.correct ? prev.streak + 1 : prev.streak,
       };
       const previousRank = getRankForXp(prev.totalXP);
       const currentRank = getRankForXp(updated.totalXP);
@@ -882,6 +928,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...currentStudent,
       diagnosticProfile: profile,
       totalXP: currentStudent.totalXP + (firstDiagnostic ? 50 : 0),
+      ...(firstDiagnostic ? applyLocalXp(currentStudent, 50) : {}),
     };
     currentStudentRef.current = updated;
     setCurrentStudentState(updated);
@@ -1047,6 +1094,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           avatar: existing?.avatar ?? getRandomAvatar(),
           streak: bs.streak,
           totalXP: bs.totalXP,
+          dailyXP: bs.dailyXP ?? 0,
+          dailyXPDate: bs.dailyXPDate ?? null,
+          streakLastDate: bs.streakLastDate ?? null,
           completedModules: bs.completedModules,
           completedTopics: bs.completedTopics,
           completedExercises: bs.completedExercises,
@@ -1103,6 +1153,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               avatar: existing?.avatar ?? getRandomAvatar(),
               streak: bs.streak,
               totalXP: bs.totalXP,
+              dailyXP: bs.dailyXP ?? 0,
+              dailyXPDate: bs.dailyXPDate ?? null,
+              streakLastDate: bs.streakLastDate ?? null,
               completedModules: bs.completedModules,
               completedTopics: bs.completedTopics,
               completedExercises: bs.completedExercises,

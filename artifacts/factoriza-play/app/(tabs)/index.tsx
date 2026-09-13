@@ -71,6 +71,17 @@ export default function HomeScreen() {
   );
 
   const dp = currentStudent.diagnosticProfile;
+  const todayParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const todayValues = Object.fromEntries(todayParts.map((part) => [part.type, part.value]));
+  const todayKey = `${todayValues.year}-${todayValues.month}-${todayValues.day}`;
+  const dailyXP = currentStudent.dailyXPDate === todayKey ? currentStudent.dailyXP : 0;
+  const dailyGoalProgress = Math.min(100, Math.round((dailyXP / 200) * 100));
+  const currentStreak = currentStudent.streakLastDate ? currentStudent.streak : 0;
   const rank = getRankForXp(currentStudent.totalXP);
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
@@ -147,12 +158,42 @@ export default function HomeScreen() {
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>XP Total</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.accent + "15", borderColor: colors.accent + "30" }]}>
-          <Text style={[styles.statValue, { color: colors.accent }]}>🔥 {currentStudent.streak}</Text>
+          <Text style={[styles.statValue, { color: colors.accent }]}>🔥 {currentStreak}</Text>
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Racha</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.success + "15", borderColor: colors.success + "30" }]}>
           <Text style={[styles.statValue, { color: colors.success }]}>{completedModulesCount}/{totalModules}</Text>
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Casos</Text>
+        </View>
+      </View>
+
+      <View
+        style={[styles.dailyGoalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        accessibilityLabel={`Meta diaria de racha: ${dailyXP} de 200 XP`}
+      >
+        <View style={styles.dailyGoalHeader}>
+          <View style={[styles.dailyGoalIcon, { backgroundColor: colors.accent + "18" }]}>
+            <Feather name="target" size={18} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.dailyGoalTitle, { color: colors.foreground }]}>
+              Meta diaria para mantener la racha
+            </Text>
+            <Text style={[styles.dailyGoalMeta, { color: colors.mutedForeground }]}>
+              {dailyXP >= 200 ? "Día cumplido" : `Te faltan ${200 - dailyXP} XP para cumplir hoy`}
+            </Text>
+          </View>
+          <Text style={[styles.dailyGoalValue, { color: dailyXP >= 200 ? colors.success : colors.accent }]}>
+            {dailyXP}/200
+          </Text>
+        </View>
+        <View style={[styles.dailyGoalTrack, { backgroundColor: colors.border }]}>
+          <View
+            style={[
+              styles.dailyGoalFill,
+              { width: `${dailyGoalProgress}%` as any, backgroundColor: dailyXP >= 200 ? colors.success : colors.accent },
+            ]}
+          />
         </View>
       </View>
 
@@ -710,6 +751,14 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 20, fontWeight: "800", marginBottom: 2 },
   statLabel: { fontSize: 11, fontWeight: "500" },
+  dailyGoalCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 20 },
+  dailyGoalHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dailyGoalIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  dailyGoalTitle: { fontSize: 14, fontWeight: "800" },
+  dailyGoalMeta: { fontSize: 11, marginTop: 3 },
+  dailyGoalValue: { fontSize: 14, fontWeight: "900" },
+  dailyGoalTrack: { height: 7, borderRadius: 4, overflow: "hidden", marginTop: 12 },
+  dailyGoalFill: { height: "100%", borderRadius: 4 },
   rankCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 20 },
   rankHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   rankIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },

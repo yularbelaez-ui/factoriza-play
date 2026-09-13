@@ -48,6 +48,9 @@ const RANKS = [
   { name: "Gran Maestro", icon: "👑", min: 5001, max: null },
 ] as const;
 
+const DAILY_STREAK_XP = 200;
+const BOGOTA_TIME_ZONE = "America/Bogota";
+
 function rankForXp(totalXP: number) {
   const rank = [...RANKS].reverse().find((candidate) => totalXP >= candidate.min) ?? RANKS[0];
   const next = RANKS[RANKS.indexOf(rank) + 1];
@@ -62,6 +65,54 @@ function rankForXp(totalXP: number) {
     progressPercent: next
       ? Math.min(100, Math.round(((totalXP - rank.min) / (next.min - rank.min)) * 100))
       : 100,
+  };
+}
+
+function bogotaDate(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BOGOTA_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function previousDate(dateKey: string): string {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function dailyProgressForXp(
+  student: typeof students.$inferSelect,
+  awardXp: number,
+  now = new Date(),
+) {
+  const today = bogotaDate(now);
+  const sameDay = student.dailyXPDate === today;
+  const previousDailyXP = sameDay ? (student.dailyXP ?? 0) : 0;
+  const dailyXP = previousDailyXP + awardXp;
+  // Profiles created before the daily-goal rule may have a legacy streak
+  // based on consecutive correct answers. Only a dated daily qualification
+  // is valid for the new streak.
+  let streak = student.streakLastDate ? (student.streak ?? 0) : 0;
+  let streakLastDate = student.streakLastDate ?? null;
+
+  if (
+    dailyXP >= DAILY_STREAK_XP &&
+    previousDailyXP < DAILY_STREAK_XP
+  ) {
+    streak = streakLastDate === previousDate(today) ? streak + 1 : 1;
+    streakLastDate = today;
+  }
+
+  return {
+    streak,
+    dailyXP,
+    dailyXPDate: today,
+    streakLastDate,
   };
 }
 
@@ -216,7 +267,10 @@ function toStudentData(s: typeof students.$inferSelect) {
     pseudonym: s.pseudonym,
     classCode: s.classCode,
     totalXP: s.totalXP,
-    streak: s.streak,
+    streak: s.streakLastDate ? s.streak : 0,
+    dailyXP: s.dailyXP ?? 0,
+    dailyXPDate: s.dailyXPDate,
+    streakLastDate: s.streakLastDate,
     rank: rankForXp(s.totalXP),
     badges: derivedBadges(s),
     completedTopics: (s.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
@@ -417,7 +471,6 @@ router.post("/students/:studentId/exercise", async (req, res) => {
         : 0;
       const persistenceAchievement = priorErrors >= 2
         ? { sourceId: `persistence:${clientId.trim()}`, xp: 20 } : null;
-      const newStreak = correct ? student.streak + 1 : 0;
       const priorCorrections = correct && safeAttempts > 1
         ? (await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
             eq(exerciseResults.studentId, studentId),
@@ -427,9 +480,11 @@ router.post("/students/:studentId/exercise", async (req, res) => {
         : 0;
       const correctionAchievement = priorCorrections + 1 === 10
         ? { sourceId: "corrections-10", xp: 50 } : null;
-      const streakAchievement = correct && newStreak === 5
+      const baseAwardXp = xpGain + (correctionAchievement?.xp ?? 0) + (persistenceAchievement?.xp ?? 0);
+      const streakPreview = dailyProgressForXp(student, baseAwardXp);
+      const streakAchievement = correct && streakPreview.streak === 5
         ? { sourceId: "streak-5", xp: 30 }
-        : correct && newStreak === 10 ? { sourceId: "streak-10", xp: 50 } : null;
+        : correct && streakPreview.streak === 10 ? { sourceId: "streak-10", xp: 50 } : null;
       const [achievementEvent] = streakAchievement
         ? await tx.insert(xpEvents).values({
             studentId, eventType: "achievement", sourceId: streakAchievement.sourceId, xp: streakAchievement.xp,
@@ -451,16 +506,19 @@ router.post("/students/:studentId/exercise", async (req, res) => {
       const [event] = await tx.insert(xpEvents).values({
         studentId, eventType: "exercise", sourceId: clientId.trim(), xp: xpGain,
       }).onConflictDoNothing().returning();
+      const totalAwardXp = (event?.xp ?? 0) + (achievementEvent?.xp ?? 0) +
+        (correctionEvent?.xp ?? 0) + (persistenceEvent?.xp ?? 0);
+      const dailyProgress = dailyProgressForXp(student, totalAwardXp);
       const [next] = await tx.update(students).set({
         ...(event ? {
-          totalXP: sql`${students.totalXP} + ${xpGain + (achievementEvent?.xp ?? 0) + (correctionEvent?.xp ?? 0) + (persistenceEvent?.xp ?? 0)}`,
+          totalXP: sql`${students.totalXP} + ${totalAwardXp}`,
           rankHistory: nextRankHistory(
             student,
-            student.totalXP + xpGain + (achievementEvent?.xp ?? 0) + (correctionEvent?.xp ?? 0) +
-              (correctionEvent?.xp ?? 0) + (persistenceEvent?.xp ?? 0),
+            student.totalXP + totalAwardXp,
           ),
+          ...dailyProgress,
         } : {}),
-        streak: newStreak, completedExercises: newCompletedExercises,
+        completedExercises: newCompletedExercises,
       }).where(eq(students.id, studentId)).returning();
       return next;
     });
@@ -587,11 +645,13 @@ router.post("/students/:studentId/session-reflection", async (req, res) => {
         awardXp += diagnosticEvent?.xp ?? 0;
       }
       const durationSeconds = Math.max(0, Math.floor((now.getTime() - session.startedAt.getTime()) / 1000));
+      const dailyProgress = dailyProgressForXp(student, awardXp, now);
       const [updated] = awardXp > 0
         ? await tx.update(students)
           .set({
             totalXP: sql`${students.totalXP} + ${awardXp}`,
             rankHistory: nextRankHistory(student, student.totalXP + awardXp),
+            ...dailyProgress,
           })
           .where(eq(students.id, studentId)).returning()
         : [student];
@@ -644,10 +704,12 @@ router.post("/students/:studentId/weekly-reflection", async (req, res) => {
     const [weeklyXpEvent] = await tx.insert(xpEvents).values({
       studentId, eventType: "weekly-reflection", sourceId: canonicalWeekStart, xp: 50,
     }).onConflictDoNothing().returning();
+    const dailyProgress = dailyProgressForXp(student, weeklyXpEvent?.xp ?? 0);
     const [updated] = weeklyXpEvent
       ? await tx.update(students).set({
           totalXP: sql`${students.totalXP} + 50`,
           rankHistory: nextRankHistory(student, student.totalXP + 50),
+          ...dailyProgress,
         })
         .where(eq(students.id, studentId)).returning()
       : [student];
@@ -776,9 +838,11 @@ router.post("/students/:studentId/hint", async (req, res) => {
       studentId, eventType: "hint", sourceId: `${exerciseId}:${hintId}:${clientId}`, xp: 3,
     }).onConflictDoNothing().returning();
     if (!event) return { student, duplicate: true };
+    const dailyProgress = dailyProgressForXp(student, event.xp);
     const [updated] = await tx.update(students).set({
       totalXP: sql`${students.totalXP} + 3`,
       rankHistory: nextRankHistory(student, student.totalXP + 3),
+      ...dailyProgress,
     }).where(eq(students.id, studentId)).returning();
     return { student: updated, duplicate: false };
   });
@@ -810,6 +874,7 @@ router.post("/students/:studentId/feedback-view", async (req, res) => {
     const [updated] = await tx.update(students).set({
       totalXP: sql`${students.totalXP} + 5`,
       rankHistory: nextRankHistory(student, student.totalXP + 5),
+      ...dailyProgressForXp(student, event.xp),
     }).where(eq(students.id, studentId)).returning();
     return { student: updated, duplicate: false };
   }).catch((error) => {
@@ -855,6 +920,7 @@ router.post("/students/:studentId/modules", async (req, res) => {
             .set({
               totalXP: sql`${students.totalXP} + ${routeEvent.xp}`,
               rankHistory: nextRankHistory(student, student.totalXP + routeEvent.xp),
+               ...dailyProgressForXp(student, routeEvent.xp),
             })
             .where(eq(students.id, studentId)).returning();
           return next;
@@ -872,14 +938,16 @@ router.post("/students/:studentId/modules", async (req, res) => {
           studentId, eventType: "route-completion", sourceId: "ruta-factorizacion", xp: 150,
         }).onConflictDoNothing().returning()
       : [undefined];
+    const totalAwardXp = (moduleXpEvent?.xp ?? 0) + (routeEvent?.xp ?? 0);
     const [next] = await tx.update(students).set({
       completedModules: nextModules,
       ...((moduleXpEvent || routeEvent) ? {
-        totalXP: sql`${students.totalXP} + ${(moduleXpEvent?.xp ?? 0) + (routeEvent?.xp ?? 0)}`,
+        totalXP: sql`${students.totalXP} + ${totalAwardXp}`,
         rankHistory: nextRankHistory(
           student,
-          student.totalXP + (moduleXpEvent?.xp ?? 0) + (routeEvent?.xp ?? 0),
+          student.totalXP + totalAwardXp,
         ),
+        ...dailyProgressForXp(student, totalAwardXp),
       } : {}),
     }).where(eq(students.id, studentId)).returning();
     return next;

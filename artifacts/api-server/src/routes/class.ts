@@ -43,10 +43,13 @@ function toStudentData(s: typeof students.$inferSelect) {
     classCode: s.classCode,
     totalXP: s.totalXP,
     rank: rankForXp(s.totalXP),
+    dailyXP: s.dailyXP ?? 0,
+    dailyXPDate: s.dailyXPDate,
+    streakLastDate: s.streakLastDate,
     badges: (s.completedExercises ?? []).length >= 10
       ? [{ id: "persistente", label: "Persistente", icon: "⚡" }]
       : [],
-    streak: s.streak,
+    streak: s.streakLastDate ? s.streak : 0,
     completedTopics: (s.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
     completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
     completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
