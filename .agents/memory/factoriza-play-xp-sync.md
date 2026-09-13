@@ -32,3 +32,14 @@ una corrección.
 cliente, seguir este mismo patrón (clientId + cola persistida + dedupe server-side) en
 vez de fire-and-forget. Reusar la función de refresh ya protegida contra carreras del
 contexto en cualquier pantalla nueva que muestre ranking, en vez de duplicar el fetch.
+
+Para estudiantes conectados, el total de XP visible debe reconciliarse desde la respuesta
+del servidor después de registrar el ejercicio; el cliente puede guardar el resultado localmente,
+pero no debe sumar otra vez el XP que ya aplicó la API.
+
+**Why:** los eventos de pistas, evidencias o reintentos pueden terminar en respuestas fuera de
+orden; sumar de forma optimista sobre una respuesta del servidor produce totales mayores que los
+eventos reales.
+
+**How to apply:** conserva la actualización desde `student` devuelto por la API tanto en el
+envío inmediato como en los reintentos pendientes.

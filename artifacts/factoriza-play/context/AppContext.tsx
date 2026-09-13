@@ -701,7 +701,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const attemptExerciseSync = useCallback(
     async (sync: PendingExerciseSync): Promise<boolean> => {
       try {
-        await apiRecordExercise(sync.backendId, {
+        const result = await apiRecordExercise(sync.backendId, {
           exerciseId: sync.exerciseId,
           moduleId: sync.moduleId || null,
           correct: sync.correct,
@@ -716,6 +716,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           topicName: sync.topicName,
           correctAnswer: sync.correctAnswer,
         });
+        // The server is the source of truth for connected students. This
+        // prevents the local optimistic XP update from being added on top of
+        // XP already awarded by the API (especially when a hint was recorded
+        // just before the exercise result).
+        updateStudentFromServer(result.student);
         if (sync.evidenceBase64) {
           await apiUploadExerciseEvidence(sync.backendId, {
             exerciseId: sync.exerciseId,
@@ -866,8 +871,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        const xpGained = getExerciseXp(full);
       const updated: StudentRecord = {
         ...prev,
-        totalXP: prev.totalXP + xpGained,
-        ...applyLocalXp(prev, xpGained),
+        ...(prev.backendId
+          ? {}
+          : {
+              totalXP: prev.totalXP + xpGained,
+              ...applyLocalXp(prev, xpGained),
+            }),
         exerciseResults: [...prev.exerciseResults, full],
         completedExercises: result.correct
           ? [...new Set([...prev.completedExercises, result.exerciseId])]
