@@ -570,6 +570,27 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity
+        style={[styles.creditsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => router.push("/creditos" as any)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Abrir créditos y fuentes"
+      >
+        <View style={[styles.creditsIcon, { backgroundColor: colors.primary + "15" }]}>
+          <Feather name="book-open" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.creditsCopy}>
+          <Text style={[styles.creditsTitle, { color: colors.foreground }]}>
+            Créditos y fuentes
+          </Text>
+          <Text style={[styles.creditsSubtitle, { color: colors.mutedForeground }]}>
+            Conoce los recursos educativos que acompañan la app
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -860,4 +881,23 @@ const styles = StyleSheet.create({
   quickCard: { flex: 1, borderRadius: 16, padding: 18, alignItems: "center", borderWidth: 1 },
   quickIcon: { fontSize: 28, marginBottom: 8 },
   quickLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  creditsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 13,
+    marginTop: 14,
+  },
+  creditsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  creditsCopy: { flex: 1, gap: 2 },
+  creditsTitle: { fontSize: 13, fontWeight: "800" },
+  creditsSubtitle: { fontSize: 11, lineHeight: 16 },
 });
