@@ -16,23 +16,35 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
+import { apiValidateEvaluationCode } from "@/lib/api";
 
 export default function EvaluacionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { evaluationCodes, currentStudent } = useApp();
+  const { evaluationCodes, currentStudent, addEvaluationCode } = useApp();
   const [inputCode, setInputCode] = useState("");
   const [enteredModule, setEnteredModule] = useState<string | null>(null);
   const [codeError, setCodeError] = useState("");
   const isWeb = Platform.OS === "web";
 
-  const handleEnterCode = () => {
+  const handleEnterCode = async () => {
     const code = inputCode.trim().toUpperCase();
     const session = evaluationCodes.find((e) => e.code === code);
+    setCodeError("");
+    try {
+      if (currentStudent?.backendId) {
+        const response = await apiValidateEvaluationCode(currentStudent.backendId, code);
+        addEvaluationCode(response.evaluation.moduleId, response.evaluation.code);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setEnteredModule(response.evaluation.moduleId);
+        return;
+      }
+    } catch {
+      // Offline fallback keeps codes prepared on this device usable.
+    }
     if (session) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEnteredModule(session.moduleId);
-      setCodeError("");
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setCodeError("Código incorrecto. Pídelo a tu docente.");

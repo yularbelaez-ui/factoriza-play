@@ -8,6 +8,7 @@ import {
   weeklyReflections,
   xpEvents,
   learningSessions,
+  evalCodes,
 } from "@workspace/db/schema";
 import { eq, sql, and, desc, gt, like } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
@@ -249,6 +250,45 @@ router.get("/students/:studentId", async (req, res) => {
   }
 
   res.json({ student: toStudentData(rows[0]) });
+});
+
+// A code is only activated after the student enters it. The server scopes the
+// lookup to the student's class so a code from another group cannot unlock it.
+router.post("/students/:studentId/evaluation-code", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+  if (!Number.isInteger(studentId) || !code) {
+    res.status(400).json({ error: "studentId y code son obligatorios" });
+    return;
+  }
+
+  const [student] = await db
+    .select({ id: students.id, classCode: students.classCode })
+    .from(students)
+    .where(eq(students.id, studentId))
+    .limit(1);
+  if (!student) {
+    res.status(404).json({ error: "Estudiante no encontrado" });
+    return;
+  }
+
+  const [evaluation] = await db
+    .select({
+      moduleId: evalCodes.moduleId,
+      code: evalCodes.code,
+    })
+    .from(evalCodes)
+    .where(and(
+      eq(evalCodes.classCode, student.classCode),
+      eq(evalCodes.code, code),
+    ))
+    .limit(1);
+  if (!evaluation) {
+    res.status(404).json({ error: "Código de evaluación incorrecto o no activo" });
+    return;
+  }
+
+  res.json({ evaluation });
 });
 
 // Opens one server-owned lifecycle session. A stable clientId makes retries

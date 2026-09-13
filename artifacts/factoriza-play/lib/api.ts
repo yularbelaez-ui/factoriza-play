@@ -398,6 +398,16 @@ export async function apiCreateEvalCode(
   });
 }
 
+export async function apiValidateEvaluationCode(
+  studentId: number,
+  code: string,
+): Promise<{ evaluation: { moduleId: string; code: string } }> {
+  return apiFetch(`/students/${studentId}/evaluation-code`, {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function apiDeleteStudent(
   teacherCode: string,
   studentId: number

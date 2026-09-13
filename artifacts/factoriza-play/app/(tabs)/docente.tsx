@@ -33,7 +33,9 @@ import {
   ApiStudentAnalytics,
   apiResearchExportUrl,
   apiStudentPdfUrl,
+  apiCreateEvalCode,
 } from "@/lib/api";
+import { EVALUATION_ACCESS_CODES } from "@/data/evaluationCodes";
 
 const MODULE_TOPIC_LABELS: Record<string, string> = {
   "factor-comun": "Factor común",
@@ -145,6 +147,7 @@ export default function DocenteScreen() {
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<number>>(new Set());
   const [expandedModuleKeys, setExpandedModuleKeys] = useState<Set<string>>(new Set());
   const [downloadingStudentId, setDownloadingStudentId] = useState<number | null>(null);
+  const [isGeneratingEvalCodes, setIsGeneratingEvalCodes] = useState(false);
   const isWeb = Platform.OS === "web";
 
   const toggleStudentExpanded = (studentId: number) => {
@@ -307,18 +310,57 @@ export default function DocenteScreen() {
     )
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const handleAddEvalCode = () => {
+  const handleAddEvalCode = async () => {
     if (!selectedModuleForEval || !evalCode.trim()) {
       Alert.alert("Error", "Selecciona un caso e ingresa un código.");
       return;
     }
-    addEvaluationCode(selectedModuleForEval, evalCode.trim().toUpperCase());
+    if (!teacherCode || classCodes.length === 0) {
+      Alert.alert("Sin grupo", "Primero debes tener al menos una clase registrada.");
+      return;
+    }
+    const normalizedCode = evalCode.trim().toUpperCase();
+    try {
+      await Promise.all(classCodes.map((classCode) =>
+        apiCreateEvalCode(teacherCode, classCode.code, selectedModuleForEval, normalizedCode),
+      ));
+      addEvaluationCode(selectedModuleForEval, normalizedCode);
+    } catch (error) {
+      Alert.alert("No se pudo activar", error instanceof Error ? error.message : "Intenta de nuevo.");
+      return;
+    }
     const mod = MODULES.find((m) => m.id === selectedModuleForEval);
     Alert.alert(
-      "Código creado",
-      `Código "${evalCode.toUpperCase()}" asignado a "${mod?.title}". Compártelo con tus estudiantes.`
+      "Código activado",
+      `Código "${normalizedCode}" asignado a "${mod?.title}" en ${classCodes.length === 1 ? "tu clase" : "tus clases"}. Compártelo cuando quieras.`
     );
     setEvalCode("");
+  };
+
+  const handleGenerateAllEvalCodes = async () => {
+    if (!teacherCode || classCodes.length === 0 || isGeneratingEvalCodes) {
+      Alert.alert("Sin grupo", "Primero debes tener al menos una clase registrada.");
+      return;
+    }
+    setIsGeneratingEvalCodes(true);
+    try {
+      const results = await Promise.all(
+        EVALUATION_ACCESS_CODES.flatMap(({ moduleId, code }) =>
+          classCodes.map((classCode) =>
+            apiCreateEvalCode(teacherCode, classCode.code, moduleId, code),
+          ),
+        ),
+      );
+      EVALUATION_ACCESS_CODES.forEach(({ moduleId, code }) => addEvaluationCode(moduleId, code));
+      Alert.alert(
+        "7 evaluaciones preparadas",
+        `${results.length === EVALUATION_ACCESS_CODES.length * classCodes.length ? "Los códigos quedaron guardados" : "Algunos códigos quedaron guardados"} en el servidor. Entrega cada uno solo cuando corresponda.`,
+      );
+    } catch (error) {
+      Alert.alert("No se pudieron preparar las evaluaciones", error instanceof Error ? error.message : "Intenta de nuevo.");
+    } finally {
+      setIsGeneratingEvalCodes(false);
+    }
   };
 
   const handleAddClassCode = () => {
@@ -1434,10 +1476,46 @@ export default function DocenteScreen() {
             Crear Código de Evaluación
           </Text>
           <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Genera un código para dar acceso al examen de un caso en el momento oportuno
+            Prepara todos los códigos y entrégalos solo cuando quieras habilitar cada evaluación.
           </Text>
 
           <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.createBtn, { backgroundColor: colors.primary, marginBottom: 14 }]}
+              onPress={() => void handleGenerateAllEvalCodes()}
+              disabled={isGeneratingEvalCodes}
+            >
+              {isGeneratingEvalCodes ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="key" size={16} color="#fff" />
+              )}
+              <Text style={styles.createBtnText}>
+                {isGeneratingEvalCodes ? "Preparando códigos..." : "Preparar códigos de los 7 casos"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.formHint, { color: colors.mutedForeground }]}>
+              Se guardan en {classCodes.length} {classCodes.length === 1 ? "clase" : "clases"}.
+              El estudiante no desbloquea nada hasta introducir su código.
+            </Text>
+            <View style={[styles.generatedCodesCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.generatedCodesTitle, { color: colors.foreground }]}>Códigos preparados</Text>
+              {EVALUATION_ACCESS_CODES.map(({ moduleId, code }) => {
+                const module = MODULES.find((item) => item.id === moduleId);
+                return (
+                  <View key={moduleId} style={[styles.generatedCodeRow, { borderTopColor: colors.border }]}>
+                    <Text style={styles.generatedCodeIcon}>{module?.icon}</Text>
+                    <Text style={[styles.generatedCodeName, { color: colors.foreground }]} numberOfLines={1}>
+                      {module?.title ?? moduleId}
+                    </Text>
+                    <Text selectable style={[styles.generatedCodeValue, { color: colors.primary }]}>{code}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={[styles.formHint, { color: colors.mutedForeground, marginBottom: 14 }]}>
+              También puedes crear un código personalizado para un caso específico:
+            </Text>
             <Text style={[styles.formLabel, { color: colors.foreground }]}>Caso:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -1590,6 +1668,13 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: "700", marginBottom: 6 },
   sectionSub: { fontSize: 13, marginBottom: 16 },
   formCard: { borderRadius: 16, padding: 18, borderWidth: 1, marginBottom: 16 },
+  formHint: { fontSize: 11, lineHeight: 16, marginBottom: 10 },
+  generatedCodesCard: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 16 },
+  generatedCodesTitle: { fontSize: 12, fontWeight: "800", marginBottom: 2 },
+  generatedCodeRow: { flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: 1, paddingVertical: 9 },
+  generatedCodeIcon: { fontSize: 16, width: 22 },
+  generatedCodeName: { flex: 1, fontSize: 11, fontWeight: "600" },
+  generatedCodeValue: { fontSize: 14, fontWeight: "900", letterSpacing: 1.5 },
   formLabel: { fontSize: 13, fontWeight: "700", marginBottom: 8 },
   formInput: { borderWidth: 1.5, borderRadius: 12, padding: 14, fontSize: 15, marginBottom: 14 },
   createBtn: { borderRadius: 14, padding: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
