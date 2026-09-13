@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Alert,
   Linking,
   Platform,
   ScrollView,
@@ -261,6 +262,18 @@ export default function TemaScreen() {
                 total={totalEx}
                 color={topic.color}
                 onRetry={resetPractice}
+                onComplete={() => {
+                  if (!sessionId) {
+                    Alert.alert(
+                      "Sesión no disponible",
+                      "No se pudo iniciar la sesión de aprendizaje. Vuelve a abrir el tema e inténtalo de nuevo.",
+                    );
+                    return;
+                  }
+                  router.push(
+                    `/reflexion?kind=session&sessionId=${encodeURIComponent(sessionId)}&activityId=${encodeURIComponent(topic.id)}&topicId=${encodeURIComponent(topic.id)}` as any,
+                  );
+                }}
                 onBack={() => router.back()}
               />
             </ScrollView>
@@ -510,9 +523,10 @@ export default function TemaScreen() {
 
 // ── Score Card ───────────────────────────────────────────────────────
 function PracticeScoreCard({
-  earnedXP, maxXP, total, color, onRetry, onBack,
+  earnedXP, maxXP, total, color, onRetry, onComplete, onBack,
 }: {
   earnedXP: number; maxXP: number; total: number; color: string; onRetry: () => void; onBack: () => void;
+  onComplete: () => void;
 }) {
   const pct     = maxXP > 0 ? Math.round((earnedXP / maxXP) * 100) : 0;
   const passed  = pct >= Math.round(XP_PASS_PCT * 100);
@@ -554,6 +568,13 @@ function PracticeScoreCard({
           </View>
         )}
       </View>
+
+      {passed && (
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: color }]} onPress={onComplete}>
+          <Feather name="arrow-right-circle" size={15} color="#fff" />
+          <Text style={styles.retryBtnText}>Completar reflexión y avanzar</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={[styles.xpLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.xpLegendTitle, { color: colors.foreground }]}>Sistema de XP:</Text>
