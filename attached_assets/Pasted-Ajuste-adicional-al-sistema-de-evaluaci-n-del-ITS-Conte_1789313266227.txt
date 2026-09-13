@@ -1,0 +1,207 @@
+Ajuste adicional al sistema de evaluación del ITS
+Contexto
+
+La aplicación ya cuenta con:
+
+Perfiles pedagógicos.
+Rutas personalizadas.
+Sistema de XP.
+Rangos (Bronce, Plata, Oro, Diamante, Heroico y Gran Maestro).
+Insignias.
+Reflexiones metacognitivas.
+Detección y corrección de errores.
+Ejercicios de transferencia.
+
+Todo este sistema debe mantenerse exactamente como está.
+
+Los rangos, XP, insignias y progresión gamificada seguirán siendo utilizados para motivar a los estudiantes y registrar su avance dentro de la plataforma.
+
+Nuevo requerimiento
+
+Además de los XP y rangos, necesito incorporar un sistema de calificaciones académicas.
+
+Estas calificaciones no reemplazarán los XP ni los rangos.
+
+Los dos sistemas deben coexistir:
+
+Sistema 1
+
+Gamificación
+
+XP
+Rangos
+Insignias
+Misiones
+Sistema 2
+
+Seguimiento académico
+
+Calificaciones
+Desempeño por tema
+Reportes para docente
+Calificaciones por tema
+
+Necesito que el sistema calcule automáticamente una nota para cada uno de los apartados trabajados.
+
+La escala de notas será de:
+
+1.0 a 5.0
+
+Conocimientos previos
+
+Generar una nota independiente para cada sección diagnóstica.
+
+Pensamiento numérico y aritmético
+Números naturales y operaciones.
+Números decimales.
+Números enteros y ley de signos.
+Fracciones y números racionales.
+Números irracionales.
+Números reales.
+Potencias y sus propiedades.
+
+Además:
+
+Nota global de Pensamiento Numérico.
+
+Pensamiento algebraico
+Expresiones algebraicas.
+Términos semejantes.
+Variables.
+Signo igual como equivalencia.
+
+Además:
+
+Nota global de Pensamiento Algebraico.
+
+Reconocimiento de patrones
+
+Nota independiente.
+
+Casos de factorización
+
+Generar una nota para cada tema:
+
+Reconocimiento de patrones.
+Factor común.
+Factor común por agrupación.
+Trinomio cuadrado perfecto.
+Diferencia de cuadrados.
+Trinomio de la forma x² + bx + c.
+Cubo de un binomio.
+Suma y diferencia de cubos.
+Cómo calcular la nota
+
+La nota NO debe depender únicamente de respuestas correctas.
+
+Debe valorar el proceso de aprendizaje.
+
+Propuesta
+40%
+
+Comprensión inicial
+
+Respuestas correctas.
+Nivel alcanzado.
+30%
+
+Corrección del error
+
+Valorar si:
+
+El estudiante identificó el error.
+Utilizó la retroalimentación.
+Logró corregir la respuesta.
+20%
+
+Transferencia
+
+Valorar si:
+
+Resolvió correctamente el ejercicio similar generado automáticamente después de la corrección.
+10%
+
+Reflexión metacognitiva
+
+Valorar si completó las reflexiones asociadas a la actividad.
+
+Registro de desempeño
+
+Para cada tema guardar:
+
+Nota obtenida.
+Número de intentos.
+Errores detectados.
+Errores corregidos.
+Transferencias exitosas.
+Pistas utilizadas.
+Tiempo empleado.
+Nivel de dominio alcanzado.
+Visualización para estudiantes
+
+En el perfil del estudiante mostrar:
+
+Mi progreso académico
+
+Pensamiento Numérico: 4.2
+
+Pensamiento Algebraico: 4.5
+
+Reconocimiento de Patrones: 4.0
+
+Factor común: 4.8
+
+Agrupación: 4.3
+
+Trinomio cuadrado perfecto: 4.6
+
+Diferencia de cuadrados: 4.7
+
+Promedio general: 4.5
+
+También mostrar:
+
+Rango actual: 💎 Diamante
+
+XP: 2450
+
+Perfil: 🔍 Cazador de Patrones
+
+Visualización para docentes
+
+Crear un panel docente con:
+
+Información general
+Perfil del estudiante.
+Rango actual.
+XP acumulada.
+Ruta asignada.
+Desempeño académico
+
+Mostrar tabla:
+
+Tema	NotaPensamiento Numérico	4.2
+Pensamiento Algebraico	4.5
+Patrones	4.0
+Factor común	4.8
+Agrupación	4.3
+TCP	4.6
+Diferencia de cuadrados	4.7
+Información para investigación
+
+Mostrar además:
+
+Errores más frecuentes.
+Errores corregidos.
+Errores persistentes.
+Número de intentos.
+Tiempo empleado.
+Uso de ayudas.
+Reflexiones registradas.
+Principio pedagógico
+
+La nota debe reflejar el aprendizaje y el progreso del estudiante.
+
+Un estudiante que se equivoca inicialmente, utiliza la retroalimentación, corrige el error y demuestra comprensión mediante un ejercicio de transferencia debe obtener una valoración positiva.
+
+El sistema no debe premiar únicamente la respuesta correcta inmediata, sino también la capacidad de aprender a partir del error, persistir y mejorar.
