@@ -17,6 +17,15 @@ import { MODULES } from "@/data/modules";
 import { MODULE_VIDEOS } from "@/data/moduleVideos";
 import { ProcedureDiagram } from "@/components/ProcedureDiagram";
 
+function getExerciseLevels(exercises: typeof MODULES[0]["exercises"]) {
+  const perLevel = Math.ceil(exercises.length / 3);
+  return [
+    exercises.slice(0, perLevel),
+    exercises.slice(perLevel, perLevel * 2),
+    exercises.slice(perLevel * 2),
+  ].filter((l) => l.length > 0);
+}
+
 /** Render a visual step-by-step example card */
 function VisualExample({ steps, color }: { steps: string[]; color: string }) {
   const colors = useColors();
@@ -95,7 +104,7 @@ export default function ModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { markTheoryRead, currentStudent } = useApp();
+  const { markTheoryRead, currentStudent, moduleProgress } = useApp();
   const isWeb = Platform.OS === "web";
   const [theoryExpanded, setTheoryExpanded] = useState<string[]>([]);
 
@@ -109,8 +118,24 @@ export default function ModuloScreen() {
   }
 
   const videos = MODULE_VIDEOS[module.id] ?? [];
+  const prog = moduleProgress.find((p) => p.moduleId === module.id);
+  const completedLevels = prog?.completedLevels || [];
+  const exerciseLevels = getExerciseLevels(module.exercises);
 
   const completedExIds = new Set(currentStudent?.completedExercises || []);
+
+  const isLevelUnlocked = (levelIdx: number) => {
+    if (levelIdx === 0) return true;
+    return completedLevels.includes(levelIdx - 1);
+  };
+
+  const isLevelCompleted = (levelIdx: number) => completedLevels.includes(levelIdx);
+
+  const getLevelProgress = (levelIdx: number) => {
+    const exs = exerciseLevels[levelIdx];
+    const done = exs.filter((e) => completedExIds.has(e.id)).length;
+    return { done, total: exs.length };
+  };
 
   const totalExercises = module.exercises.length;
   const doneExercises = module.exercises.filter(e => completedExIds.has(e.id)).length;
@@ -122,6 +147,9 @@ export default function ModuloScreen() {
       prev.includes(tid) ? prev.filter((t) => t !== tid) : [...prev, tid]
     );
   };
+
+  const LEVEL_NAMES = ["Nivel Básico", "Nivel Intermedio", "Nivel Avanzado"];
+  const LEVEL_ICONS = ["🌱", "🌿", "🌳"];
 
   return (
     <ScrollView
@@ -266,21 +294,129 @@ export default function ModuloScreen() {
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🖼️ Diagrama del Procedimiento</Text>
       <ProcedureDiagram moduleId={module.id} color={module.color} />
 
-      {/* ── Practicar ahora ── */}
-      <TouchableOpacity
-        style={[styles.practiceBtn, { backgroundColor: module.color, shadowColor: module.color }]}
-        onPress={() => router.push(`/practica-modulo/${module.id}` as any)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.practiceBtnIcon}>🎯</Text>
-        <View style={styles.practiceBtnInfo}>
-          <Text style={styles.practiceBtnTitle}>Practicar ahora</Text>
-          <Text style={styles.practiceBtnSub}>
-            {totalExercises} ejercicios · fácil → difícil · aleatorio
-          </Text>
-        </View>
-        <Feather name="play-circle" size={28} color="rgba(255,255,255,0.9)" />
-      </TouchableOpacity>
+      {/* ── Ejercicios por nivel ── */}
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        💪 Ejercicios por Nivel
+      </Text>
+      <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+        Completa cada nivel para desbloquear el siguiente
+      </Text>
+
+      {exerciseLevels.map((levelExs, levelIdx) => {
+        const unlocked = isLevelUnlocked(levelIdx);
+        const completed = isLevelCompleted(levelIdx);
+        const { done, total } = getLevelProgress(levelIdx);
+        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        const levelOffset = exerciseLevels.slice(0, levelIdx).reduce((s, l) => s + l.length, 0);
+
+        return (
+          <View
+            key={levelIdx}
+            style={[
+              styles.levelCard,
+              {
+                backgroundColor: unlocked ? colors.card : colors.secondary,
+                borderColor: completed
+                  ? colors.success + "60"
+                  : unlocked
+                  ? module.color + "40"
+                  : colors.border,
+              },
+            ]}
+          >
+            <View style={styles.levelHeader}>
+              <View style={[styles.levelIconBg, {
+                backgroundColor: completed ? colors.success + "20" : unlocked ? module.color + "20" : colors.border,
+              }]}>
+                <Text style={styles.levelIcon}>
+                  {completed ? "✅" : unlocked ? LEVEL_ICONS[levelIdx] : "🔒"}
+                </Text>
+              </View>
+              <View style={styles.levelInfo}>
+                <Text style={[styles.levelName, {
+                  color: completed ? colors.success : unlocked ? module.color : colors.mutedForeground,
+                }]}>
+                  {LEVEL_NAMES[levelIdx] || `Nivel ${levelIdx + 1}`}
+                </Text>
+                <Text style={[styles.levelMeta, { color: colors.mutedForeground }]}>
+                  {done}/{total} ejercicios completados
+                </Text>
+              </View>
+              {unlocked && (
+                <View style={[styles.levelBadge, {
+                  backgroundColor: completed ? colors.success + "20" : module.color + "15",
+                }]}>
+                  <Text style={[styles.levelBadgeText, { color: completed ? colors.success : module.color }]}>
+                    {completed ? "✓ Listo" : `${progress}%`}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {unlocked && progress > 0 && (
+              <View style={[styles.levelProgressBg, { backgroundColor: colors.border }]}>
+                <View style={[styles.levelProgressFill, {
+                  width: `${progress}%` as any,
+                  backgroundColor: completed ? colors.success : module.color,
+                }]} />
+              </View>
+            )}
+
+            {unlocked && levelExs.map((exercise, exIdx) => {
+              const done = completedExIds.has(exercise.id);
+              return (
+                <TouchableOpacity
+                  key={exercise.id}
+                  style={[styles.exerciseRow, {
+                    backgroundColor: done ? colors.success + "08" : colors.background,
+                    borderColor: done ? colors.success + "40" : colors.border,
+                    opacity: done ? 0.72 : 1,
+                  }]}
+                  onPress={() => {
+                    if (!done) router.push(`/ejercicio/${module.id}__${exercise.id}` as any);
+                  }}
+                  disabled={done}
+                  activeOpacity={0.8}
+                  accessibilityState={{ disabled: done }}
+                >
+                  <View style={[styles.exerciseNum, { backgroundColor: done ? colors.success : module.color }]}>
+                    {done ? (
+                      <Feather name="check" size={12} color="#fff" />
+                    ) : (
+                      <Text style={styles.exerciseNumText}>{levelOffset + exIdx + 1}</Text>
+                    )}
+                  </View>
+                  <View style={styles.exerciseInfo}>
+                    <Text style={[styles.exerciseQ, { color: colors.foreground }]} numberOfLines={2}>
+                      {exercise.expression || exercise.question}
+                    </Text>
+                    {exercise.realWorld && (
+                      <Text style={[styles.exerciseTag, { color: colors.mutedForeground }]}>
+                        🌍 Contexto real
+                      </Text>
+                    )}
+                    {done && (
+                      <Text style={[styles.exerciseLocked, { color: colors.success }]}>
+                        Completado · respuesta y evidencia registradas
+                      </Text>
+                    )}
+                  </View>
+                  <Feather name={done ? "lock" : "chevron-right"} size={16} color={done ? colors.success : colors.mutedForeground} />
+                </TouchableOpacity>
+              );
+            })}
+
+            {!unlocked && (
+              <View style={styles.lockedMsg}>
+                <Feather name="lock" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.lockedText, { color: colors.mutedForeground }]}>
+                  Completa el nivel anterior para desbloquear
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
 
       <TouchableOpacity
         style={[styles.markBtn, { backgroundColor: module.color }]}
