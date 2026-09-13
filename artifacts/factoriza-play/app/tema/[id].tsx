@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { getTopicById, TopicExercise } from "@/data/sectionTopics";
 import { getBalancedAnswerOptions } from "@/lib/answerOptions";
+import { isPersonalizedPrerequisiteTopic } from "@/data/personalizedRoutes";
 
 type Tab = "teoria" | "ejemplos" | "practica";
 
@@ -97,6 +98,7 @@ export default function TemaScreen() {
     : [];
   const totalEx   = queue.length;
   const maxXP     = totalEx * XP_FIRST_TRY;
+  const requiresReflection = isPersonalizedPrerequisiteTopic(topic.id);
 
   // ── Shake animation for wrong answer ────────────────────────────
   const triggerShake = () => {
@@ -262,7 +264,7 @@ export default function TemaScreen() {
                 total={totalEx}
                 color={topic.color}
                 onRetry={resetPractice}
-                onComplete={() => {
+                onComplete={requiresReflection ? () => {
                   if (!sessionId) {
                     Alert.alert(
                       "Sesión no disponible",
@@ -273,7 +275,7 @@ export default function TemaScreen() {
                   router.push(
                     `/reflexion?kind=session&sessionId=${encodeURIComponent(sessionId)}&activityId=${encodeURIComponent(topic.id)}&topicId=${encodeURIComponent(topic.id)}` as any,
                   );
-                }}
+                } : undefined}
                 onBack={() => router.back()}
               />
             </ScrollView>
@@ -526,7 +528,7 @@ function PracticeScoreCard({
   earnedXP, maxXP, total, color, onRetry, onComplete, onBack,
 }: {
   earnedXP: number; maxXP: number; total: number; color: string; onRetry: () => void; onBack: () => void;
-  onComplete: () => void;
+  onComplete?: () => void;
 }) {
   const pct     = maxXP > 0 ? Math.round((earnedXP / maxXP) * 100) : 0;
   const passed  = pct >= Math.round(XP_PASS_PCT * 100);
@@ -556,7 +558,9 @@ function PracticeScoreCard({
           <View style={[styles.passedBox, { backgroundColor: "#f0fdf4", borderColor: "#bbf7d0" }]}>
             <Feather name="award" size={15} color="#059669" />
             <Text style={[styles.passedText, { color: "#059669" }]}>
-              ¡Superaste el 85% de XP! Tema completado.
+              {onComplete
+                ? "¡Superaste el 85% de XP! Completa la reflexión para cerrar el tema."
+                : "¡Superaste el 85% de XP! Puedes continuar con el curso."}
             </Text>
           </View>
         ) : (
@@ -569,7 +573,7 @@ function PracticeScoreCard({
         )}
       </View>
 
-      {passed && (
+      {passed && onComplete && (
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: color }]} onPress={onComplete}>
           <Feather name="arrow-right-circle" size={15} color="#fff" />
           <Text style={styles.retryBtnText}>Completar reflexión y avanzar</Text>

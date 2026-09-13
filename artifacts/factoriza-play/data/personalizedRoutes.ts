@@ -129,6 +129,12 @@ export function getPersonalizedModuleDefinition(id: PersonalizedModuleId) {
   return MODULE_DEFINITIONS[id];
 }
 
+export function isPersonalizedPrerequisiteTopic(topicId: string) {
+  return PREREQUISITE_MODULE_IDS.some((moduleId) =>
+    MODULE_DEFINITIONS[moduleId].topicIds.includes(topicId),
+  );
+}
+
 export function buildPersonalizedRoute(
   moduleResults: DiagnosticModuleResult[],
   threshold = PERSONALIZED_ROUTE_THRESHOLD,
