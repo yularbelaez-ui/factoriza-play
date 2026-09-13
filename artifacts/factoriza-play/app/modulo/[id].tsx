@@ -16,6 +16,7 @@ import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { MODULE_VIDEOS } from "@/data/moduleVideos";
 import { ProcedureDiagram } from "@/components/ProcedureDiagram";
+import { shuffleArray } from "@/lib/shuffle";
 
 function getExerciseLevels(exercises: typeof MODULES[0]["exercises"]) {
   const perLevel = Math.ceil(exercises.length / 3);
@@ -118,7 +119,10 @@ export default function ModuloScreen() {
   }
 
   const videos = MODULE_VIDEOS[module.id] ?? [];
-  const exerciseLevels = getExerciseLevels(module.exercises);
+  const exerciseLevels = React.useMemo(
+    () => getExerciseLevels(module.exercises).map((level) => shuffleArray(level)),
+    [module.id],
+  );
 
   const completedExIds = new Set(currentStudent?.completedExercises || []);
 

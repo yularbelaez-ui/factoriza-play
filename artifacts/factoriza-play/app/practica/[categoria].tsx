@@ -15,6 +15,7 @@ import { PRACTICE_CATEGORIES } from "@/data/practice";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { getBalancedAnswerOptions } from "@/lib/answerOptions";
+import { shuffleArray } from "@/lib/shuffle";
 
 export default function PracticaScreen() {
   const { categoria } = useLocalSearchParams<{ categoria: string }>();
@@ -31,7 +32,7 @@ export default function PracticaScreen() {
 
   const shuffledExercises = useMemo(
     () =>
-      cat?.exercises.map((ex, index) => ({
+      shuffleArray(cat?.exercises ?? []).map((ex, index) => ({
         ...ex,
         shuffledOptions: getBalancedAnswerOptions(
           ex.options,
