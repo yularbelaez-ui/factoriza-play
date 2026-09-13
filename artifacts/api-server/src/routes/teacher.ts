@@ -17,12 +17,26 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 import PDFDocument from "pdfkit";
 import sharp from "sharp";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  calculateAcademicSummary,
+  type AcademicSummary,
+} from "../lib/academicGrading.js";
+import { csvCell } from "../lib/csv.js";
 
 const router = Router();
 const connectors = new ReplitConnectors();
 const isRetiredExercise = (exerciseId: string) =>
   exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
 const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const ACADEMIC_MODULE_TITLES: Record<string, string> = {
+  "factor-comun": "Factor común",
+  "agrupacion-terminos": "Agrupación de términos",
+  "trinomio-cuadrado-perfecto": "Trinomio cuadrado perfecto",
+  "diferencia-cuadrados": "Diferencia de cuadrados",
+  "trinomio-forma-x2-bx-c": "Trinomio x² + bx + c",
+  "cubo-binomio": "Cubo de un binomio",
+  "suma-diferencia-cubos": "Suma / diferencia de cubos",
+};
 const isRetiredTopic = (topicId: string) =>
   topicId.toLowerCase().includes("reconocimiento-patrones") ||
   topicId.toLowerCase().includes("ax2-bx-c");
@@ -204,11 +218,6 @@ async function normalizeEvidencePhoto(bytes: Buffer): Promise<Buffer> {
   return normalized;
 }
 
-function csvCell(value: unknown): string {
-  const text = value == null ? "" : typeof value === "string" ? value : JSON.stringify(value);
-  return `"${text.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
-}
-
 function rankName(totalXP: number): string {
   if (totalXP > 5000) return "Gran Maestro";
   if (totalXP > 3500) return "Heroico";
@@ -216,6 +225,102 @@ function rankName(totalXP: number): string {
   if (totalXP > 1200) return "Oro";
   if (totalXP > 500) return "Plata";
   return "Bronce";
+}
+
+type AcademicResultRow = {
+  studentId: number;
+  exerciseId: string;
+  moduleId: string | null;
+  correct: boolean;
+  attempts: number | null;
+  createdAt: Date;
+  errorCategory?: string | null;
+  feedbackViews?: number | null;
+  feedbackViewed?: boolean;
+};
+
+type AcademicModuleReflectionRow = {
+  studentId: number;
+  moduleId: string;
+};
+
+type AcademicSessionReflectionRow = {
+  studentId: number;
+  sessionId: string;
+};
+
+type AcademicLearningSessionRow = {
+  id: number;
+  studentId: number;
+  activityId: string;
+};
+
+function academicSummaryForStudent(
+  studentId: number,
+  results: AcademicResultRow[],
+  moduleReflectionRows: AcademicModuleReflectionRow[],
+  sessionReflectionRows: AcademicSessionReflectionRow[],
+  learningSessionRows: AcademicLearningSessionRow[],
+  diagnosticProfile: unknown,
+): AcademicSummary {
+  const sessionsById = new Map(
+    learningSessionRows
+      .filter((session) => session.studentId === studentId)
+      .map((session) => [String(session.id), session.activityId]),
+  );
+  const profile = diagnosticProfile as {
+    results?: Array<{ category?: string; score?: number | null }>;
+  } | null;
+  return calculateAcademicSummary({
+    records: results
+      .filter((result) => result.studentId === studentId)
+      .map((result) => ({
+        exerciseId: result.exerciseId,
+        moduleId: result.moduleId,
+        correct: result.correct,
+        attempts: result.attempts,
+        errorCategory: result.errorCategory,
+        feedbackViews: result.feedbackViews,
+        feedbackViewed: result.feedbackViews != null && result.feedbackViews > 0,
+        timestamp: result.createdAt,
+      })),
+    reflections: [
+      ...moduleReflectionRows
+        .filter((reflection) => reflection.studentId === studentId)
+        .map((reflection) => ({ moduleId: reflection.moduleId, completed: true })),
+      ...sessionReflectionRows
+        .filter((reflection) => reflection.studentId === studentId)
+        .map((reflection) => ({
+          activityId: sessionsById.get(String(reflection.sessionId)) ?? null,
+          completed: true,
+        })),
+    ],
+    diagnosticResults: (profile?.results ?? []).filter(
+      (result): result is { category: string; score?: number | null } =>
+        typeof result.category === "string",
+    ),
+    moduleTitles: ACADEMIC_MODULE_TITLES,
+  });
+}
+
+function academicTopicCsv(summary: AcademicSummary): string {
+  return summary.topics
+    .map((topic) => `${topic.title ?? topic.moduleId}:${topic.grade == null ? "pendiente" : topic.grade.toFixed(1)} (${Math.round(topic.coverage * 100)}%)`)
+    .join("|");
+}
+
+function academicComponentsCsv(summary: AcademicSummary): string {
+  return summary.topics
+    .map((topic) => `${topic.title ?? topic.moduleId}[${topic.components.map((component) =>
+      `${component.key}=${component.covered ? `${component.successCount}/${component.opportunityCount}` : "pendiente"}`,
+    ).join(";")}]`)
+    .join("|");
+}
+
+function academicMissingComponentsCsv(summary: AcademicSummary): string {
+  return summary.topics
+    .map((topic) => `${topic.title ?? topic.moduleId}:${topic.missingComponents.length > 0 ? topic.missingComponents.join(";") : "ninguno"}`)
+    .join("|");
 }
 
 // GET /api/teacher/:teacherCode/classes
@@ -285,6 +390,9 @@ router.get("/teacher/:teacherCode/classes/:classCode/export", async (req, res) =
     "feedback_views", "module_reflections", "session_reflections", "session_duration_seconds", "weekly_reflections",
     "activity_dates", "xp_event_types", "award_dates",
     "module_reflection_content", "session_reflection_content", "weekly_reflection_content",
+    "academic_general_grade", "academic_general_coverage", "academic_numeric_grade",
+    "academic_algebraic_grade", "academic_topic_grades", "academic_topic_components",
+    "academic_topic_missing_components", "academic_missing_components", "academic_diagnostic_grades",
   ];
   const rows = classStudents.map((student) => {
     const studentResults = results.filter((result) =>
@@ -308,6 +416,14 @@ router.get("/teacher/:teacherCode/classes/:classCode/export", async (req, res) =
       !session.activityId.includes("ax2-bx-c"));
     const studentWeekly = weekly.filter((reflection) => reflection.studentId === student.id);
     const studentEvents = events.filter((event) => event.studentId === student.id);
+    const academic = academicSummaryForStudent(
+      student.id,
+      results,
+      modules,
+      sessions,
+      learningSessionRows,
+      student.diagnosticProfile,
+    );
     const dates = [
       ...studentResults.map((result) => result.createdAt),
       ...studentModulesReflections.map((reflection) => reflection.createdAt),
@@ -339,6 +455,15 @@ router.get("/teacher/:teacherCode/classes/:classCode/export", async (req, res) =
       studentModulesReflections.map((reflection) => `${reflection.createdAt.toISOString()}|${reflection.moduleId}|${reflection.aspectsWorked ?? ""}|${reflection.difficulties ?? ""}|${reflection.improvementSuggestions ?? ""}`).join(" || "),
       studentSessions.map((reflection) => `${reflection.createdAt.toISOString()}|${reflection.sessionId}|${reflection.understood}|${reflection.mistakes}|${reflection.helpful}|${reflection.remainingQuestions}`).join(" || "),
       studentWeekly.map((reflection) => `${reflection.createdAt.toISOString()}|${reflection.weekStart}|${reflection.mostImportant}|${reflection.mainDifficulty}|${reflection.appHelp}|${reflection.advice}`).join(" || "),
+      academic.general.grade,
+      academic.general.coverage,
+      academic.pensamientoNumerico.grade,
+      academic.pensamientoAlgebraico.grade,
+      academicTopicCsv(academic),
+      academicComponentsCsv(academic),
+      academicMissingComponentsCsv(academic),
+      academic.general.missingComponents.join("|"),
+      Object.entries(academic.diagnosticGrades).map(([category, value]) => `${category}:${value.toFixed(1)}`).join("|"),
     ].map(csvCell).join(",");
   });
   const csv = [header.map(csvCell).join(","), ...rows].join("\n");
@@ -449,6 +574,14 @@ router.get(
     const completedModules = student.completedModules ?? [];
     const completedExercises = student.completedExercises ?? [];
     const storedProfile = student.diagnosticProfile as Record<string, unknown> | null;
+    const academic = academicSummaryForStudent(
+      studentId,
+      allResults,
+      allModules,
+      allSessions,
+      allLearningSessions,
+      student.diagnosticProfile,
+    );
     if (req.aborted || res.destroyed) return;
 
     type Evidence = { bytes?: Buffer; mime?: string; error?: string };
@@ -597,6 +730,40 @@ router.get(
     } else {
       field("Estado", "No hay diagnóstico registrado");
     }
+
+    heading("Calificación académica");
+    field("Calificación general", academic.general.grade == null ? "Pendiente" : academic.general.grade.toFixed(1));
+    field("Cobertura general", `${Math.round(academic.general.coverage * 100)}%`);
+    field(
+      "Pensamiento Numérico",
+      academic.pensamientoNumerico.grade == null ? "Pendiente" : academic.pensamientoNumerico.grade.toFixed(1),
+    );
+    field(
+      "Pensamiento Algebraico",
+      academic.pensamientoAlgebraico.grade == null ? "Pendiente" : academic.pensamientoAlgebraico.grade.toFixed(1),
+    );
+    field(
+      "Componentes ausentes",
+      academic.general.missingComponents.length > 0
+        ? academic.general.missingComponents.join(", ")
+        : "Ninguno",
+    );
+    block(
+      "Calificaciones por tema",
+      academic.topics.map((topic) => ({
+        moduleId: topic.moduleId,
+        grade: topic.grade == null ? "Pendiente" : topic.grade.toFixed(1),
+        coverage: `${Math.round(topic.coverage * 100)}%`,
+        missingComponents: topic.missingComponents,
+        components: topic.components.map((component) => ({
+          component: component.key,
+          evidence: component.covered
+            ? `${component.successCount}/${component.opportunityCount}`
+            : "Pendiente",
+        })),
+      })),
+    );
+    block("Calificaciones de diagnóstico (sin patrones)", academic.diagnosticGrades);
 
     heading("Contenidos completados (archivo histórico)");
     field("Temas", completedTopics.map((id) =>

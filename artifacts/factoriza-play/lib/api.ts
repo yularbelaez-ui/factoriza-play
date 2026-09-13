@@ -4,6 +4,7 @@
  */
 import { Platform } from "react-native";
 import type { DiagnosticProfile } from "@/data/diagnostic";
+import type { AcademicSummary } from "@/lib/academicGrading";
 
 // On native builds, EXPO_PUBLIC_API_URL must be the absolute production URL.
 // Example: https://mi-app.replit.app/api-server
@@ -326,6 +327,8 @@ export interface ApiExerciseAnalytics {
 export interface ApiExerciseAttempt {
   correct: boolean;
   attempts: number;
+  errorCategory?: string | null;
+  feedbackViews?: number;
   answer: string | null;
   questionText: string | null;
   topicName: string | null;
@@ -368,6 +371,7 @@ export interface ApiStudentAnalytics {
   sessionReflections: ApiSessionReflection[];
   weeklyReflections: ApiWeeklyReflection[];
   modules: ApiModuleAnalytics[];
+  academicSummary?: AcademicSummary;
 }
 
 export async function apiGetClassStudentAnalytics(

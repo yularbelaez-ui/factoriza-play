@@ -53,6 +53,19 @@ function formatDuration(seconds: number | null): string {
   return rest > 0 ? `${minutes}m ${rest}s` : `${minutes}m`;
 }
 
+function exerciseWasCorrected(
+  attempts: ApiStudentAnalytics["modules"][number]["exercises"][number]["attempts"],
+): boolean {
+  return attempts.some((correction) =>
+    correction.correct &&
+    correction.attempts > 1 &&
+    attempts.some((wrong) =>
+      !wrong.correct &&
+      new Date(wrong.createdAt).getTime() < new Date(correction.createdAt).getTime(),
+    ),
+  );
+}
+
 // Lookup exerciseId → short question text, used to label each question row
 // in the teacher panel's per-student drill-down.
 const EXERCISE_QUESTION_LOOKUP: Record<string, string> = (() => {
@@ -587,6 +600,7 @@ export default function DocenteScreen() {
               // device's own login history, so it's always empty for the
               // other students the teacher is viewing here.
               const analytics = student.backendId != null ? studentAnalytics[student.backendId] : undefined;
+              const academicSummary = analytics?.academicSummary;
               const modulesAnalytics = analytics?.modules ?? [];
               const correctCount = modulesAnalytics.reduce((sum, m) => sum + m.correctCount, 0);
               const wrongCount = modulesAnalytics.reduce((sum, m) => sum + m.incorrectCount, 0);
@@ -594,6 +608,10 @@ export default function DocenteScreen() {
               const hintsTotal = modulesAnalytics.reduce((sum, m) => sum + m.hintsUsed, 0);
               const timeTotal = modulesAnalytics.reduce((sum, m) => sum + m.totalDurationSeconds, 0);
               const repeatedTotal = modulesAnalytics.reduce((sum, m) => sum + m.repeatedExercises, 0);
+              const correctedTotal = modulesAnalytics.reduce(
+                (sum, module) => sum + module.exercises.filter((exercise) => exerciseWasCorrected(exercise.attempts)).length,
+                0,
+              );
               const totalResults = correctCount + wrongCount;
               const pct = totalResults > 0 ? Math.round((correctCount / totalResults) * 100) : 0;
               const isStudentExpanded = student.backendId != null && expandedStudentIds.has(student.backendId);
@@ -610,10 +628,11 @@ export default function DocenteScreen() {
               const weakCompetencies = (student.diagnosticProfile?.competencyResults ?? [])
                 .filter((result) => result.score < 75)
                 .map((result) => competencyLabels[result.competency] ?? result.competency);
-              const errorCounts = student.exerciseResults
-                .filter((result) => !result.correct && result.errorCategory)
-                .reduce<Record<string, number>>((counts, result) => {
-                  const key = result.errorCategory!;
+              const errorCounts = modulesAnalytics
+                .flatMap((module) => module.exercises.flatMap((exercise) => exercise.attempts))
+                .filter((attempt) => !attempt.correct && attempt.errorCategory)
+                .reduce<Record<string, number>>((counts, attempt) => {
+                  const key = attempt.errorCategory!;
                   counts[key] = (counts[key] ?? 0) + 1;
                   return counts;
                 }, {});
@@ -665,6 +684,66 @@ export default function DocenteScreen() {
                       </Text>
                     </View>
                   )}
+
+                  <View style={[styles.teacherAcademicCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "25" }]}>
+                    <View style={styles.teacherAcademicHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.teacherAcademicTitle, { color: colors.foreground }]}>
+                          Progreso académico
+                        </Text>
+                        <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground }]}>
+                          Rúbrica 40/30/20/10 · transferencia = evaluación posterior a una corrección · componentes sin evidencia quedan pendientes
+                        </Text>
+                        <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground, marginTop: 2 }]}>
+                          {attemptsTotal} intentos · {wrongCount} errores · {correctedTotal} corregidos · {repeatedTotal} persistentes · {hintsTotal} pistas · {formatDuration(timeTotal)} · {analytics?.sessionReflections?.length ?? 0} reflexiones
+                        </Text>
+                      </View>
+                      <Text style={[styles.teacherAcademicGrade, { color: colors.primary }]}>
+                        {academicSummary?.general.grade == null ? "Pendiente" : academicSummary.general.grade.toFixed(1)}
+                      </Text>
+                    </View>
+                    <View style={styles.teacherAcademicGlobals}>
+                      <Text style={[styles.teacherAcademicGlobal, { color: colors.foreground }]}>
+                        Numérico: {academicSummary?.pensamientoNumerico.grade == null ? "Pendiente" : academicSummary.pensamientoNumerico.grade.toFixed(1)}
+                      </Text>
+                      <Text style={[styles.teacherAcademicGlobal, { color: colors.foreground }]}>
+                        Algebraico: {academicSummary?.pensamientoAlgebraico.grade == null ? "Pendiente" : academicSummary.pensamientoAlgebraico.grade.toFixed(1)}
+                      </Text>
+                    </View>
+                    {academicSummary ? (
+                      <View style={{ marginTop: 6 }}>
+                        {academicSummary.topics.map((topic) => (
+                          <View key={topic.moduleId} style={[styles.teacherTopicGradeRow, { borderTopColor: colors.border }]}>
+                            <Text style={[styles.teacherTopicGradeName, { color: colors.foreground }]} numberOfLines={1}>
+                              {MODULE_TOPIC_LABELS[topic.moduleId] ?? topic.moduleId}
+                            </Text>
+                            <Text style={[styles.teacherTopicGradeValue, { color: topic.grade == null ? colors.mutedForeground : colors.primary }]}>
+                              {topic.grade == null ? "Pendiente" : topic.grade.toFixed(1)}
+                            </Text>
+                            <Text style={[styles.teacherTopicGradeMeta, { color: colors.mutedForeground }]}>
+                              {Math.round(topic.coverage * 100)}% · {topic.evidenceCount} evid.
+                            </Text>
+                          </View>
+                        ))}
+                        <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground, marginTop: 5 }]}>
+                          Componentes: {academicSummary.general.components
+                            .map((component) => `${component.key} ${component.covered ? `${component.successCount}/${component.opportunityCount}` : "pendiente"}`)
+                            .join(" · ")}
+                        </Text>
+                        <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground, marginTop: 2 }]}>
+                          Diagnóstico: {Object.entries(academicSummary.diagnosticGrades).length > 0
+                            ? Object.entries(academicSummary.diagnosticGrades)
+                              .map(([category, value]) => `${category} ${value.toFixed(1)}`)
+                              .join(" · ")
+                            : "Pendiente"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground, marginTop: 6 }]}>
+                        Sincronizando evidencias académicas…
+                      </Text>
+                    )}
+                  </View>
 
                   {/* Section progress summary */}
                   <View style={styles.sectionProgressRow}>
@@ -1530,6 +1609,17 @@ const styles = StyleSheet.create({
   studentName: { fontSize: 15, fontWeight: "700" },
   studentMeta: { fontSize: 11, marginTop: 2 },
   rank: { fontSize: 18, fontWeight: "800" },
+  teacherAcademicCard: { borderRadius: 12, borderWidth: 1, padding: 10, marginBottom: 10 },
+  teacherAcademicHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  teacherAcademicTitle: { fontSize: 13, fontWeight: "800" },
+  teacherAcademicMeta: { fontSize: 10, lineHeight: 14 },
+  teacherAcademicGrade: { fontSize: 18, fontWeight: "900" },
+  teacherAcademicGlobals: { flexDirection: "row", gap: 12, marginTop: 6 },
+  teacherAcademicGlobal: { fontSize: 11, fontWeight: "700", flex: 1 },
+  teacherTopicGradeRow: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, paddingVertical: 5 },
+  teacherTopicGradeName: { flex: 1, fontSize: 10.5, fontWeight: "600" },
+  teacherTopicGradeValue: { fontSize: 12, fontWeight: "800", minWidth: 47, textAlign: "right" },
+  teacherTopicGradeMeta: { fontSize: 9, minWidth: 72, textAlign: "right" },
   sectionProgressRow: { flexDirection: "row", gap: 6, marginBottom: 10 },
   secProgressCard: { flex: 1, borderRadius: 10, padding: 8, alignItems: "center", borderWidth: 1, gap: 2 },
   secProgressNum: { fontSize: 13, fontWeight: "800" },

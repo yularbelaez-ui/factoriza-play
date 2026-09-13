@@ -7,6 +7,7 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "test:grading": "esbuild src/lib/academicGrading.ts --bundle --platform=node --format=esm --outfile=.academicGrading.test.mjs && esbuild ../factoriza-play/lib/academicGrading.ts --bundle --platform=node --format=esm --outfile=.mobileAcademicGrading.test.mjs && esbuild src/lib/csv.ts --bundle --platform=node --format=esm --outfile=.csv.test.mjs && node --test test/academicGrading.test.mjs test/csv.test.mjs; status=$?; rm -f .academicGrading.test.mjs .mobileAcademicGrading.test.mjs .csv.test.mjs; exit $status",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

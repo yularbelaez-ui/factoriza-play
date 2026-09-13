@@ -17,6 +17,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { getRankForXp } from "@/data/progression";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
+import { calculateAcademicSummary } from "@/lib/academicGrading";
 import {
   getRouteStepState,
   isLearningRouteCompleted,
@@ -73,6 +74,19 @@ export default function HomeScreen() {
   const rank = getRankForXp(currentStudent.totalXP);
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
+  const academicSummary = calculateAcademicSummary({
+    records: currentStudent.exerciseResults,
+    activeModules: MODULES.map((module) => ({
+      id: module.id,
+      title: module.title,
+      evaluationExerciseIds: module.evaluationExercises.map((exercise) => exercise.id),
+    })),
+    reflections: currentStudent.completedModules.map((moduleId) => ({
+      moduleId,
+      completed: true,
+    })),
+    diagnosticResults: dp?.results,
+  });
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
@@ -179,6 +193,61 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
+      </View>
+
+      {/* Academic progress is intentionally separate from XP/rank gamification. */}
+      <View
+        style={[styles.academicCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        accessibilityLabel="Mi progreso académico"
+      >
+        <View style={styles.academicHeader}>
+          <View style={[styles.academicIconBox, { backgroundColor: colors.primary + "15" }]}>
+            <Feather name="bar-chart-2" size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.academicTitle, { color: colors.foreground }]}>Mi progreso académico</Text>
+            <Text style={[styles.academicSubtitle, { color: colors.mutedForeground }]}>
+              Evidencia disponible; los componentes pendientes no cuentan como fallos.
+            </Text>
+          </View>
+          <Text style={[styles.academicGrade, { color: colors.primary }]}>
+            {academicSummary.general.grade === null ? "—" : academicSummary.general.grade.toFixed(1)}
+          </Text>
+        </View>
+        <View style={styles.academicGlobalRow}>
+          {[
+            ["Pensamiento Numérico", academicSummary.pensamientoNumerico.grade],
+            ["Pensamiento Algebraico", academicSummary.pensamientoAlgebraico.grade],
+          ].map(([label, value]) => (
+            <View key={String(label)} style={[styles.academicGlobal, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.academicGlobalLabel, { color: colors.mutedForeground }]}>{label}</Text>
+              <Text style={[styles.academicGlobalValue, { color: colors.foreground }]}>
+                {typeof value === "number" ? value.toFixed(1) : "Pendiente"}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <Text style={[styles.academicRubric, { color: colors.mutedForeground }]}>
+          Rúbrica: 40% comprensión inicial · 30% corrección · 20% transferencia post-corrección (evaluación) · 10% reflexión.
+          Cobertura {Math.round(academicSummary.general.coverage * 100)}%.
+        </Text>
+        <View style={styles.academicTopics}>
+          {academicSummary.topics.map((topic) => (
+            <View key={topic.moduleId} style={[styles.academicTopicRow, { borderTopColor: colors.border }]}>
+              <Text style={[styles.academicTopicName, { color: colors.foreground }]} numberOfLines={1}>
+                {topic.title ?? topic.moduleId}
+              </Text>
+              <Text style={[styles.academicTopicGrade, { color: topic.grade === null ? colors.mutedForeground : colors.primary }]}>
+                {topic.grade === null ? "Pendiente" : topic.grade.toFixed(1)}
+              </Text>
+              <Text style={[styles.academicTopicMeta, { color: colors.mutedForeground }]}>
+                {topic.grade === null
+                  ? "Sin evidencia"
+                  : `${Math.round(topic.coverage * 100)}% cubierto`}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       {/* ══════════════════════════════════════════
@@ -654,6 +723,22 @@ const styles = StyleSheet.create({
   rankBadges: { fontSize: 11, marginTop: 4 },
   rankUpBanner: { borderRadius: 12, borderWidth: 1, padding: 11, marginBottom: 12 },
   rankUpText: { fontSize: 13, fontWeight: "800", textAlign: "center" },
+  academicCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 20 },
+  academicHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  academicIconBox: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  academicTitle: { fontSize: 15, fontWeight: "800" },
+  academicSubtitle: { fontSize: 10, lineHeight: 14, marginTop: 2 },
+  academicGrade: { fontSize: 22, fontWeight: "900" },
+  academicGlobalRow: { flexDirection: "row", gap: 8, marginTop: 12 },
+  academicGlobal: { flex: 1, borderRadius: 10, borderWidth: 1, padding: 9 },
+  academicGlobalLabel: { fontSize: 10, lineHeight: 13 },
+  academicGlobalValue: { fontSize: 16, fontWeight: "800", marginTop: 3 },
+  academicRubric: { fontSize: 10, lineHeight: 14, marginTop: 10 },
+  academicTopics: { marginTop: 8 },
+  academicTopicRow: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, paddingVertical: 8, gap: 6 },
+  academicTopicName: { flex: 1, fontSize: 11, fontWeight: "600" },
+  academicTopicGrade: { fontSize: 13, fontWeight: "800", minWidth: 48, textAlign: "right" },
+  academicTopicMeta: { fontSize: 9, minWidth: 68, textAlign: "right" },
 
   // ── Ruta sugerida ─────────────────────────────────────────────────
   routeCard: {

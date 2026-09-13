@@ -5,10 +5,15 @@ import {
   exerciseResults,
   moduleReflections,
   sessionReflections,
+  learningSessions,
   weeklyReflections,
 } from "@workspace/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
+import {
+  calculateAcademicSummary,
+  type AcademicExerciseEvidence,
+} from "../lib/academicGrading.js";
 
 const router = Router();
 const connectors = new ReplitConnectors();
@@ -177,6 +182,8 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
       moduleId: exerciseResults.moduleId,
       exerciseId: exerciseResults.exerciseId,
       correct: exerciseResults.correct,
+      errorCategory: exerciseResults.errorCategory,
+      feedbackViews: exerciseResults.feedbackViews,
       hintsUsed: exerciseResults.hintsUsed,
       durationSeconds: exerciseResults.durationSeconds,
       attempts: exerciseResults.attempts,
@@ -291,6 +298,8 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
       moduleId: exerciseResults.moduleId,
       exerciseId: exerciseResults.exerciseId,
       correct: exerciseResults.correct,
+      errorCategory: exerciseResults.errorCategory,
+      feedbackViews: exerciseResults.feedbackViews,
       hintsUsed: exerciseResults.hintsUsed,
       durationSeconds: exerciseResults.durationSeconds,
       attempts: exerciseResults.attempts,
@@ -313,6 +322,10 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
     .select()
     .from(sessionReflections)
     .where(inArray(sessionReflections.studentId, studentIds));
+  const learningSessionRows = await db
+    .select()
+    .from(learningSessions)
+    .where(inArray(learningSessions.studentId, studentIds));
   const weeklyReflectionRows = await db
     .select()
     .from(weeklyReflections)
@@ -393,7 +406,8 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
     mod.hintsUsed += hints;
     ex.attemptsTotal += r.attempts ?? 1;
     ex.details.push({
-      correct: r.correct, attempts: r.attempts ?? 1, answer: r.answer,
+      correct: r.correct, attempts: r.attempts ?? 1, errorCategory: r.errorCategory,
+      feedbackViews: r.feedbackViews ?? 0, answer: r.answer,
       questionText: r.questionText, topicName: r.topicName,
       correctAnswer: r.correctAnswer, evidenceUrl: r.evidenceUrl,
       evidenceDriveFileId: r.evidenceDriveFileId,
@@ -442,6 +456,38 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
         }))
       : [];
     const student = classStudents.find((s) => s.id === studentId);
+    const studentResults = results.filter((result) => result.studentId === studentId);
+    const sessionsById = new Map(
+      learningSessionRows
+        .filter((session) => session.studentId === studentId)
+        .map((session) => [String(session.id), session.activityId]),
+    );
+    const academicReflections = [
+      ...reflections
+        .filter((reflection) => reflection.studentId === studentId)
+        .map((reflection) => ({ moduleId: reflection.moduleId, completed: true })),
+      ...sessionReflectionRows
+        .filter((reflection) => reflection.studentId === studentId)
+        .map((reflection) => ({
+          activityId: sessionsById.get(String(reflection.sessionId)) ?? null,
+          completed: true,
+        })),
+    ];
+    const academicRecords: AcademicExerciseEvidence[] = studentResults.map((result) => ({
+      exerciseId: result.exerciseId,
+      moduleId: result.moduleId,
+      correct: result.correct,
+      attempts: result.attempts,
+      errorCategory: result.errorCategory,
+      feedbackViews: result.feedbackViews,
+      timestamp: result.createdAt,
+    }));
+    const academicSummary = calculateAcademicSummary({
+      records: academicRecords,
+      reflections: academicReflections,
+      diagnosticResults: ((student?.diagnosticProfile as { results?: Array<{ category?: string; score?: number }> } | null)?.results ?? [])
+        .filter((result): result is { category: string; score?: number } => typeof result.category === "string"),
+    });
     return {
       studentId,
       pseudonym: student?.pseudonym ?? null,
@@ -456,6 +502,7 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
         .map((m) => m.moduleId),
       sessionReflections: sessionReflectionRows.filter((reflection) => reflection.studentId === studentId),
       weeklyReflections: weeklyReflectionRows.filter((reflection) => reflection.studentId === studentId),
+      academicSummary,
       modules,
     };
   });
