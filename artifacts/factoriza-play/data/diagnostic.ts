@@ -1,3 +1,12 @@
+import {
+  buildPersonalizedRoute,
+  PERSONALIZED_ROUTE_THRESHOLD,
+  type DiagnosticModuleResult,
+  type PersonalizedModuleId,
+} from "./personalizedRoutes";
+
+export type { DiagnosticModuleResult } from "./personalizedRoutes";
+
 export type DiagnosticCategory =
   | "naturales"
   | "decimales"
@@ -63,6 +72,8 @@ export interface DiagnosticProfile {
   completedAt: number;
   results: DiagnosticResult[];
   competencyResults: CompetencyResult[];
+  moduleResults: DiagnosticModuleResult[];
+  personalizedRoute: import("./personalizedRoutes").PersonalizedRoute;
   overallScore: number;
   level: "básico" | "intermedio" | "avanzado";
   profile: LearningProfileCode;
@@ -541,21 +552,49 @@ export function buildDiagnosticProfile(
 
   const scoreFor = (category: DiagnosticCategory) =>
     results.find((result) => result.category === category)?.score ?? 0;
-  const arithmeticCategories: DiagnosticCategory[] = [
-    "naturales",
-    "enteros",
-    "potencias",
-    "fracciones",
-  ];
-  const arithmeticScore = Math.round(
-    arithmeticCategories.reduce((sum, category) => sum + scoreFor(category), 0) /
-      arithmeticCategories.length
-  );
+  const moduleCategoryMap: Record<PersonalizedModuleId, DiagnosticCategory[]> = {
+    aritmetica: ["naturales", "decimales", "enteros", "fracciones", "potencias"],
+    algebra: ["variables", "propiedades", "terminos", "igualdad"],
+    patrones: ["patrones"],
+    factorizacion: ["factorizacion"],
+  };
+  const moduleResults: DiagnosticModuleResult[] = (Object.entries(moduleCategoryMap) as [
+    PersonalizedModuleId,
+    DiagnosticCategory[],
+  ][]).map(([id, categories]) => {
+    const topics = categories.map((category) => {
+      const score = scoreFor(category);
+      return {
+        category,
+        label: DIAGNOSTIC_CATEGORY_INFO[category].label,
+        score,
+        meetsThreshold: score >= PERSONALIZED_ROUTE_THRESHOLD,
+      };
+    });
+    const score = topics.length
+      ? Math.round(topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length)
+      : 0;
+    const meetsThreshold = topics.every((topic) => topic.meetsThreshold);
+    return {
+      id,
+      title: id === "aritmetica"
+        ? "Fortalecimiento aritmético"
+        : id === "algebra"
+          ? "Pensamiento algebraico"
+          : id === "patrones"
+            ? "Reconocimiento de patrones"
+            : "Factorización",
+      score,
+      threshold: PERSONALIZED_ROUTE_THRESHOLD,
+      meetsThreshold,
+      needsStrengthening: !meetsThreshold,
+      topics,
+    };
+  });
+  const arithmeticCategories = moduleCategoryMap.aritmetica;
+  const arithmeticScore = moduleResults.find((module) => module.id === "aritmetica")?.score ?? 0;
   const algebraCompetencies = ["propiedades", "terminos", "variables", "igualdad"] as const;
-  const algebraScore = Math.round(
-    algebraCompetencies.reduce((sum, competency) => sum + scoreFor(competency), 0) /
-      algebraCompetencies.length
-  );
+  const algebraScore = moduleResults.find((module) => module.id === "algebra")?.score ?? 0;
   // Pattern-readiness is intentionally a separate gate. It measures whether
   // the student can connect an expression's structure to a strategy, rather
   // than merely calculating correctly. Existing diagnostic categories provide
@@ -565,19 +604,19 @@ export function buildDiagnosticProfile(
     {
       competency: "aritmetica",
       score: arithmeticScore,
-      meetsThreshold: arithmeticCategories.every((category) => scoreFor(category) >= 75),
+      meetsThreshold: arithmeticCategories.every((category) => scoreFor(category) >= PERSONALIZED_ROUTE_THRESHOLD),
     },
     ...algebraCompetencies.map(
       (competency) => ({
         competency,
         score: scoreFor(competency),
-        meetsThreshold: scoreFor(competency) >= 75,
+        meetsThreshold: scoreFor(competency) >= PERSONALIZED_ROUTE_THRESHOLD,
       })
     ),
     {
       competency: "patrones",
       score: patternScore,
-      meetsThreshold: patternScore >= 75,
+      meetsThreshold: patternScore >= PERSONALIZED_ROUTE_THRESHOLD,
     },
   ];
 
@@ -612,6 +651,8 @@ export function buildDiagnosticProfile(
     completedAt: Date.now(),
     results,
     competencyResults,
+    moduleResults,
+    personalizedRoute: buildPersonalizedRoute(moduleResults),
     overallScore,
     level,
     profile,

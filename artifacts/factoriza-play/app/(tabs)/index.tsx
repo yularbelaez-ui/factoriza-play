@@ -26,6 +26,13 @@ import {
   getRouteForProfile,
   normalizeProfileCode,
 } from "@/data/learningRoutes";
+import {
+  getPersonalizedRouteProgress,
+  getPersonalizedStepState,
+  getPersonalizedStepTarget,
+  isPersonalizedRouteCompleted,
+  isPersonalizedRoutePrerequisitesCompleted,
+} from "@/data/personalizedRoutes";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
 const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
@@ -101,25 +108,34 @@ export default function HomeScreen() {
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
+  const personalizedRoute = dp?.personalizedRoute;
   const routeId =
     dp?.profile === "C" && dp.route === "ruta-3"
       ? "ruta-4"
       : dp?.route ?? getRouteForProfile(profileCode).id;
-  const assignedRoute = dp
+  const assignedRoute = dp && !personalizedRoute
     ? LEARNING_ROUTES[
         routeId
       ]
     : null;
-  const routeSteps = assignedRoute?.steps ?? [];
-  const allStrong =
-    profileCode === "C" ||
-    profileCode === "explorador-factorizacion";
+  const routeSteps = personalizedRoute?.steps ?? assignedRoute?.steps ?? [];
+  const allStrong = personalizedRoute
+    ? personalizedRoute.steps.length === 1
+    : profileCode === "C" || profileCode === "explorador-factorizacion";
   const completedTopics = currentStudent.completedTopics ?? [];
   const completedModules = currentStudent.completedModules ?? [];
-  const routeCompleted = assignedRoute
-    ? isLearningRouteCompleted(assignedRoute, completedTopics, completedModules)
-    : false;
-  const canAccessFactorization = allStrong || routeCompleted;
+  const routeCompleted = personalizedRoute
+    ? isPersonalizedRouteCompleted(personalizedRoute, completedTopics, completedModules)
+    : assignedRoute
+      ? isLearningRouteCompleted(assignedRoute, completedTopics, completedModules)
+      : false;
+  const canAccessFactorization = personalizedRoute
+    ? isPersonalizedRoutePrerequisitesCompleted(personalizedRoute, completedTopics, completedModules)
+    : allStrong || routeCompleted;
+  const routeProgress = personalizedRoute
+    ? getPersonalizedRouteProgress(personalizedRoute, completedTopics, completedModules)
+    : null;
+  const routeColor = personalizedRoute?.color ?? assignedRoute?.color ?? colors.primary;
 
   return (
     <ScrollView
@@ -303,13 +319,41 @@ export default function HomeScreen() {
               <View>
                 <Text style={[styles.routeTitle, { color: colors.foreground }]}>Tu Ruta Sugerida</Text>
                 <Text style={[styles.routeSub, { color: colors.mutedForeground }]}>
-                  {profileDetails?.icon} {profileDetails?.label} · {assignedRoute?.title} · {dp.overallScore}%
+                  {profileDetails?.icon} {profileDetails?.label} · {personalizedRoute?.title ?? assignedRoute?.title} · {dp.overallScore}%
                 </Text>
               </View>
             </View>
           </View>
 
-          {allStrong ? (
+          {personalizedRoute && (
+            <>
+              <View style={styles.routeProgressHeader}>
+                <Text style={[styles.routeProgressTitle, { color: colors.foreground }]}>
+                  Progreso de tu ruta completa
+                </Text>
+                <Text style={[styles.routeProgressPercent, { color: routeColor }]}>
+                  {routeProgress}%
+                </Text>
+              </View>
+              <View style={[styles.routeProgressBg, { backgroundColor: colors.border }]}>
+                <View style={[styles.routeProgressFill, { width: `${routeProgress}%` as any, backgroundColor: routeColor }]} />
+              </View>
+              <View style={styles.routeModuleSummary}>
+                <View style={[styles.routeModulePill, { backgroundColor: colors.success + "12" }]}>
+                  <Text style={[styles.routeModulePillText, { color: colors.success }]}>
+                    ✓ Dominas {dp.moduleResults.filter((module) => !module.needsStrengthening).length}
+                  </Text>
+                </View>
+                <View style={[styles.routeModulePill, { backgroundColor: colors.accent + "12" }]}>
+                  <Text style={[styles.routeModulePillText, { color: colors.accent }]}>
+                    ↗ Refuerza {dp.moduleResults.filter((module) => module.needsStrengthening).length}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {!personalizedRoute && allStrong ? (
             /* Todas las áreas ≥ 70% */
             <View style={styles.allStrongBox}>
               <Text style={styles.allStrongEmoji}>🎉</Text>
@@ -321,19 +365,21 @@ export default function HomeScreen() {
             /* Pasos de repaso */
             <View style={styles.stepsContainer}>
               {routeSteps.map((step, idx) => {
-                        const sc = {
-                          bg: (assignedRoute?.color ?? colors.primary) + "0D",
-                          border: (assignedRoute?.color ?? colors.primary) + "35",
-                          badge: assignedRoute?.color ?? colors.primary,
-                          label: assignedRoute?.color ?? colors.primary,
-                        };
+                const stepColor = personalizedRoute
+                  ? (step as import("@/data/personalizedRoutes").PersonalizedRouteStep).color
+                  : routeColor;
+                const legacyTopicId = "topicId" in step ? step.topicId : undefined;
+                const stepScore = "score" in step ? step.score : null;
+                const sc = {
+                  bg: stepColor + "0D",
+                  border: stepColor + "35",
+                  badge: stepColor,
+                  label: stepColor,
+                };
                 const isLast = idx === routeSteps.length - 1;
-                const stepState = getRouteStepState(
-                  assignedRoute!,
-                  idx,
-                  completedTopics,
-                  completedModules
-                );
+                const stepState = personalizedRoute
+                  ? getPersonalizedStepState(personalizedRoute, idx, completedTopics, completedModules)
+                  : getRouteStepState(assignedRoute!, idx, completedTopics, completedModules);
                 const canOpenStep = stepState !== "locked";
                 const stepStatus =
                   stepState === "completed"
@@ -352,12 +398,16 @@ export default function HomeScreen() {
                           opacity: canOpenStep ? 1 : 0.62,
                         },
                       ]}
-                        onPress={() =>
-                          canOpenStep &&
-                          router.push(
-                            (step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any
-                          )
-                        }
+                        onPress={() => {
+                          if (!canOpenStep) return;
+                          if (personalizedRoute) {
+                            const target = getPersonalizedStepTarget(personalizedRoute, idx, completedTopics);
+                            if (target?.kind === "topic") router.push(`/tema/${target.id}` as any);
+                            else router.push("/(tabs)/modulos" as any);
+                          } else {
+                            router.push((legacyTopicId ? `/tema/${legacyTopicId}` : `/modulo/${step.moduleId}`) as any);
+                          }
+                        }}
                       activeOpacity={canOpenStep ? 0.8 : 1}
                     >
                       <View style={[styles.stepBadge, { backgroundColor: canOpenStep ? sc.badge : colors.mutedForeground }]}>
@@ -377,7 +427,9 @@ export default function HomeScreen() {
                         </Text>
                       </View>
                       <View style={styles.stepRight}>
-                        <Text style={[styles.stepScore, { color: stepStatus.color }]}>{stepStatus.label}</Text>
+                        <Text style={[styles.stepScore, { color: stepStatus.color }]}>
+                          {stepScore !== null ? `${stepScore}% · ${stepStatus.label}` : stepStatus.label}
+                        </Text>
                         <Feather name={stepStatus.icon} size={16} color={stepStatus.color} />
                       </View>
                     </TouchableOpacity>
@@ -397,7 +449,8 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Paso final: Factorización */}
+           {/* Paso final legacy: Factorización */}
+           {!personalizedRoute && (
           <TouchableOpacity
             style={[
               styles.finalStep,
@@ -428,6 +481,7 @@ export default function HomeScreen() {
               color={canAccessFactorization ? "#d97706" : colors.mutedForeground}
             />
           </TouchableOpacity>
+           )}
         </View>
       ) : (
         /* Sin diagnóstico: invitar a hacerlo */
@@ -801,6 +855,14 @@ const styles = StyleSheet.create({
   routeEmoji: { fontSize: 28 },
   routeTitle: { fontSize: 18, fontWeight: "800", lineHeight: 22 },
   routeSub: { fontSize: 12, marginTop: 2 },
+  routeProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  routeProgressTitle: { fontSize: 12, fontWeight: "700" },
+  routeProgressPercent: { fontSize: 14, fontWeight: "900" },
+  routeProgressBg: { height: 7, borderRadius: 4, overflow: "hidden", marginBottom: 10 },
+  routeProgressFill: { height: "100%", borderRadius: 4 },
+  routeModuleSummary: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  routeModulePill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  routeModulePillText: { fontSize: 11, fontWeight: "800" },
 
   stepsContainer: { gap: 0 },
   stepRow: {

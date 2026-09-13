@@ -18,11 +18,14 @@ import {
   DiagnosticCategory,
 } from "@/data/diagnostic";
 import {
-  getRouteForProfile,
-  LEARNING_ROUTES,
   PROFILE_DETAILS,
   normalizeProfileCode,
 } from "@/data/learningRoutes";
+import {
+  getPersonalizedRouteProgress,
+  getPersonalizedStepState,
+  getPersonalizedStepTarget,
+} from "@/data/personalizedRoutes";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -357,9 +360,8 @@ export default function DiagnosticoScreen() {
   const levelCfg = LEVEL_CONFIG[profile.level];
   const profileCode = normalizeProfileCode(profile.profile, profile.level);
   const profileDetails = PROFILE_DETAILS[profileCode];
-  const assignedRoute = LEARNING_ROUTES[
-    profile.route ?? getRouteForProfile(profileCode).id
-  ];
+  const personalizedRoute = profile.personalizedRoute;
+  const routeProgress = getPersonalizedRouteProgress(personalizedRoute, [], []);
 
   return (
     <ScrollView
@@ -464,104 +466,83 @@ export default function DiagnosticoScreen() {
       })}
 
       <Text style={[styles.breakdownTitle, { color: colors.foreground, marginTop: 10 }]}>
-        {assignedRoute.icon} {assignedRoute.title}
+        🗺️ Tu ruta personalizada
       </Text>
-      <View style={[styles.actionPlanCard, { backgroundColor: colors.card, borderColor: assignedRoute.color + "45" }]}>
+      <View style={[styles.actionPlanCard, { backgroundColor: colors.card, borderColor: personalizedRoute.color + "45" }]}>
         <Text style={[styles.planIntro, { color: colors.mutedForeground }]}>
-          {assignedRoute.subtitle} Cada competencia se considera lograda desde el 75%.
+          {personalizedRoute.subtitle} Los módulos con un puntaje inferior al {personalizedRoute.threshold}% se agregan automáticamente.
         </Text>
-        {assignedRoute.steps.map((step, index) => (
-          <TouchableOpacity
-            key={step.id}
-            style={[styles.planStep, { backgroundColor: assignedRoute.color + "08", borderColor: assignedRoute.color + "22" }]}
-            onPress={() => router.push((step.topicId ? `/tema/${step.topicId}` : `/modulo/${step.moduleId}`) as any)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.planStepNum, { backgroundColor: assignedRoute.color }]}>
-              <Text style={styles.planStepNumText}>{index + 1}</Text>
-            </View>
-            <Text style={styles.planStepIcon}>{step.icon}</Text>
+
+        <View style={styles.routeProgressHeader}>
+          <Text style={[styles.routeProgressLabel, { color: colors.foreground }]}>Progreso de la ruta completa</Text>
+          <Text style={[styles.routeProgressValue, { color: personalizedRoute.color }]}>{routeProgress}%</Text>
+        </View>
+        <View style={[styles.routeProgressBg, { backgroundColor: colors.border }]}>
+          <View style={[styles.routeProgressFill, { width: `${routeProgress}%` as any, backgroundColor: personalizedRoute.color }]} />
+        </View>
+
+        <Text style={[styles.routeGroupTitle, { color: colors.success }]}>Módulos que ya dominas</Text>
+        {profile.moduleResults.filter((module) => !module.needsStrengthening).map((module) => (
+          <View key={`mastered-${module.id}`} style={[styles.moduleResultRow, { backgroundColor: colors.success + "08" }]}>
+            <Text style={styles.moduleResultIcon}>✓</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
-              <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.description}</Text>
-            </View>
-            <Feather name="arrow-right" size={14} color={assignedRoute.color} />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ── Plan de Acción ── */}
-      {(() => {
-        const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: string; section: string }> = {
-          naturales:    { topicId: "s1-naturales",    title: "Números Naturales y Operaciones",     icon: "🔢", section: "Zona de Repaso" },
-          decimales:    { topicId: "s1-decimales",    title: "Números Decimales y Operaciones",     icon: "🔸", section: "Zona de Repaso" },
-          enteros:      { topicId: "s1-enteros",      title: "Números Enteros y Negativos",         icon: "➖", section: "Zona de Repaso" },
-          irracionales: { topicId: "s1-irracionales", title: "Números Irracionales",                icon: "√", section: "Zona de Repaso" },
-          reales:       { topicId: "s1-reales",       title: "Números Reales",                      icon: "♾️", section: "Zona de Repaso" },
-          potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",         icon: "⚡", section: "Zona de Repaso" },
-          factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos",   icon: "🔑", section: "Zona de Repaso" },
-        };
-
-        const weakAreas = profile.results
-          .filter((r) => r.score < 75)
-          .sort((a, b) => a.score - b.score);
-
-        if (weakAreas.length === 0) {
-          return (
-            <View style={[styles.planCard, { backgroundColor: "#f0fdf4", borderColor: "#16a34a30" }]}>
-              <Text style={styles.planIcon}>🚀</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.planTitle, { color: "#16a34a" }]}>¡Excelentes bases!</Text>
-                <Text style={[styles.planSub, { color: "#166534" }]}>
-                  Tus conocimientos previos son sólidos. Puedes ir directamente a los casos de factorización.
-                </Text>
-              </View>
-            </View>
-          );
-        }
-
-        const steps = weakAreas
-          .map((r) => CATEGORY_TOPICS[r.category])
-          .filter(Boolean);
-
-        return (
-          <View style={{ marginBottom: 8 }}>
-            <Text style={[styles.breakdownTitle, { color: colors.foreground, marginTop: 4 }]}>
-              🗺️ Tu Plan de Acción
-            </Text>
-            <View style={[styles.actionPlanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.planIntro, { color: colors.mutedForeground }]}>
-                Detectamos {steps.length} área{steps.length !== 1 ? "s" : ""} para reforzar. Sigue estos pasos en orden antes de pasar a factorización:
+              <Text style={[styles.moduleResultTitle, { color: colors.foreground }]}>{module.title}</Text>
+              <Text style={[styles.moduleResultTopics, { color: colors.mutedForeground }]}>
+                {module.topics.map((topic) => topic.label).join(" · ")}
               </Text>
-              {steps.map((step, i) => (
-                <TouchableOpacity
-                  key={step.topicId}
-                  style={[styles.planStep, { backgroundColor: colors.background, borderColor: colors.border }]}
-                  onPress={() => router.push(`/tema/${step.topicId}` as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.planStepNum, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.planStepNumText}>{i + 1}</Text>
-                  </View>
-                  <Text style={styles.planStepIcon}>{step.icon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
-                    <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.section}</Text>
-                  </View>
-                  <Feather name="arrow-right" size={14} color={colors.primary} />
-                </TouchableOpacity>
-              ))}
-              <View style={[styles.planFinalStep, { backgroundColor: "#fff7ed", borderColor: "#fed7aa" }]}>
-                <Text style={styles.planStepIcon}>🔍</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.planStepTitle, { color: "#92400e" }]}>Paso final: Sección 4 — Factorización</Text>
-                  <Text style={[styles.planStepSub, { color: "#78350f" }]}>Secuencia progresiva con práctica y evaluación</Text>
-                </View>
-              </View>
             </View>
+            <Text style={[styles.moduleResultScore, { color: colors.success }]}>{module.score}%</Text>
           </View>
-        );
-      })()}
+        ))}
+        {profile.moduleResults.every((module) => module.needsStrengthening) && (
+          <Text style={[styles.planSub, { color: colors.mutedForeground }]}>Todavía no hay un módulo por encima del umbral.</Text>
+        )}
+
+        <Text style={[styles.routeGroupTitle, { color: colors.accent, marginTop: 10 }]}>Módulos que necesitas fortalecer</Text>
+        {profile.moduleResults.filter((module) => module.needsStrengthening).map((module) => (
+          <View key={`needs-${module.id}`} style={[styles.moduleResultRow, { backgroundColor: colors.accent + "08" }]}>
+            <Text style={styles.moduleResultIcon}>↗</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.moduleResultTitle, { color: colors.foreground }]}>{module.title}</Text>
+              <Text style={[styles.moduleResultTopics, { color: colors.mutedForeground }]}>
+                {module.topics.filter((topic) => !topic.meetsThreshold).map((topic) => `${topic.label} ${topic.score}%`).join(" · ")}
+              </Text>
+            </View>
+            <Text style={[styles.moduleResultScore, { color: colors.accent }]}>{module.score}%</Text>
+          </View>
+        ))}
+        {profile.moduleResults.every((module) => !module.needsStrengthening) && (
+          <Text style={[styles.planSub, { color: colors.mutedForeground }]}>No se detectaron módulos que requieran refuerzo.</Text>
+        )}
+
+        <Text style={[styles.routeGroupTitle, { color: colors.foreground, marginTop: 12 }]}>Secuencia personalizada</Text>
+        {personalizedRoute.steps.map((step, index) => {
+          const state = getPersonalizedStepState(personalizedRoute, index, [], []);
+          const target = getPersonalizedStepTarget(personalizedRoute, index, []);
+          return (
+            <TouchableOpacity
+              key={step.id}
+              style={[styles.planStep, { backgroundColor: step.color + "08", borderColor: step.color + "22", opacity: state === "locked" ? 0.58 : 1 }]}
+              onPress={() => {
+                if (!target) return;
+                if (target.kind === "topic") router.push(`/tema/${target.id}` as any);
+                else router.push("/(tabs)/modulos" as any);
+              }}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.planStepNum, { backgroundColor: state === "locked" ? colors.mutedForeground : step.color }]}>
+                {state === "locked" ? <Feather name="lock" size={12} color="#fff" /> : <Text style={styles.planStepNumText}>{index + 1}</Text>}
+              </View>
+              <Text style={styles.planStepIcon}>{step.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
+                <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.score}% · {state === "locked" ? "Bloqueado" : step.description}</Text>
+              </View>
+              <Feather name={state === "locked" ? "lock" : "arrow-right"} size={14} color={state === "locked" ? colors.mutedForeground : step.color} />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <View style={[styles.summaryCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "25" }]}>
         <Feather name="trending-up" size={16} color={colors.primary} />
@@ -769,6 +750,17 @@ const styles = StyleSheet.create({
   planSub: { fontSize: 12, lineHeight: 18 },
   actionPlanCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16, gap: 8 },
   planIntro: { fontSize: 13, lineHeight: 20, marginBottom: 4 },
+  routeProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 6 },
+  routeProgressLabel: { fontSize: 12, fontWeight: "700" },
+  routeProgressValue: { fontSize: 14, fontWeight: "900" },
+  routeProgressBg: { height: 7, borderRadius: 4, overflow: "hidden", marginBottom: 10 },
+  routeProgressFill: { height: "100%", borderRadius: 4 },
+  routeGroupTitle: { fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  moduleResultRow: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, padding: 9 },
+  moduleResultIcon: { fontSize: 16, fontWeight: "900", width: 20, textAlign: "center" as const },
+  moduleResultTitle: { fontSize: 12, fontWeight: "800" },
+  moduleResultTopics: { fontSize: 10, lineHeight: 15, marginTop: 1 },
+  moduleResultScore: { fontSize: 14, fontWeight: "900" },
   planStep: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 12 },
   planStepNum: { width: 26, height: 26, borderRadius: 13, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   planStepNumText: { color: "#fff", fontSize: 12, fontWeight: "900" },

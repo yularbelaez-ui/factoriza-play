@@ -726,6 +726,8 @@ router.get(
       field("Nivel", storedProfile.level);
       field("Ruta", storedProfile.route);
       block("Competencias y puntajes", reportSafeData(storedProfile.competencyResults));
+      block("Desempeño por módulo", reportSafeData(storedProfile.moduleResults));
+      block("Ruta personalizada asignada", reportSafeData(storedProfile.personalizedRoute));
       block("Datos completos del diagnóstico", reportSafeData(storedProfile));
     } else {
       field("Estado", "No hay diagnóstico registrado");

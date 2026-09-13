@@ -11,6 +11,9 @@ import { AppState } from "react-native";
 import { DiagnosticProfile } from "@/data/diagnostic";
 import { getRouteForProfile, normalizeProfileCode } from "@/data/learningRoutes";
 import {
+  isPersonalizedRoutePrerequisitesCompleted,
+} from "@/data/personalizedRoutes";
+import {
   apiLoginStudent,
   apiLoginTeacher,
   apiRecordExercise,
@@ -197,6 +200,23 @@ const MODULE_ORDER = [
 
 function computeUnlocked(student: StudentRecord | null): string[] {
   if (!student) return [];
+  const personalizedRoute = student.diagnosticProfile?.personalizedRoute;
+  if (personalizedRoute) {
+    const prerequisitesCompleted = isPersonalizedRoutePrerequisitesCompleted(
+      personalizedRoute,
+      student.completedTopics ?? [],
+      student.completedModules ?? [],
+    );
+    if (!prerequisitesCompleted) return [];
+    const completedModules = student.completedModules ?? [];
+    const unlocked = [MODULE_ORDER[0]];
+    for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
+      if (completedModules.includes(MODULE_ORDER[i])) {
+        unlocked.push(MODULE_ORDER[i + 1]);
+      }
+    }
+    return unlocked;
+  }
   const storedProfile = student.diagnosticProfile?.profile;
   const profileCode = normalizeProfileCode(
     student.diagnosticProfile?.profile,

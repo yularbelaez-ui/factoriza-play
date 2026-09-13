@@ -987,7 +987,13 @@ router.post("/students/:studentId/diagnostic", async (req, res) => {
     const now = new Date().toISOString();
     const profileHistory = [
       ...(student.profileHistory ?? []),
-      { profile: diagnosticProfile.profile ?? null, route: diagnosticProfile.route ?? null, at: now },
+      {
+        profile: diagnosticProfile.profile ?? null,
+        route: diagnosticProfile.route ?? null,
+        moduleResults: diagnosticProfile.moduleResults ?? null,
+        personalizedRoute: diagnosticProfile.personalizedRoute ?? null,
+        at: now,
+      },
     ];
     const [next] = await tx.update(students).set({
       diagnosticProfile,
