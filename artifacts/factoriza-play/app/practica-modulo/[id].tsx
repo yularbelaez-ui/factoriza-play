@@ -201,17 +201,15 @@ export default function PracticaModuloScreen() {
     if (phase === "main") {
       const nextIdx = mainIdx + 1;
       if (nextIdx >= mainQueue.length) {
-        // main queue exhausted — check if we have retries
-        // retryQueue is updated via setState, we check it after the current wrong answer
-        setRetryQueue(prev => {
-          if (prev.length > 0) {
-            setPhase("retry");
-            setRetryIdx(0);
-          } else {
-            setPhase("done");
-          }
-          return prev;
-        });
+        // The final main question must always leave the main phase.
+        // Read the already-rendered retry queue directly instead of nesting
+        // a phase update inside a retryQueue state updater.
+        if (retryQueue.length > 0) {
+          setPhase("retry");
+          setRetryIdx(0);
+        } else {
+          setPhase("done");
+        }
       } else {
         setMainIdx(nextIdx);
       }
