@@ -144,7 +144,11 @@ export default function PracticaModuloScreen() {
           questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
           topicName: module.title,
         },
-        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+        {
+          hintsUsed: hintsUsedRef.current,
+          durationSeconds: elapsedSeconds,
+          feedbackViewed: showHint || hintsUsedRef.current > 0,
+        }
       );
       // Check level/module completion
       const doneSet = new Set([...(currentStudent?.completedExercises ?? []), currentEx.id]);
@@ -169,7 +173,7 @@ export default function PracticaModuloScreen() {
       triggerShake();
       if (!showHint) {
         hintsUsedRef.current += 1;
-        void recordHintEvent(currentEx.id, `${currentEx.id}-hint-${phase}`);
+          void recordHintEvent(currentEx.id, `${currentEx.id}-hint-${phase}`, module.id);
       }
       setShowHint(true); // Auto-show hint
       recordExerciseResult(
@@ -184,7 +188,11 @@ export default function PracticaModuloScreen() {
           questionText: `${currentEx.question}${currentEx.expression ? ` — ${currentEx.expression}` : ""}`,
           topicName: module.title,
         },
-        { hintsUsed: hintsUsedRef.current, durationSeconds: elapsedSeconds }
+        {
+          hintsUsed: hintsUsedRef.current,
+          durationSeconds: elapsedSeconds,
+          feedbackViewed: showHint || hintsUsedRef.current > 0,
+        }
       );
       // Add to retry queue (only if in main phase)
       if (phase === "main") {

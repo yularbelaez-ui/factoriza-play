@@ -50,9 +50,9 @@ export interface AcademicSummary {
 }
 
 const WEIGHTS: Record<AcademicComponentKey, number> = {
-  initial: 0.4,
-  correction: 0.3,
-  transfer: 0.2,
+  initial: 0.2,
+  correction: 0.4,
+  transfer: 0.3,
   reflection: 0.1,
 };
 const COMPONENTS: AcademicComponentKey[] = ["initial", "correction", "transfer", "reflection"];
@@ -93,6 +93,15 @@ function item(
     opportunityCount,
     covered: proportion !== null && opportunityCount > 0,
   };
+}
+
+function normalizedModuleId(moduleId?: string | null): string | null {
+  if (!moduleId) return null;
+  return moduleId.startsWith("support:") ? moduleId.slice("support:".length) : moduleId;
+}
+
+function isPrerequisiteTopicId(moduleId: string): boolean {
+  return /^s[123]-/.test(moduleId);
 }
 
 function timestampValue(record: AcademicExerciseEvidence): number {
@@ -178,7 +187,7 @@ export function calculateTopicGrade(
   title?: string,
 ): TopicGrade {
   const moduleRecords = records.filter((record) =>
-    record.moduleId === moduleId ||
+    normalizedModuleId(record.moduleId) === moduleId ||
     (!record.moduleId && activeModuleForExercise(record.exerciseId) === moduleId),
   );
   const practice = moduleRecords.filter((record) => !evaluationIds.has(record.exerciseId));
@@ -326,14 +335,25 @@ export function calculateAcademicSummary(input: {
       !record.moduleId?.startsWith("trinomio-ax2"),
     )
     .flatMap((record) => {
-      const moduleId = record.moduleId && ACTIVE_ACADEMIC_MODULE_IDS.includes(
-        record.moduleId as typeof ACTIVE_ACADEMIC_MODULE_IDS[number],
+      const normalized = normalizedModuleId(record.moduleId);
+      const moduleId = normalized && (
+        ACTIVE_ACADEMIC_MODULE_IDS.includes(normalized as typeof ACTIVE_ACADEMIC_MODULE_IDS[number]) ||
+        isPrerequisiteTopicId(normalized)
       )
-        ? record.moduleId
+        ? normalized
         : activeModuleForExercise(record.exerciseId);
       return moduleId ? [{ ...record, moduleId }] : [];
     });
-  const topics = ACTIVE_ACADEMIC_MODULE_IDS.map((moduleId) =>
+  const prerequisiteTopicIds = [
+    "s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales",
+    "s1-irracionales", "s1-reales", "s1-potencias", "s1-factores",
+    "s2-diferencia", "s2-notacion", "s2-signos", "s2-expresion",
+    "s2-grado", "s2-clasificacion", "s2-orden", "s2-semejantes",
+    "s3-suma-resta", "s3-agrupacion", "s3-multiplicacion", "s3-division",
+    "s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia", "s3-cubo",
+  ];
+  const academicModuleIds = [...prerequisiteTopicIds, ...ACTIVE_ACADEMIC_MODULE_IDS];
+  const topics = academicModuleIds.map((moduleId) =>
     calculateTopicGrade(moduleId, activeRecords, evaluationIdsForModule(moduleId, activeRecords), input.reflections ?? [], input.moduleTitles?.[moduleId]),
   );
   const diagnostics = (input.diagnosticResults ?? []).filter((result) =>
@@ -347,12 +367,16 @@ export function calculateAcademicSummary(input: {
     values.length > 0 ? values.reduce((sum, result) => sum + (result.score ?? 0), 0) / values.length / 100 : null;
   const numeric = diagnostics.filter((result) => NUMERIC.has(result.category));
   const algebra = diagnostics.filter((result) => ALGEBRA.has(result.category));
+  const numericTopics = topics.filter((topic) => topic.moduleId.startsWith("s1-"));
+  const algebraTopics = topics.filter((topic) =>
+    topic.moduleId.startsWith("s2-") || topic.moduleId.startsWith("s3-"),
+  );
   const general = summary(pooledComponents(topics, diagnostics));
   return {
     topics,
     diagnosticGrades,
-    pensamientoNumerico: direct(average(numeric), numeric.length),
-    pensamientoAlgebraico: direct(average(algebra), algebra.length),
+    pensamientoNumerico: summary(pooledComponents(numericTopics, numeric)),
+    pensamientoAlgebraico: summary(pooledComponents(algebraTopics, algebra)),
     general,
   };
 }

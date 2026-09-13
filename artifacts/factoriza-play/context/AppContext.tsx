@@ -110,6 +110,10 @@ function generateClientId(): string {
 function getExerciseXp(
   result: Pick<ExerciseResult, "moduleId" | "correct" | "attempts" | "hintsUsed" | "feedbackViewed">
 ): number {
+  const isPrerequisiteExercise = result.moduleId?.startsWith("support:") ?? false;
+  if (isPrerequisiteExercise) {
+    return result.correct ? (result.attempts <= 1 ? 10 : 5) : 0;
+  }
   const base = result.correct
     ? result.attempts <= 1 ? 25 : result.attempts === 2 ? 20 : result.attempts === 3 ? 15 : 10
     : 5;
@@ -297,7 +301,7 @@ interface AppContextValue {
     result: Omit<ExerciseResult, "timestamp">,
     extra?: { hintsUsed?: number; durationSeconds?: number; feedbackViewed?: boolean }
   ) => void;
-  recordHintEvent: (exerciseId: string, hintId: string) => Promise<{ ok: boolean }>;
+  recordHintEvent: (exerciseId: string, hintId: string, moduleId?: string) => Promise<{ ok: boolean }>;
   recordFeedbackView: (exerciseClientId: string) => Promise<{ ok: boolean }>;
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
@@ -898,12 +902,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const recordHintEvent = async (exerciseId: string, hintId: string) => {
+  const recordHintEvent = async (exerciseId: string, hintId: string, moduleId?: string) => {
     const student = currentStudentRef.current;
     if (!student?.backendId) return { ok: false };
     try {
       const result = await apiRecordHint(student.backendId, {
-        exerciseId, hintId, clientId: `hint-${student.backendId}-${exerciseId}-${hintId}`,
+        exerciseId,
+        hintId,
+        moduleId,
+        clientId: `hint-${student.backendId}-${exerciseId}-${hintId}`,
       });
       updateStudentFromServer(result.student);
       return { ok: true };

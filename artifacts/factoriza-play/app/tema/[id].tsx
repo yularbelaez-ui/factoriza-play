@@ -41,7 +41,7 @@ export default function TemaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { startActivitySession, recordHintEvent, recordExerciseResult } = useApp();
+  const { startActivitySession, recordHintEvent, recordExerciseResult, markTheoryRead } = useApp();
 
   const topic = getTopicById(id ?? "");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -79,6 +79,10 @@ export default function TemaScreen() {
   useEffect(() => {
     if (activeTab === "practica") resetPractice();
   }, [activeTab, resetPractice]);
+
+  useEffect(() => {
+    if (topic && activeTab === "teoria") markTheoryRead(topic.id);
+  }, [activeTab, markTheoryRead, topic?.id]);
 
   if (!topic) {
     return (
@@ -142,7 +146,10 @@ export default function TemaScreen() {
           questionText: currentEx.question,
           topicName: topic.title,
         },
-        { hintsUsed: phase === "hint" ? 1 : 0 }
+        {
+          hintsUsed: phase === "hint" ? 1 : 0,
+          feedbackViewed: phase === "hint",
+        }
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPhase("revealed");
@@ -154,7 +161,7 @@ export default function TemaScreen() {
         setDisabledOptions((prev) => [...prev, selectedAnswer]);
         setSelectedAnswer(null);
         setPhase("hint");
-        void recordHintEvent(currentEx.id, `${currentEx.id}-hint-1`);
+        void recordHintEvent(currentEx.id, `${currentEx.id}-hint-1`, `support:${topic.id}`);
       } else {
         // Second wrong attempt → full reveal, no XP
         recordExerciseResult(

@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
+import { ALL_TOPICS } from "@/data/sectionTopics";
 import { ProgressBar } from "@/components/ProgressBar";
 import { getRankForXp } from "@/data/progression";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
@@ -60,7 +61,7 @@ function stepColor(score: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentStudent, unlockedModules, logout } = useApp();
+  const { currentStudent, moduleProgress, unlockedModules, logout } = useApp();
   const isWeb = Platform.OS === "web";
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -94,15 +95,19 @@ export default function HomeScreen() {
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
   const academicSummary = calculateAcademicSummary({
     records: currentStudent.exerciseResults,
-    activeModules: MODULES.map((module) => ({
-      id: module.id,
-      title: module.title,
-      evaluationExerciseIds: module.evaluationExercises.map((exercise) => exercise.id),
-    })),
-    reflections: currentStudent.completedModules.map((moduleId) => ({
-      moduleId,
-      completed: true,
-    })),
+    activeModules: [
+      ...ALL_TOPICS.map((topic) => ({ id: topic.id, title: topic.title })),
+      ...MODULES.map((module) => ({
+        id: module.id,
+        title: module.title,
+        evaluationExerciseIds: module.evaluationExercises.map((exercise) => exercise.id),
+      })),
+    ],
+    reflections: [
+      ...currentStudent.completedTopics.map((moduleId) => ({ moduleId, completed: true })),
+      ...currentStudent.completedModules.map((moduleId) => ({ moduleId, completed: true })),
+    ],
+    theoryReadModuleIds: moduleProgress.filter((item) => item.theoryRead).map((item) => item.moduleId),
     diagnosticResults: dp?.results,
   });
 
@@ -285,7 +290,7 @@ export default function HomeScreen() {
           ))}
         </View>
         <Text style={[styles.academicRubric, { color: colors.mutedForeground }]}>
-          Rúbrica: 40% comprensión inicial · 30% corrección · 20% transferencia post-corrección (evaluación) · 10% reflexión.
+           Punto de partida 20% · corrección y uso de retroalimentación 40% · transferencia post-corrección 30% · reflexión 10%.
           Cobertura {Math.round(academicSummary.general.coverage * 100)}%.
         </Text>
         <View style={styles.academicTopics}>

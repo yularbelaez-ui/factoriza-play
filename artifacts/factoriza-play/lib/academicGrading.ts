@@ -56,9 +56,9 @@ export interface AcademicSummary {
 }
 
 export const ACADEMIC_WEIGHTS: Record<AcademicComponentKey, number> = {
-  initial: 0.4,
-  correction: 0.3,
-  transfer: 0.2,
+  initial: 0.2,
+  correction: 0.4,
+  transfer: 0.3,
   reflection: 0.1,
 };
 
@@ -108,6 +108,11 @@ function component(
   };
 }
 
+function normalizedModuleId(moduleId?: string | null): string | null {
+  if (!moduleId) return null;
+  return moduleId.startsWith("support:") ? moduleId.slice("support:".length) : moduleId;
+}
+
 function latestPerExercise(records: AcademicExerciseEvidence[]): AcademicExerciseEvidence[] {
   const byId = new Map<string, AcademicExerciseEvidence>();
   for (const record of records) {
@@ -128,7 +133,7 @@ function timestampValue(record: AcademicExerciseEvidence): number {
   return new Date(record.timestamp).getTime() || Number(record.timestamp) || 0;
 }
 
-function correctionEvidence(records: AcademicExerciseEvidence[]): {
+function correctionEvidence(records: AcademicExerciseEvidence[], theoryRead = false): {
   proportion: number | null;
   evidenceCount: number;
   successCount: number;
@@ -150,7 +155,9 @@ function correctionEvidence(records: AcademicExerciseEvidence[]): {
     if (incorrect.length === 0) continue;
     opportunities += 1;
     if (incorrect.some(({ record }) => Boolean(record.errorCategory?.trim()))) earnedCriteria += 1;
-    if (entries.some((record) => (record.feedbackViews ?? 0) > 0 || record.feedbackViewed === true)) earnedCriteria += 1;
+    if (theoryRead || entries.some((record) => (record.feedbackViews ?? 0) > 0 || record.feedbackViewed === true)) {
+      earnedCriteria += 1;
+    }
     const corrected = orderedEntries.filter(({ record, index }) =>
       record.correct &&
       (record.attempts ?? 1) > 1 &&
@@ -186,6 +193,7 @@ export function calculateTopicGrade(
   evaluationExerciseIds: ReadonlySet<string> = new Set(),
   reflections: AcademicReflectionEvidence[] = [],
   title?: string,
+  theoryRead = false,
 ): TopicGrade {
   const evaluationPrefix = Array.from(evaluationExerciseIds)
     .map((id) => id.split("-eval-")[0])
@@ -193,18 +201,18 @@ export function calculateTopicGrade(
   const moduleRecords = records.filter((record) =>
     !record.exerciseId.startsWith("reconocimiento-patrones-") &&
     !record.exerciseId.startsWith("ax2-") &&
-    (record.moduleId === moduleId ||
+    (normalizedModuleId(record.moduleId) === moduleId ||
       record.exerciseId.startsWith(`${moduleId}-`) ||
       (evaluationPrefix != null && record.exerciseId.startsWith(`${evaluationPrefix}-`))) &&
-    !record.moduleId?.startsWith("reconocimiento-patrones") &&
-    !record.moduleId?.startsWith("trinomio-ax2-bx-c"),
+    !normalizedModuleId(record.moduleId)?.startsWith("reconocimiento-patrones") &&
+    !normalizedModuleId(record.moduleId)?.startsWith("trinomio-ax2-bx-c"),
   );
   const practiceRecords = moduleRecords.filter((record) => !evaluationExerciseIds.has(record.exerciseId));
   const first = latestPerExercise(practiceRecords.filter((record) => (record.attempts ?? 1) <= 1));
   const initial = first.length > 0
     ? first.filter((record) => record.correct).length / first.length
     : null;
-  const correctionEvidenceResult = correctionEvidence(practiceRecords);
+  const correctionEvidenceResult = correctionEvidence(practiceRecords, theoryRead);
 
   const transferRecords = correctionEvidenceResult.latestCorrectionAt == null
     ? []
@@ -294,13 +302,24 @@ export function calculateAcademicSummary(input: {
   activeModules: ReadonlyArray<{ id: string; title?: string; evaluationExerciseIds?: ReadonlyArray<string> }>;
   reflections?: AcademicReflectionEvidence[];
   diagnosticResults?: ReadonlyArray<{ category: string; score?: number | null; total?: number | null }>;
+  theoryReadModuleIds?: ReadonlyArray<string>;
 }): AcademicSummary {
+  const theoryRead = new Set(input.theoryReadModuleIds ?? []);
+  const activeRecords = input.records
+    .filter((record) =>
+      !record.exerciseId.startsWith("reconocimiento-patrones-") &&
+      !record.exerciseId.startsWith("ax2-") &&
+      !normalizedModuleId(record.moduleId)?.startsWith("reconocimiento-patrones") &&
+      !normalizedModuleId(record.moduleId)?.startsWith("trinomio-ax2"),
+    )
+    .map((record) => ({ ...record, moduleId: normalizedModuleId(record.moduleId) }));
   const topics = input.activeModules.map((module) => calculateTopicGrade(
     module.id,
-    input.records,
+    activeRecords,
     new Set(module.evaluationExerciseIds ?? []),
     input.reflections ?? [],
     module.title,
+    theoryRead.has(module.id),
   ));
   const diagnostics = (input.diagnosticResults ?? []).filter(
     (result) => result.category !== "patrones" && typeof result.score === "number" && Number.isFinite(result.score),
@@ -312,8 +331,12 @@ export function calculateAcademicSummary(input: {
   const algebra = diagnostics.filter((result) => ALGEBRA_CATEGORIES.has(result.category));
   const avg = (items: typeof diagnostics) =>
     items.length > 0 ? items.reduce((sum, result) => sum + (result.score ?? 0), 0) / items.length / 100 : null;
-  const pensamientoNumerico = directSummary(avg(numeric), numeric.length);
-  const pensamientoAlgebraico = directSummary(avg(algebra), algebra.length);
+  const numericTopics = topics.filter((topic) => topic.moduleId.startsWith("s1-"));
+  const algebraTopics = topics.filter((topic) =>
+    topic.moduleId.startsWith("s2-") || topic.moduleId.startsWith("s3-"),
+  );
+  const pensamientoNumerico = makeSummary(pooledComponents(numericTopics, numeric));
+  const pensamientoAlgebraico = makeSummary(pooledComponents(algebraTopics, algebra));
   const general = makeSummary(pooledComponents(topics, diagnostics));
   return { general, topics, diagnosticGrades, pensamientoNumerico, pensamientoAlgebraico };
 }

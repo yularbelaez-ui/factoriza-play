@@ -130,7 +130,7 @@ export async function apiRecordExercise(
 
 export async function apiRecordHint(
   studentId: number,
-  data: { exerciseId: string; hintId: string; clientId: string },
+  data: { exerciseId: string; hintId: string; clientId: string; moduleId?: string },
 ): Promise<{ student: ApiStudentData }> {
   return apiFetch(`/students/${studentId}/hint`, { method: "POST", body: JSON.stringify(data) });
 }

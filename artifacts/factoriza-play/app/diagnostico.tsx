@@ -357,7 +357,11 @@ export default function DiagnosticoScreen() {
   const profileCode = normalizeProfileCode(profile.profile, profile.level);
   const profileDetails = PROFILE_DETAILS[profileCode];
   const personalizedRoute = profile.personalizedRoute;
-  const routeProgress = getPersonalizedRouteProgress(personalizedRoute, [], []);
+  const routeProgress = getPersonalizedRouteProgress(
+    personalizedRoute,
+    currentStudent?.completedTopics ?? [],
+    currentStudent?.completedModules ?? [],
+  );
 
   return (
     <ScrollView

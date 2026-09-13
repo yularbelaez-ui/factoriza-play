@@ -36,6 +36,9 @@ const isValidActivity = (activityId: string) =>
   (activityId.startsWith("evaluacion:") && ACTIVE_MODULE_IDS.includes(activityId.slice("evaluacion:".length)));
 const isRetiredExercise = (exerciseId: string) =>
   exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
+const isPrerequisiteExercise = (moduleId: unknown, exerciseId?: string) =>
+  (typeof moduleId === "string" && moduleId.startsWith("support:")) ||
+  (typeof exerciseId === "string" && /^(s1|s2|s3)-/.test(exerciseId));
 const isRetiredTopic = (topicId: string) =>
   topicId.startsWith("reconocimiento-patrones") || topicId.startsWith("ax2-");
 
@@ -445,10 +448,13 @@ router.post("/students/:studentId/exercise", async (req, res) => {
         questionText: questionText ?? null, topicName: topicName ?? null,
         correctAnswer: correctAnswer ?? null,
       });
-      const exerciseBase = correct
-        ? safeAttempts <= 1 ? 25 : safeAttempts === 2 ? 20 : safeAttempts === 3 ? 15 : 10
-        : 5;
-      const correctionBonus = correct && safeAttempts > 1 ? 15 : 0;
+      const prerequisiteExercise = isPrerequisiteExercise(moduleId, exerciseId);
+      const exerciseBase = prerequisiteExercise
+        ? (correct ? (safeAttempts <= 1 ? 10 : 5) : 0)
+        : correct
+          ? safeAttempts <= 1 ? 25 : safeAttempts === 2 ? 20 : safeAttempts === 3 ? 15 : 10
+          : 5;
+      const correctionBonus = !prerequisiteExercise && correct && safeAttempts > 1 ? 15 : 0;
       const hintEvents = correct
         ? await tx.select({ id: xpEvents.id }).from(xpEvents).where(and(
             eq(xpEvents.studentId, studentId),
@@ -456,7 +462,7 @@ router.post("/students/:studentId/exercise", async (req, res) => {
             like(xpEvents.sourceId, `${exerciseId}:%`),
           ))
         : [];
-      const hintBonus = correct && hintEvents.length > 0 ? 10 : 0;
+      const hintBonus = !prerequisiteExercise && correct && hintEvents.length > 0 ? 10 : 0;
       const xpGain = exerciseBase + correctionBonus + hintBonus;
       const alreadyCompleted = (student.completedExercises ?? []).includes(exerciseId);
       const newCompletedExercises = correct && !alreadyCompleted
@@ -825,7 +831,7 @@ router.post("/students/:studentId/topics", async (req, res) => {
 // claim that feedback or a hint was read.
 router.post("/students/:studentId/hint", async (req, res) => {
   const studentId = Number.parseInt(req.params.studentId, 10);
-  const { exerciseId, hintId, clientId } = req.body as Record<string, unknown>;
+  const { exerciseId, hintId, clientId, moduleId } = req.body as Record<string, unknown>;
   if (!Number.isInteger(studentId) || !requiredText(exerciseId) || !requiredText(hintId) || !requiredText(clientId)) {
     res.status(400).json({ error: "exerciseId, hintId y clientId son obligatorios" });
     return;
@@ -834,10 +840,12 @@ router.post("/students/:studentId/hint", async (req, res) => {
     await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
     const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
     if (!student) return null;
+    const hintXp = isPrerequisiteExercise(moduleId, exerciseId) ? 0 : 3;
     const [event] = await tx.insert(xpEvents).values({
-      studentId, eventType: "hint", sourceId: `${exerciseId}:${hintId}:${clientId}`, xp: 3,
+      studentId, eventType: "hint", sourceId: `${exerciseId}:${hintId}:${clientId}`, xp: hintXp,
     }).onConflictDoNothing().returning();
     if (!event) return { student, duplicate: true };
+    if (event.xp === 0) return { student, duplicate: false };
     const dailyProgress = dailyProgressForXp(student, event.xp);
     const [updated] = await tx.update(students).set({
       totalXP: sql`${students.totalXP} + 3`,
