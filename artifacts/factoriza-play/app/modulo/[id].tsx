@@ -104,7 +104,7 @@ export default function ModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { markTheoryRead, currentStudent, moduleProgress } = useApp();
+  const { markTheoryRead, currentStudent } = useApp();
   const isWeb = Platform.OS === "web";
   const [theoryExpanded, setTheoryExpanded] = useState<string[]>([]);
 
@@ -118,18 +118,20 @@ export default function ModuloScreen() {
   }
 
   const videos = MODULE_VIDEOS[module.id] ?? [];
-  const prog = moduleProgress.find((p) => p.moduleId === module.id);
-  const completedLevels = prog?.completedLevels || [];
   const exerciseLevels = getExerciseLevels(module.exercises);
 
   const completedExIds = new Set(currentStudent?.completedExercises || []);
 
   const isLevelUnlocked = (levelIdx: number) => {
     if (levelIdx === 0) return true;
-    return completedLevels.includes(levelIdx - 1);
+    const previousLevel = exerciseLevels[levelIdx - 1] ?? [];
+    return previousLevel.length > 0 && previousLevel.every((exercise) => completedExIds.has(exercise.id));
   };
 
-  const isLevelCompleted = (levelIdx: number) => completedLevels.includes(levelIdx);
+  const isLevelCompleted = (levelIdx: number) => {
+    const level = exerciseLevels[levelIdx] ?? [];
+    return level.length > 0 && level.every((exercise) => completedExIds.has(exercise.id));
+  };
 
   const getLevelProgress = (levelIdx: number) => {
     const exs = exerciseLevels[levelIdx];
