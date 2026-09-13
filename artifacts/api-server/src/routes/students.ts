@@ -984,7 +984,8 @@ router.post("/students/:studentId/diagnostic", async (req, res) => {
       eq(learningSessions.status, "open"),
     )).limit(1);
     if (!session) throw new Error("DIAGNOSTIC_SESSION_REQUIRED");
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
     const profileHistory = [
       ...(student.profileHistory ?? []),
       {
@@ -995,14 +996,59 @@ router.post("/students/:studentId/diagnostic", async (req, res) => {
         at: now,
       },
     ];
+    let awardXp = 0;
+    const profileResults = diagnosticProfile.results as
+      | Array<{ category?: string; total?: number }>
+      | undefined;
+    const categories = new Set(
+      (profileResults ?? [])
+        .filter((result) => (result.total ?? 0) > 0)
+        .map((result) => result.category),
+    );
+    const sections = [
+      ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones"]],
+      ["algebra", ["propiedades", "terminos", "variables", "igualdad", "factorizacion"]],
+      ["patrones", ["patrones"]],
+    ] as const;
+    for (const [section, sectionCategories] of sections) {
+      if (!sectionCategories.some((category) => categories.has(category))) continue;
+      const [sectionEvent] = await tx.insert(xpEvents).values({
+        studentId,
+        eventType: "diagnostic-section",
+        sourceId: `diagnostic-section:${section}`,
+        xp: 10,
+      }).onConflictDoNothing().returning();
+      awardXp += sectionEvent?.xp ?? 0;
+    }
+    const [diagnosticEvent] = await tx.insert(xpEvents).values({
+      studentId,
+      eventType: "diagnostic-completion",
+      sourceId: "diagnostic",
+      xp: 50,
+    }).onConflictDoNothing().returning();
+    awardXp += diagnosticEvent?.xp ?? 0;
+    const dailyProgress = dailyProgressForXp(student, awardXp, nowDate);
     const [next] = await tx.update(students).set({
       diagnosticProfile,
       ...(student.initialProfile ? {} : { initialProfile: String(diagnosticProfile.profile ?? "") }),
       ...(student.initialRank ? {} : { initialRank: rankForXp(student.totalXP).name }),
       profileHistory,
+      ...(awardXp > 0 ? {
+        totalXP: sql`${students.totalXP} + ${awardXp}`,
+        rankHistory: nextRankHistory(student, student.totalXP + awardXp),
+        ...dailyProgress,
+      } : {}),
     }).where(eq(students.id, studentId)).returning();
-    await tx.update(learningSessions).set({ qualifyingWorkAt: new Date() })
-      .where(and(eq(learningSessions.id, numericSessionId), eq(learningSessions.status, "open")));
+    const durationSeconds = Math.max(
+      0,
+      Math.floor((nowDate.getTime() - session.startedAt.getTime()) / 1000),
+    );
+    await tx.update(learningSessions).set({
+      status: "completed",
+      qualifyingWorkAt: nowDate,
+      completedAt: nowDate,
+      durationSeconds,
+    }).where(and(eq(learningSessions.id, numericSessionId), eq(learningSessions.status, "open")));
     return next;
   }).catch((error) => {
     if (error instanceof Error && error.message === "DIAGNOSTIC_SESSION_REQUIRED") {

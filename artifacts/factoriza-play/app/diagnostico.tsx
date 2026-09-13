@@ -126,12 +126,8 @@ export default function DiagnosticoScreen() {
     if (!profile || saving) return;
     setSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (!sessionId) {
-      setSaving(false);
-      return;
-    }
-    await saveDiagnosticProfile(profile, sessionId);
-    router.replace({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: "diagnostico" } });
+    await saveDiagnosticProfile(profile, sessionId ?? `local-diagnostic-${Date.now()}`);
+    router.replace("/" as any);
   };
 
   const padTop = isWeb ? 67 + 16 : insets.top + 16;

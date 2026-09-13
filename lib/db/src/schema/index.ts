@@ -100,8 +100,9 @@ export const moduleReflections = pgTable(
   (t) => [unique().on(t.studentId, t.moduleId, t.clientId)]
 );
 
-// A server-issued lifecycle record. A session can receive its reflection XP
-// exactly once and cannot be completed until its reflection is submitted.
+// A server-issued lifecycle record. Learning sessions for factorization cases
+// require a reflection before completion; diagnostic sessions are completed
+// when the diagnostic profile is saved and do not require a reflection.
 export const learningSessions = pgTable(
   "learning_sessions",
   {
