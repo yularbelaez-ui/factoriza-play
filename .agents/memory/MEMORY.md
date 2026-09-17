@@ -9,3 +9,4 @@
 - [Calificaciones académicas](factoriza-academic-grades.md) — notas 1.0–5.0 coexisten con XP; usan evidencia real 40/30/20/10 y excluyen Reconocimiento de patrones
 - [Racha diaria por XP](factoriza-daily-streak.md) — un día solo cuenta con mínimo 200 XP, calculado en America/Bogota y sin duplicar el día
 - [PDFKit en el API](pdfkit-runtime.md) — PDFKit debe quedar externalizado del bundle de esbuild para resolver sus fuentes estándar en runtime
+- [Cierre y avance de actividades](reflection-advance-flow.md) — la reflexión de sesión es obligatoria antes de marcar un tema o caso como completado y abrir el siguiente

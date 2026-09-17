@@ -163,11 +163,6 @@ export default function PracticaModuloScreen() {
           completeLevel(module.id, lvlIdx);
         }
       });
-      if (module.exercises.every(e => doneSet.has(e.id))) {
-        if (sessionId) {
-          router.push({ pathname: "/reflexion", params: { kind: "session", sessionId, activityId: module.id } });
-        }
-      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerShake();
@@ -259,6 +254,17 @@ export default function PracticaModuloScreen() {
 
   // ── DONE screen ──────────────────────────────────────────────────
   if (phase === "done") {
+    const goToReflection = () => {
+      if (!sessionId) {
+        router.back();
+        return;
+      }
+      router.push({
+        pathname: "/reflexion",
+        params: { kind: "session", sessionId, activityId: module.id },
+      });
+    };
+
     const total = mainQueue.length;
     const finalScore = total > 0 ? Math.round((correctMain / total) * 100) : 0;
     const emoji = finalScore >= 90 ? "🏆" : finalScore >= 70 ? "🎉" : finalScore >= 50 ? "📚" : "💪";
@@ -310,10 +316,10 @@ export default function PracticaModuloScreen() {
 
         <TouchableOpacity
           style={[styles.doneBtn, { backgroundColor: module.color }]}
-          onPress={() => router.back()}
+          onPress={goToReflection}
         >
           <Feather name="check-circle" size={18} color="#fff" />
-          <Text style={styles.doneBtnText}>Ver el caso completo</Text>
+          <Text style={styles.doneBtnText}>{sessionId ? "Completar y avanzar" : "Ver el caso completo"}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

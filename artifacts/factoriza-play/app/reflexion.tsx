@@ -5,6 +5,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { MODULE_CASE_ORDER } from "@/data/modules";
+import { COURSE_SECTIONS } from "@/data/courseSections";
 
 type ReflectionKind = "session" | "weekly";
 type Fields = Record<string, string>;
@@ -24,13 +26,37 @@ export default function ReflectionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ sessionId?: string; activityId?: string; topicId?: string; kind?: ReflectionKind }>();
-  const { saveSessionReflection, saveWeeklyReflection, completeModule, completeTopicPractice } = useApp();
+  const { saveSessionReflection, saveWeeklyReflection, completeModule, completeTopicPractice, currentStudent } = useApp();
   const [kind, setKind] = useState<ReflectionKind>(
     params.sessionId && params.kind !== "weekly" ? "session" : "weekly",
   );
   const [fields, setFields] = useState<Fields>({});
   const [saving, setSaving] = useState(false);
   const isWeb = Platform.OS === "web";
+  const nextDestination = useMemo(() => {
+    if (kind !== "session" || !params.activityId) return null;
+
+    const moduleIndex = MODULE_CASE_ORDER.indexOf(params.activityId);
+    if (moduleIndex >= 0) {
+      const nextModuleId = MODULE_CASE_ORDER[moduleIndex + 1];
+      return nextModuleId
+        ? { path: `/modulo/${nextModuleId}` as const, label: "Abrir el siguiente caso" }
+        : { path: "/(tabs)/modulos" as const, label: "Volver a la ruta" };
+    }
+
+    const topicIds = COURSE_SECTIONS.flatMap((section) =>
+      section.topics.flatMap((topic) => topic.topicId ? [topic.topicId] : []),
+    );
+    const currentTopicIndex = topicIds.indexOf(params.topicId ?? params.activityId);
+    const nextTopicId = currentTopicIndex >= 0
+      ? topicIds.slice(currentTopicIndex + 1).find((topicId) =>
+          !(currentStudent?.completedTopics ?? []).includes(topicId),
+        )
+      : undefined;
+    return nextTopicId
+      ? { path: `/tema/${nextTopicId}` as const, label: "Abrir el siguiente tema" }
+      : { path: "/(tabs)/modulos" as const, label: "Volver a la ruta" };
+  }, [currentStudent?.completedTopics, kind, params.activityId, params.topicId]);
 
   const form = useMemo(() => kind === "session"
     ? [
@@ -88,8 +114,11 @@ export default function ReflectionScreen() {
         return;
       }
     }
-    Alert.alert("Reflexión guardada", kind === "session" ? "Ganaste +30 XP por completar tu sesión." : "Ganaste +50 XP por tu reflexión semanal.");
-    router.back();
+    if (kind === "session" && nextDestination) {
+      router.replace(nextDestination.path as any);
+    } else {
+      router.replace("/(tabs)" as any);
+    }
   };
 
   return (
@@ -102,23 +131,27 @@ export default function ReflectionScreen() {
         <Feather name="chevron-left" size={22} color={colors.primary} />
         <Text style={[styles.backText, { color: colors.primary }]}>Volver</Text>
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.foreground }]}>🧠 Reflexión metacognitiva</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>
+        {kind === "session" ? "🧠 Reflexión del módulo" : "🧠 Reflexión metacognitiva"}
+      </Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Tus respuestas ayudan a reconocer qué estrategias te funcionan. Es obligatoria para cerrar una actividad.
       </Text>
-      <View style={[styles.tabs, { backgroundColor: colors.secondary }]}>
-        {(["session", "weekly"] as const).map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[styles.tab, kind === option && { backgroundColor: colors.primary }]}
-            onPress={() => { setKind(option); setFields({}); }}
-          >
-            <Text style={{ color: kind === option ? "#fff" : colors.foreground, fontWeight: "700", fontSize: 12 }}>
-              {option === "session" ? "Sesión rápida · +30 XP" : "Semana · +50 XP"}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {!params.sessionId && (
+        <View style={[styles.tabs, { backgroundColor: colors.secondary }]}>
+          {(["session", "weekly"] as const).map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.tab, kind === option && { backgroundColor: colors.primary }]}
+              onPress={() => { setKind(option); setFields({}); }}
+            >
+              <Text style={{ color: kind === option ? "#fff" : colors.foreground, fontWeight: "700", fontSize: 12 }}>
+                {option === "session" ? "Sesión rápida · +30 XP" : "Semana · +50 XP"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {form.map(([key, label, placeholder]) => (
           <View key={key} style={styles.field}>
@@ -136,7 +169,9 @@ export default function ReflectionScreen() {
       </View>
       <TouchableOpacity style={[styles.submit, { backgroundColor: saving ? colors.border : colors.primary }]} onPress={submit} disabled={saving}>
         <Feather name="check-circle" size={18} color="#fff" />
-        <Text style={styles.submitText}>{saving ? "Guardando..." : "Guardar reflexión"}</Text>
+        <Text style={styles.submitText}>
+          {saving ? "Guardando..." : kind === "session" ? "Completar y avanzar" : "Guardar reflexión"}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
