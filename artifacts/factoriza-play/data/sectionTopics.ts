@@ -2470,10 +2470,10 @@ const OPERACIONES_TOPICS: TopicContent[] = [
     exercises: [
       {
         id: "prod-ex1",
-        question: "¿Cuánto es (x + 3)²?",
-        options: ["x² + 6x + 9", "x² + 9", "x² + 3x + 9", "x² + 6x + 6"],
-        correctAnswer: "x² + 6x + 9",
-        explanation: "a=x, b=3. x² + 2(x)(3) + 3² = x² + 6x + 9.",
+        question: "¿Cuánto es (2x + 3)(2x − 3)?",
+        options: ["4x² − 9", "4x² + 9", "4x² − 12x + 9", "4x² + 12x − 9"],
+        correctAnswer: "4x² − 9",
+        explanation: "Es una suma por diferencia: (a+b)(a−b)=a²−b². Con a=2x y b=3: (2x)²−3²=4x²−9.",
       },
       {
         id: "prod-ex2",
