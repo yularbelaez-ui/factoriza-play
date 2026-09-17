@@ -18,3 +18,9 @@ La progresión dentro de cada ruta es secuencial: solo el primer paso pendiente 
 **Why:** Así se evita saltar prerrequisitos sin impedir que el estudiante practique contenidos ya logrados.
 
 **How to apply:** Mantén esta regla cuando se agreguen pasos o nuevas formas de completar contenido, y conserva los avances al sincronizarlos entre dispositivos.
+
+El porcentaje visible de cada paso personalizado debe calcularse con las unidades completadas del estudiante (temas o casos), no con el puntaje fijo del diagnóstico inicial.
+
+**Why:** El puntaje diagnóstico describe la necesidad de refuerzo, pero no cambia cuando el estudiante avanza; usarlo como progreso hacía que las tarjetas parecieran congeladas.
+
+**How to apply:** Usa `completedTopics` para pasos de aritmética, álgebra o patrones y `completedModules` para el paso de factorización; conserva el puntaje diagnóstico solo como contexto separado.

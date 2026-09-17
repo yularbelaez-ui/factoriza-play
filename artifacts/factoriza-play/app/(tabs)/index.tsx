@@ -29,6 +29,7 @@ import {
 } from "@/data/learningRoutes";
 import {
   getPersonalizedRouteProgress,
+  getPersonalizedStepProgress,
   getPersonalizedStepState,
   getPersonalizedStepTarget,
   isPersonalizedRouteCompleted,
@@ -374,6 +375,13 @@ export default function HomeScreen() {
                   ? (step as import("@/data/personalizedRoutes").PersonalizedRouteStep).color
                   : routeColor;
                 const legacyTopicId = "topicId" in step ? step.topicId : undefined;
+                const stepProgress = personalizedRoute
+                  ? getPersonalizedStepProgress(
+                      step as import("@/data/personalizedRoutes").PersonalizedRouteStep,
+                      completedTopics,
+                      completedModules,
+                    )
+                  : null;
                 const stepScore = "score" in step ? step.score : null;
                 const sc = {
                   bg: stepColor + "0D",
@@ -433,7 +441,11 @@ export default function HomeScreen() {
                       </View>
                       <View style={styles.stepRight}>
                         <Text style={[styles.stepScore, { color: stepStatus.color }]}>
-                          {stepScore !== null ? `${stepScore}% · ${stepStatus.label}` : stepStatus.label}
+                          {personalizedRoute
+                            ? `${stepProgress}% completado · ${stepStatus.label}`
+                            : stepScore !== null
+                              ? `${stepScore}% · ${stepStatus.label}`
+                              : stepStatus.label}
                         </Text>
                         <Feather name={stepStatus.icon} size={16} color={stepStatus.color} />
                       </View>

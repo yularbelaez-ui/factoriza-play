@@ -256,3 +256,19 @@ export function getPersonalizedRouteProgress(
   }, 0);
   return totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
 }
+
+export function getPersonalizedStepProgress(
+  step: PersonalizedRouteStep,
+  completedTopics: string[],
+  completedModules: string[],
+) {
+  const topicUnits = step.topicIds;
+  const moduleUnits = step.factorizationModuleIds ?? [];
+  const units = topicUnits.length ? topicUnits : moduleUnits;
+  if (units.length === 0) return 0;
+
+  const completed = topicUnits.length
+    ? topicUnits.filter((topicId) => completedTopics.includes(topicId)).length
+    : moduleUnits.filter((moduleId) => completedModules.includes(moduleId)).length;
+  return Math.round((completed / units.length) * 100);
+}
