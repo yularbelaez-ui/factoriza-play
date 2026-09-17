@@ -1419,10 +1419,10 @@ const ALGEBRA_TOPICS: TopicContent[] = [
       },
       {
         id: "expr-ex3",
-        question: "¿Cuál de estos NO es un término algebraico válido?",
+        question: "¿Cuál de estas opciones es una expresión algebraica, pero no un término individual?",
         options: ["x + 3", "5xy", "−2a²", "7"],
         correctAnswer: "x + 3",
-        explanation: "x + 3 es una EXPRESIÓN (suma de dos términos), no un solo término.",
+        explanation: "x + 3 es una expresión algebraica formada por dos términos: x y 3. Las otras opciones (5xy, −2a² y 7) son términos individuales.",
       },
       {
         id: "expr-ex4",
