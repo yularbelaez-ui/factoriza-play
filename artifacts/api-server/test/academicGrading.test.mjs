@@ -34,7 +34,7 @@ test("renormalizes missing components and reports coverage", () => {
     { exerciseId: "fc-ex-1", moduleId: "factor-comun", correct: true, attempts: 1 },
   ], new Set());
   assert.equal(topic.grade, 5);
-  assert.equal(topic.coverage, 0.4);
+  assert.equal(topic.coverage, 0.2);
   assert.deepEqual(topic.missingComponents, ["correction", "transfer", "reflection"]);
 });
 
@@ -63,7 +63,7 @@ test("scores a successful correction after an initial error", () => {
   assert.equal(correction?.successCount, 3);
   assert.equal(correction?.opportunityCount, 3);
   assert.equal(correction?.proportion, 1);
-  assert.equal(topic.grade, 2.7);
+  assert.equal(topic.grade, 3.7);
 });
 
 test("correction criteria and post-correction transfer require timestamps", () => {
@@ -138,6 +138,27 @@ test("general pools topic components and diagnostics, without numeric factorizac
   assert.equal(summary.pensamientoNumerico.components.find((component) => component.key === "initial")?.opportunityCount, 1);
   assert.deepEqual(summary.diagnosticGrades.patrones, undefined);
   assert.equal(summary.pensamientoNumerico.grade, 3);
+});
+
+test("includes algebraic thinking diagnostic evidence in the final grade", () => {
+  const numericOnly = calculateAcademicSummary({
+    records: [],
+    diagnosticResults: [{ category: "naturales", score: 100 }],
+    activeModules,
+  });
+  const withAlgebra = calculateAcademicSummary({
+    records: [],
+    diagnosticResults: [
+      { category: "naturales", score: 100 },
+      { category: "variables", score: 0 },
+      { category: "propiedades", score: 0 },
+      { category: "terminos", score: 0 },
+      { category: "igualdad", score: 0 },
+    ],
+    activeModules,
+  });
+  assert.equal(withAlgebra.pensamientoAlgebraico.grade, 1);
+  assert.notEqual(withAlgebra.general.grade, numericOnly.general.grade);
 });
 
 test("excludes retired module, exercises, and diagnostic patrones", () => {

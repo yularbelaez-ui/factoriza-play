@@ -270,7 +270,13 @@ function academicSummaryForStudent(
   );
   const profile = diagnosticProfile as {
     results?: Array<{ category?: string; score?: number | null }>;
+    moduleResults?: Array<{
+      topics?: Array<{ category?: string; score?: number | null }>;
+    }>;
   } | null;
+  const diagnosticResults = profile?.results?.length
+    ? profile.results
+    : profile?.moduleResults?.flatMap((module) => module.topics ?? []) ?? [];
   return calculateAcademicSummary({
     records: results
       .filter((result) => result.studentId === studentId)
@@ -295,7 +301,7 @@ function academicSummaryForStudent(
           completed: true,
         })),
     ],
-    diagnosticResults: (profile?.results ?? []).filter(
+    diagnosticResults: diagnosticResults.filter(
       (result): result is { category: string; score?: number | null } =>
         typeof result.category === "string",
     ),

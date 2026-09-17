@@ -80,6 +80,11 @@ export default function HomeScreen() {
   );
 
   const dp = currentStudent.diagnosticProfile;
+  const academicDiagnosticResults = dp?.results?.length
+    ? dp.results
+    : dp?.moduleResults.flatMap((module) =>
+        module.topics.map((topic) => ({ category: topic.category, score: topic.score })),
+      ) ?? [];
   const todayParts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Bogota",
     year: "numeric",
@@ -109,7 +114,7 @@ export default function HomeScreen() {
       ...currentStudent.completedModules.map((moduleId) => ({ moduleId, completed: true })),
     ],
     theoryReadModuleIds: moduleProgress.filter((item) => item.theoryRead).map((item) => item.moduleId),
-    diagnosticResults: dp?.results,
+    diagnosticResults: academicDiagnosticResults,
   });
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);

@@ -1171,10 +1171,10 @@ const ALGEBRA_TOPICS: TopicContent[] = [
     exercises: [
       {
         id: "not-ex1",
-        question: "¿Cuál es el coeficiente de −7x²y?",
+        question: "En el término −7x²y, ¿qué número multiplica a las variables x²y?",
         options: ["−7", "7", "x²y", "2"],
         correctAnswer: "−7",
-        explanation: "El coeficiente es la parte numérica con su signo: −7.",
+        explanation: "Separamos el término como −7 · x² · y. El número que multiplica a las variables es −7; el signo también pertenece al coeficiente.",
       },
       {
         id: "not-ex2",
