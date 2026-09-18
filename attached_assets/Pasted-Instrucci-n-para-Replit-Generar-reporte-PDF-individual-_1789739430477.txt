@@ -1,0 +1,189 @@
+Instrucción para Replit
+Generar reporte PDF individual del estudiante para investigación
+
+Necesito que el Sistema de Tutoría Inteligente genere automáticamente un PDF individual por estudiante con información relevante para fines de investigación educativa.
+
+El objetivo NO es generar un boletín académico tradicional, sino un reporte que permita analizar el aprendizaje de la factorización y las interacciones del estudiante con el sistema.
+
+Información general
+
+Incluir:
+
+Nombre del estudiante.
+Código del estudiante.
+Fecha de generación del reporte.
+Perfil inicial asignado.
+Perfil final alcanzado.
+Rango inicial.
+Rango final.
+XP acumulada.
+Diagnóstico inicial
+
+Mostrar:
+
+Resultados por categoría
+Pensamiento numérico
+Naturales y operaciones.
+Decimales.
+Enteros y ley de signos.
+Fracciones y racionales.
+Potencias.
+
+Resultado general.
+
+Pensamiento algebraico
+Variables.
+Expresiones algebraicas.
+Términos semejantes.
+Signo igual como equivalencia.
+
+Resultado general.
+
+Reconocimiento de patrones
+
+Resultado general.
+
+Ruta personalizada asignada
+
+Mostrar:
+
+Módulos que necesitó fortalecer
+
+Por ejemplo:
+
+✅ Enteros.
+
+✅ Variables.
+
+✅ Reconocimiento de patrones.
+
+Ruta generada automáticamente
+
+Ejemplo:
+
+Fortalecimiento aritmético → Pensamiento algebraico → Reconocimiento de patrones → Factorización.
+
+Aprendizaje de la factorización
+
+Para cada caso trabajado mostrar:
+
+Reconocimiento de patrones
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Factor común
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Factor común por agrupación
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Trinomio cuadrado perfecto
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Diferencia de cuadrados
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Trinomio de la forma x²+bx+c
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Cubo de un binomio
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Suma y diferencia de cubos
+Nota.
+Intentos.
+Errores detectados.
+Errores corregidos.
+Indicadores de aprendizaje
+
+Mostrar:
+
+Total de errores detectados
+Total de errores corregidos
+Total de errores persistentes
+Porcentaje de corrección de errores
+
+Fórmula:
+
+Errores corregidos / Errores detectados
+
+Ejercicios de transferencia
+
+Mostrar:
+
+Número total.
+Correctos.
+Incorrectos.
+Nivel de dominio alcanzado
+
+Para cada tema:
+
+Nivel 1: Necesita apoyo.
+Nivel 2: Comprensión inicial.
+Nivel 3: Comprensión adecuada.
+Nivel 4: Dominio.
+Interacción con el ITS
+
+Mostrar:
+
+Tiempo total de uso.
+Número de sesiones realizadas.
+Cantidad de pistas utilizadas.
+Cantidad de retroalimentaciones consultadas.
+XP obtenida.
+Insignias conseguidas.
+Reflexiones metacognitivas
+
+Incluir una sección con las respuestas de:
+
+Hoy comprendí...
+Hoy me equivoqué en...
+Lo que más me ayudó fue...
+Lo que todavía no entiendo es...
+
+Mostrar las más recientes o un resumen de todas.
+
+Resumen para investigación
+
+Generar automáticamente una sección final con:
+
+Fortalezas identificadas
+
+Ejemplo:
+
+Buen reconocimiento de patrones.
+Alta corrección de errores.
+Uso adecuado de retroalimentaciones.
+Dificultades identificadas
+
+Ejemplo:
+
+Persistencia de errores en agrupación.
+Bajo desempeño en trinomios.
+Progreso observado
+
+Comparar:
+
+Perfil inicial vs perfil final.
+Rango inicial vs rango final.
+Diagnóstico inicial vs desempeño final.
+Importante
+
+El reporte debe centrarse únicamente en información útil para responder la investigación sobre:
+
+El aprendizaje de la factorización mediado por un Sistema de Tutoría Inteligente fundamentado en principios de aprendizaje personalizado.
+
+No incluir información irrelevante ni métricas técnicas del sistema que no aporten al análisis pedagógico.
