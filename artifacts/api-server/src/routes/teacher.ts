@@ -37,6 +37,39 @@ const ACADEMIC_MODULE_TITLES: Record<string, string> = {
   "cubo-binomio": "Cubo de un binomio",
   "suma-diferencia-cubos": "Suma / diferencia de cubos",
 };
+const RESEARCH_CASES = [
+  { id: "reconocimiento-patrones", label: "Reconocimiento de patrones" },
+  { id: "factor-comun", label: "Factor común" },
+  { id: "agrupacion-terminos", label: "Factor común por agrupación" },
+  { id: "trinomio-cuadrado-perfecto", label: "Trinomio cuadrado perfecto" },
+  { id: "diferencia-cuadrados", label: "Diferencia de cuadrados" },
+  { id: "trinomio-forma-x2-bx-c", label: "Trinomio de la forma x² + bx + c" },
+  { id: "cubo-binomio", label: "Cubo de un binomio" },
+  { id: "suma-diferencia-cubos", label: "Suma y diferencia de cubos" },
+] as const;
+const DIAGNOSTIC_LABELS: Record<string, string> = {
+  naturales: "Naturales y operaciones",
+  decimales: "Decimales",
+  enteros: "Enteros y ley de signos",
+  fracciones: "Fracciones y racionales",
+  irracionales: "Irracionales",
+  reales: "Números reales",
+  potencias: "Potencias",
+  propiedades: "Propiedades",
+  terminos: "Términos semejantes",
+  variables: "Variables",
+  igualdad: "Signo igual como equivalencia",
+  factorizacion: "Factorización",
+  patrones: "Reconocimiento de patrones",
+};
+const PROFILE_LABELS: Record<string, string> = {
+  aritmetica: "Pensamiento numérico",
+  propiedades: "Propiedades",
+  terminos: "Términos semejantes",
+  variables: "Variables",
+  igualdad: "Signo igual como equivalencia",
+  patrones: "Reconocimiento de patrones",
+};
 const isRetiredTopic = (topicId: string) =>
   topicId.toLowerCase().includes("reconocimiento-patrones") ||
   topicId.toLowerCase().includes("ax2-bx-c");
@@ -48,6 +81,34 @@ function isRetiredCase(...parts: Array<string | null | undefined>): boolean {
       RETIRED_MODULE_IDS.has(part!) ||
       isRetiredTopic(part!)),
   );
+}
+
+function reportScore(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "Sin evidencia";
+}
+
+function reportGrade(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "Sin evidencia";
+}
+
+function reportDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0 min";
+  const minutes = Math.floor(seconds / 60);
+  const remaining = Math.round(seconds % 60);
+  return `${minutes} min ${remaining} s`;
+}
+
+function reportMastery(correct: number, total: number): string {
+  if (total <= 0) return "Sin evidencia";
+  const proportion = correct / total;
+  if (proportion < 0.25) return "Nivel 1: Necesita apoyo";
+  if (proportion < 0.5) return "Nivel 2: Comprensión inicial";
+  if (proportion < 0.75) return "Nivel 3: Comprensión adecuada";
+  return "Nivel 4: Dominio";
+}
+
+function isTransferExercise(exerciseId: string): boolean {
+  return /(?:^|-)eval(?:-|$)/i.test(exerciseId);
 }
 
 function pdfText(value: unknown): string {
@@ -640,6 +701,98 @@ router.get(
 
     const rank = rankName(student.totalXP);
     const generatedAt = new Date();
+    const profileData = storedProfile ?? {};
+    const competencyResults = Array.isArray(profileData.competencyResults)
+      ? profileData.competencyResults as Array<Record<string, unknown>>
+      : [];
+    const moduleResults = Array.isArray(profileData.moduleResults)
+      ? profileData.moduleResults as Array<Record<string, unknown>>
+      : [];
+    const topicGradeByModule = new Map(academic.topics.map((topic) => [topic.moduleId, topic.grade]));
+    const researchRows = results.filter((row) =>
+      RESEARCH_CASES.some((item) => item.id === row.moduleId),
+    );
+    const rowsByCase = new Map<string, typeof researchRows>();
+    for (const row of researchRows) {
+      const caseId = row.moduleId!;
+      const existing = rowsByCase.get(caseId) ?? [];
+      existing.push(row);
+      rowsByCase.set(caseId, existing);
+    }
+    const correctedErrorCount = (rows: typeof researchRows): number => {
+      const byExercise = new Map<string, typeof rows>();
+      for (const row of rows) {
+        const list = byExercise.get(row.exerciseId) ?? [];
+        list.push(row);
+        byExercise.set(row.exerciseId, list);
+      }
+      return rows.filter((row) => !row.correct).filter((row) => {
+        const timestamp = new Date(row.createdAt).getTime();
+        return (byExercise.get(row.exerciseId) ?? []).some((later) =>
+          later.correct && new Date(later.createdAt).getTime() > timestamp,
+        );
+      }).length;
+    };
+    const caseSummaries = RESEARCH_CASES.map((item) => {
+      const rows = rowsByCase.get(item.id) ?? [];
+      const errors = rows.filter((row) => !row.correct).length;
+      const corrected = correctedErrorCount(rows);
+      const correct = rows.filter((row) => row.correct).length;
+      const transfer = rows.filter((row) => isTransferExercise(row.exerciseId));
+      const transferCorrect = transfer.filter((row) => row.correct).length;
+      const fallbackGrade = rows.length > 0 ? 1 + (correct / rows.length) * 4 : null;
+      return {
+        ...item,
+        rows,
+        grade: topicGradeByModule.get(item.id) ?? fallbackGrade,
+        attempts: rows.reduce((sum, row) => sum + (row.attempts ?? 1), 0),
+        errors,
+        corrected,
+        persistent: Math.max(0, errors - corrected),
+        correctionRate: errors > 0 ? corrected / errors : null,
+        transferCount: transfer.length,
+        transferCorrect,
+        transferIncorrect: transfer.length - transferCorrect,
+        mastery: reportMastery(transferCorrect, transfer.length || rows.length),
+      };
+    });
+    const totalDetectedErrors = caseSummaries.reduce((sum, item) => sum + item.errors, 0);
+    const totalCorrectedErrors = caseSummaries.reduce((sum, item) => sum + item.corrected, 0);
+    const totalPersistentErrors = caseSummaries.reduce((sum, item) => sum + item.persistent, 0);
+    const transferRows = results.filter((row) =>
+      isTransferExercise(row.exerciseId) && RESEARCH_CASES.some((item) => item.id === row.moduleId),
+    );
+    const transferCorrect = transferRows.filter((row) => row.correct).length;
+    const totalLearningSeconds = learning.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+    const totalExerciseSeconds = results.reduce((sum, row) => sum + (row.durationSeconds ?? 0), 0);
+    const totalUseSeconds = totalLearningSeconds > 0 ? totalLearningSeconds : totalExerciseSeconds;
+    const hintsUsed = results.reduce((sum, row) => sum + (row.hintsUsed ?? 0), 0);
+    const feedbackViews = results.reduce((sum, row) => sum + (row.feedbackViews ?? 0), 0);
+    const earnedXp = allEvents.reduce((sum, event) => sum + event.xp, 0);
+    const badges = [
+      ...(completedExercises.length >= 10 ? ["Persistente"] : []),
+      ...(RESEARCH_CASES.filter((item) => completedModules.includes(item.id)).length === RESEARCH_CASES.length
+        ? ["Maestro de factorización"] : []),
+      ...(Boolean((profileData.competencyResults as Array<Record<string, unknown>> | undefined)
+        ?.some((item) => item.competency === "patrones" && item.meetsThreshold === true))
+        ? ["Observador de patrones"] : []),
+    ];
+    const latestSessionReflection = [...sessions].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
+    const strengths = [
+      ...caseSummaries.filter((item) => item.rows.length > 0 && item.mastery === "Nivel 4: Dominio")
+        .map((item) => `Dominio en ${item.label.toLowerCase()}.`),
+      ...(totalDetectedErrors > 0 && totalCorrectedErrors / totalDetectedErrors >= 0.75
+        ? ["Alta corrección de errores detectados."] : []),
+      ...(feedbackViews > 0 ? ["Consulta de retroalimentación durante el aprendizaje."] : []),
+    ];
+    const difficulties = [
+      ...caseSummaries.filter((item) => item.persistent > 0)
+        .map((item) => `Persisten errores en ${item.label.toLowerCase()}.`),
+      ...caseSummaries.filter((item) => item.transferCount > 0 && item.transferCorrect / item.transferCount < 0.5)
+        .map((item) => `Bajo desempeño en transferencia para ${item.label.toLowerCase()}.`),
+    ];
     const document = new PDFDocument({
       autoFirstPage: false,
       bufferPages: true,
@@ -699,6 +852,9 @@ router.get(
       });
       document.moveDown(0.2);
     };
+    const humanList = (label: string, values: string[]) => {
+      block(label, values.length > 0 ? values.join("\n") : "Sin evidencia registrada");
+    };
     const divider = () => {
       addPageIfNeeded(14);
       document.moveDown(0.15).strokeColor("#d1d5db").lineWidth(0.5)
@@ -711,9 +867,9 @@ router.get(
     document.font("Helvetica").fontSize(10).fillColor("#4b5563")
       .text("FactorIzA-Play · reporte descargable para docentes");
     document.moveDown(0.8);
-    field("Generado", bogotaDate(generatedAt));
-    field("Estudiante (pseudónimo)", student.pseudonym);
-    field("Clase", student.classCode);
+    field("Nombre del estudiante", student.pseudonym);
+    field("Código de estudiante / clase", student.classCode);
+    field("Fecha de generación", bogotaDate(generatedAt));
 
     heading("Perfil y progreso");
     field("Perfil inicial", student.initialProfile);
@@ -721,20 +877,44 @@ router.get(
     field("Rango inicial", student.initialRank);
     field("Rango actual", rank);
     field("XP total", student.totalXP);
-    field("Racha actual", student.streak);
-    field("Insignias", (completedExercises.length >= 10 ? ["Persistente"] : []).join(", ") || "Ninguna registrada");
-    block("Historial de perfiles", reportSafeData(student.profileHistory));
-    block("Historial de rangos", reportSafeData(student.rankHistory));
+    field("Insignias conseguidas", badges.join(", ") || "Ninguna registrada");
 
-    heading("Diagnóstico y competencias");
+    heading("Diagnóstico inicial");
     if (storedProfile) {
-      field("Puntaje general", storedProfile.overallScore);
-      field("Nivel", storedProfile.level);
-      field("Ruta", storedProfile.route);
-      block("Competencias y puntajes", reportSafeData(storedProfile.competencyResults));
-      block("Desempeño por módulo", reportSafeData(storedProfile.moduleResults));
-      block("Ruta personalizada asignada", reportSafeData(storedProfile.personalizedRoute));
-      block("Datos completos del diagnóstico", reportSafeData(storedProfile));
+      field("Resultado general", reportScore(storedProfile.overallScore));
+      field("Nivel inicial", storedProfile.level);
+      humanList(
+        "Resultados por categoría",
+        moduleResults.flatMap((module) => {
+          const moduleTitle = typeof module.title === "string" ? module.title : "Competencia";
+          const topics = Array.isArray(module.topics) ? module.topics as Array<Record<string, unknown>> : [];
+          return topics.map((topic) =>
+            `${moduleTitle} · ${typeof topic.label === "string"
+              ? topic.label
+              : DIAGNOSTIC_LABELS[String(topic.category)] ?? String(topic.category ?? "Categoría")} · ${reportScore(topic.score)}`,
+          );
+        }),
+      );
+      humanList(
+        "Competencias generales",
+        competencyResults.map((item) =>
+          `${PROFILE_LABELS[String(item.competency)] ?? String(item.competency ?? "Competencia")} · ${reportScore(item.score)}`,
+        ),
+      );
+      humanList(
+        "Módulos que necesitó fortalecer",
+        moduleResults
+          .filter((module) => module.needsStrengthening === true)
+          .map((module) => String(module.title ?? module.id)),
+      );
+      const route = profileData.personalizedRoute as Record<string, unknown> | undefined;
+      field("Ruta generada automáticamente", route?.title ?? profileData.route);
+      humanList(
+        "Secuencia de la ruta",
+        Array.isArray(route?.steps)
+          ? (route.steps as Array<Record<string, unknown>>).map((step) => String(step.title ?? step.id))
+          : [],
+      );
     } else {
       field("Estado", "No hay diagnóstico registrado");
     }
@@ -756,36 +936,70 @@ router.get(
         ? academic.general.missingComponents.join(", ")
         : "Ninguno",
     );
-    block(
+    humanList(
       "Calificaciones por tema",
-      academic.topics.map((topic) => ({
-        moduleId: topic.moduleId,
-        grade: topic.grade == null ? "Pendiente" : topic.grade.toFixed(1),
-        coverage: `${Math.round(topic.coverage * 100)}%`,
-        missingComponents: topic.missingComponents,
-        components: topic.components.map((component) => ({
-          component: component.key,
-          evidence: component.covered
-            ? `${component.successCount}/${component.opportunityCount}`
-            : "Pendiente",
-        })),
-      })),
+      academic.topics.map((topic) =>
+        `${topic.title ?? topic.moduleId} · nota ${reportGrade(topic.grade)} · cobertura ${Math.round(topic.coverage * 100)}%`,
+      ),
     );
-    block("Calificaciones de diagnóstico (sin patrones)", academic.diagnosticGrades);
+    humanList(
+      "Resultados de diagnóstico por categoría",
+      Object.entries(academic.diagnosticGrades).map(([category, grade]) =>
+        `${DIAGNOSTIC_LABELS[category] ?? category} · nota ${reportGrade(grade)}`,
+      ),
+    );
 
-    heading("Contenidos completados (archivo histórico)");
-    field("Temas", completedTopics.map((id) =>
-      `${id}${isRetiredCase(id) ? " (Caso retirado)" : ""}`,
-    ));
-    field("Módulos", completedModules.map((id) =>
-      `${id}${isRetiredCase(id) ? " (Caso retirado)" : ""}`,
-    ));
-    field("Ejercicios", completedExercises.map((id) =>
-      `${id}${isRetiredCase(id) ? " (Caso retirado)" : ""}`,
-    ));
+    heading("Aprendizaje de la factorización");
+    for (const item of caseSummaries) {
+      field(
+        item.label,
+        `Nota: ${reportGrade(item.grade)} · Intentos: ${item.attempts} · Errores detectados: ${item.errors} · Errores corregidos: ${item.corrected} · Errores persistentes: ${item.persistent}`,
+      );
+    }
 
-    heading("Intentos de ejercicios (archivo histórico)");
+    heading("Indicadores de aprendizaje");
+    field("Total de errores detectados", totalDetectedErrors);
+    field("Total de errores corregidos", totalCorrectedErrors);
+    field("Total de errores persistentes", totalPersistentErrors);
+    field(
+      "Porcentaje de corrección de errores",
+      totalDetectedErrors > 0
+        ? `${Math.round((totalCorrectedErrors / totalDetectedErrors) * 100)}%`
+        : "Sin errores detectados",
+    );
+
+    heading("Ejercicios de transferencia");
+    field("Número total", transferRows.length);
+    field("Correctos", transferCorrect);
+    field("Incorrectos", transferRows.length - transferCorrect);
+    humanList(
+      "Nivel de dominio por tema",
+      caseSummaries.map((item) => `${item.label} · ${item.mastery}`),
+    );
+
+    heading("Interacción con el sistema de tutoría");
+    field("Tiempo total de uso", reportDuration(totalUseSeconds));
+    field("Número de sesiones realizadas", learning.length);
+    field("Cantidad de pistas utilizadas", hintsUsed);
+    field("Cantidad de retroalimentaciones consultadas", feedbackViews);
+    field("XP obtenida", earnedXp > 0 ? earnedXp : student.totalXP);
+    field("Insignias conseguidas", badges.join(", ") || "Ninguna registrada");
+
+    heading("Resumen para investigación");
+    humanList("Fortalezas identificadas", strengths);
+    humanList("Dificultades identificadas", difficulties);
+    humanList("Progreso observado", [
+      `Perfil inicial: ${student.initialProfile ?? "Sin evidencia"} → perfil final: ${storedProfile?.profile ?? "Sin evidencia"}`,
+      `Rango inicial: ${student.initialRank ?? "Sin evidencia"} → rango final: ${rank}`,
+      `Diagnóstico inicial: ${reportScore(storedProfile?.overallScore)} → desempeño académico final: ${reportGrade(academic.general.grade)}`,
+    ]);
+
+    heading("Evidencias y ejercicios trabajados");
     if (results.length === 0) field("Estado", "No hay intentos registrados");
+    field(
+      "Imágenes de factorización incluidas",
+      researchRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
+    );
     // Fetch, normalize, embed, and release each source image before moving on
     // to the next attempt. PDFKit retains page objects for footer numbering,
     // but no source evidence buffers are retained in the report.
@@ -859,72 +1073,35 @@ router.get(
       divider();
     }
 
-    heading("Sesiones de aprendizaje");
-    if (learning.length === 0) field("Estado", "No hay sesiones registradas");
-    for (const session of learning) {
-      block(
-        `Sesión ${session.activityId}${
-          isRetiredCase(session.activityId) ? " (Caso retirado)" : ""
-        }`,
-        {
-        status: session.status,
-        startedAt: session.startedAt,
-        qualifyingWorkAt: session.qualifyingWorkAt,
-        reflectedAt: session.reflectedAt,
-        completedAt: session.completedAt,
-        durationSeconds: session.durationSeconds,
-        },
-      );
-    }
-
-    heading("Reflexiones de módulo");
-    if (modules.length === 0) field("Estado", "No hay reflexiones de módulo");
-    for (const reflection of modules) block(
-      `Módulo ${reflection.moduleId}${
-        isRetiredCase(reflection.moduleId) ? " (Caso retirado)" : ""
-      }`,
-      {
-        module: reflection.moduleId,
-        aspectsWorked: reflection.aspectsWorked,
-        difficulties: reflection.difficulties,
-        improvementSuggestions: reflection.improvementSuggestions,
-        createdAt: reflection.createdAt,
-      },
+    heading("Sesiones y reflexiones metacognitivas");
+    humanList(
+      "Sesiones realizadas",
+      learning.map((session) =>
+        `${session.activityId} · ${reportDuration(session.durationSeconds ?? 0)}`,
+      ),
     );
-
-    heading("Reflexiones de sesión");
-    if (sessions.length === 0) field("Estado", "No hay reflexiones de sesión");
-    for (const reflection of sessions) block(`Reflexión de sesión`, {
-      understood: reflection.understood,
-      mistakes: reflection.mistakes,
-      helpful: reflection.helpful,
-      remainingQuestions: reflection.remainingQuestions,
-      createdAt: reflection.createdAt,
-    });
-
-    heading("Reflexiones semanales");
-    if (allWeekly.length === 0) field("Estado", "No hay reflexiones semanales");
-    for (const reflection of allWeekly) block(`Semana ${reflection.weekStart}`, {
-      weekStart: reflection.weekStart,
-      mostImportant: reflection.mostImportant,
-      mainDifficulty: reflection.mainDifficulty,
-      appHelp: reflection.appHelp,
-      advice: reflection.advice,
-      createdAt: reflection.createdAt,
-    });
-
-    heading("Ledger de XP");
-    if (allEvents.length === 0) field("Estado", "No hay movimientos de XP");
-    for (const event of allEvents) {
-      block(
-        `${event.eventType} · ${event.xp} XP${
-          isRetiredCase(event.eventType) ? " (Caso retirado)" : ""
-        }`,
-        {
-        xp: event.xp,
-        createdAt: event.createdAt,
-        },
-      );
+    if (latestSessionReflection) {
+      field("Hoy comprendí...", latestSessionReflection.understood);
+      field("Hoy me equivoqué en...", latestSessionReflection.mistakes);
+      field("Lo que más me ayudó fue...", latestSessionReflection.helpful);
+      field("Lo que todavía no entiendo es...", latestSessionReflection.remainingQuestions);
+    } else {
+      field("Reflexiones de sesión", "Sin evidencia registrada");
+    }
+    humanList(
+      "Reflexiones de módulo",
+      modules.map((reflection) =>
+        `${reflection.moduleId}: ${reflection.aspectsWorked ?? "Sin respuesta"}`
+          + ` · Dificultades: ${reflection.difficulties ?? "Sin respuesta"}`,
+      ),
+    );
+    const latestWeekly = [...allWeekly].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
+    if (latestWeekly) {
+      field("Reflexión semanal más reciente", latestWeekly.mostImportant);
+      field("Dificultad semanal principal", latestWeekly.mainDifficulty);
+      field("Ayuda recibida del sistema", latestWeekly.appHelp);
     }
     if (clientGone || document.destroyed) return;
 
