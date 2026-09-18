@@ -2491,10 +2491,10 @@ const OPERACIONES_TOPICS: TopicContent[] = [
       },
       {
         id: "prod-ex4",
-        question: "En (a + b)², ¿cuál es el término medio?",
-        options: ["2ab", "ab", "a²b", "2a²b²"],
-        correctAnswer: "2ab",
-        explanation: "(a+b)² = a² + 2ab + b². El término medio es 2ab.",
+        question: "¿Cuánto es (3y − 4)²?",
+        options: ["9y² − 24y + 16", "9y² + 24y + 16", "9y² − 12y + 16", "9y² − 24y − 16"],
+        correctAnswer: "9y² − 24y + 16",
+        explanation: "Aplica (a−b)² = a²−2ab+b². Con a=3y y b=4: (3y)²−2(3y)(4)+4² = 9y²−24y+16.",
       },
       {
         id: "prod-ex5",
