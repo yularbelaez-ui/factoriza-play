@@ -24,3 +24,9 @@ El porcentaje visible de cada paso personalizado debe calcularse con los ejercic
 **Why:** El puntaje diagnóstico describe la necesidad de refuerzo, y los arreglos de `completedTopics`/`completedModules` solo cambian al cerrar una reflexión; usar cualquiera de esos valores como avance durante la práctica hacía que las tarjetas parecieran congeladas.
 
 **How to apply:** Usa la evidencia de respuestas para el porcentaje visible; usa `completedTopics` para el estado de temas y `completedModules` para el estado de factorización; conserva el puntaje diagnóstico solo como contexto separado.
+
+Para los casos de factorización, el porcentaje visible debe combinar `exerciseResults` con `completedExercises`, porque la lista sincronizada con el servidor puede estar disponible aunque el historial detallado local no lo esté.
+
+**Why:** La tarjeta de la ruta se quedaba sin avance cuando el servidor había guardado ejercicios completados, pero el dispositivo no conservaba el detalle local de cada respuesta.
+
+**How to apply:** Construye la evidencia de la ruta con ambas fuentes y cuenta cada ID de ejercicio una sola vez; mantén separada la regla de cierre formal del caso.
