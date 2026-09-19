@@ -20,3 +20,9 @@ Los temas de repaso que ya superaron el umbral diagnóstico no deben aparecer co
 **Why:** Algunos temas, como Números Irracionales, pueden no tener evidencia de práctica porque ya fueron aprobados en el diagnóstico; mostrarlos como pendientes contradice el resultado inicial y confunde al estudiante.
 
 **How to apply:** Al construir el resumen académico, filtrar los temas con resultado diagnóstico igual o superior al 75%; conservar los resultados diagnósticos en los agregados generales.
+
+Cuando el estudiante tiene conexión, su nota visible debe usar el `academicSummary` consolidado por el servidor, que es también la fuente del panel docente y del PDF; el cálculo local queda solo como respaldo offline.
+
+**Why:** La copia local y la del API habían evolucionado por separado y podían producir notas diferentes con los mismos datos aparentes; además, sincronizar XP o volver a cargar el perfil podía recalcular una nota local distinta.
+
+**How to apply:** Cargar el resumen académico del estudiante desde el endpoint de analítica al entrar a Inicio y usar el cálculo local únicamente si la consulta falla o el estudiante no tiene backend.

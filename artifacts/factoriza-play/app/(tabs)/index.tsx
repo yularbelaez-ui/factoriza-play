@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -19,6 +19,8 @@ import { getRankForXp } from "@/data/progression";
 import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
 import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 import { calculateAcademicSummary } from "@/lib/academicGrading";
+import type { AcademicSummary } from "@/lib/academicGrading";
+import { apiGetClassStudentAnalytics } from "@/lib/api";
 import {
   getRouteStepState,
   isLearningRouteCompleted,
@@ -65,6 +67,31 @@ export default function HomeScreen() {
   const { currentStudent, moduleProgress, unlockedModules, logout } = useApp();
   const isWeb = Platform.OS === "web";
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [serverAcademicSummary, setServerAcademicSummary] = useState<AcademicSummary | null>(null);
+
+  useEffect(() => {
+    const backendId = currentStudent?.backendId;
+    const classCode = currentStudent?.classCode;
+    if (!backendId || !classCode) {
+      setServerAcademicSummary(null);
+      return;
+    }
+
+    let active = true;
+    void apiGetClassStudentAnalytics(classCode)
+      .then(({ students }) => {
+        if (!active) return;
+        const student = students.find((item) => item.studentId === backendId);
+        setServerAcademicSummary(student?.academicSummary ?? null);
+      })
+      .catch(() => {
+        if (active) setServerAcademicSummary(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentStudent?.backendId, currentStudent?.classCode]);
 
   if (!currentStudent) return null;
 
@@ -99,7 +126,7 @@ export default function HomeScreen() {
   const rank = getRankForXp(currentStudent.totalXP);
   const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
   const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
-  const academicSummary = calculateAcademicSummary({
+  const localAcademicSummary = calculateAcademicSummary({
     records: currentStudent.exerciseResults,
     activeModules: [
       ...ALL_TOPICS.map((topic) => ({ id: topic.id, title: topic.title })),
@@ -116,6 +143,7 @@ export default function HomeScreen() {
     theoryReadModuleIds: moduleProgress.filter((item) => item.theoryRead).map((item) => item.moduleId),
     diagnosticResults: academicDiagnosticResults,
   });
+  const academicSummary = serverAcademicSummary ?? localAcademicSummary;
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
