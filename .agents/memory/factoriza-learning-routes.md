@@ -19,8 +19,8 @@ La progresión dentro de cada ruta es secuencial: solo el primer paso pendiente 
 
 **How to apply:** Mantén esta regla cuando se agreguen pasos o nuevas formas de completar contenido, y conserva los avances al sincronizarlos entre dispositivos.
 
-El porcentaje visible de cada paso personalizado debe calcularse con las unidades completadas del estudiante (temas o casos), no con el puntaje fijo del diagnóstico inicial.
+El porcentaje visible de cada paso personalizado debe calcularse con los ejercicios respondidos dentro de sus temas o casos, no con el puntaje fijo del diagnóstico inicial; el cierre/reflexión sigue controlando el estado “Completada” y el desbloqueo.
 
-**Why:** El puntaje diagnóstico describe la necesidad de refuerzo, pero no cambia cuando el estudiante avanza; usarlo como progreso hacía que las tarjetas parecieran congeladas.
+**Why:** El puntaje diagnóstico describe la necesidad de refuerzo, y los arreglos de `completedTopics`/`completedModules` solo cambian al cerrar una reflexión; usar cualquiera de esos valores como avance durante la práctica hacía que las tarjetas parecieran congeladas.
 
-**How to apply:** Usa `completedTopics` para pasos de aritmética, álgebra o patrones y `completedModules` para el paso de factorización; conserva el puntaje diagnóstico solo como contexto separado.
+**How to apply:** Usa la evidencia de respuestas para el porcentaje visible; usa `completedTopics` para el estado de temas y `completedModules` para el estado de factorización; conserva el puntaje diagnóstico solo como contexto separado.

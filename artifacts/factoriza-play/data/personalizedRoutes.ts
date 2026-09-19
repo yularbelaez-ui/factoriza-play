@@ -61,6 +61,15 @@ export interface PersonalizedRoute {
   steps: PersonalizedRouteStep[];
 }
 
+export interface PersonalizedProgressEvidence {
+  exerciseResults: Array<{
+    exerciseId: string;
+    moduleId?: string | null;
+  }>;
+  topicExerciseIds: Record<string, string[]>;
+  moduleExerciseIds: Record<string, string[]>;
+}
+
 const MODULE_DEFINITIONS: Record<
   PersonalizedModuleId,
   Omit<PersonalizedRouteModule, "score" | "needsStrengthening">
@@ -240,11 +249,59 @@ export function isPersonalizedRouteCompleted(
   return route.steps.every((step) => isStepCompleted(step, completedTopics, completedModules));
 }
 
+function exerciseProgressForStep(
+  step: PersonalizedRouteStep,
+  completedTopics: string[],
+  completedModules: string[],
+  evidence: PersonalizedProgressEvidence,
+) {
+  const topicUnits = step.topicIds.flatMap((topicId) =>
+    (evidence.topicExerciseIds[topicId] ?? []).map((exerciseId) => ({
+      exerciseId,
+      ownerId: topicId,
+      kind: "topic" as const,
+    })),
+  );
+  const moduleUnits = (step.factorizationModuleIds ?? []).flatMap((moduleId) =>
+    (evidence.moduleExerciseIds[moduleId] ?? []).map((exerciseId) => ({
+      exerciseId,
+      ownerId: moduleId,
+      kind: "module" as const,
+    })),
+  );
+  const units = topicUnits.length > 0 ? topicUnits : moduleUnits;
+  if (units.length === 0) return null;
+
+  const answered = new Set(
+    evidence.exerciseResults
+      .filter((result) => result.exerciseId)
+      .map((result) => `${result.moduleId ?? ""}:${result.exerciseId}`),
+  );
+  const completed = units.filter((unit) =>
+    (unit.kind === "topic"
+      ? completedTopics.includes(unit.ownerId)
+      : completedModules.includes(unit.ownerId)) ||
+    answered.has(`${unit.kind === "topic" ? `support:${unit.ownerId}` : unit.ownerId}:${unit.exerciseId}`) ||
+    answered.has(`:${unit.exerciseId}`),
+  ).length;
+  return { completed, total: units.length };
+}
+
 export function getPersonalizedRouteProgress(
   route: PersonalizedRoute,
   completedTopics: string[],
   completedModules: string[],
+  evidence?: PersonalizedProgressEvidence,
 ) {
+  if (evidence) {
+    const stepCounts = route.steps.map((step) =>
+      exerciseProgressForStep(step, completedTopics, completedModules, evidence),
+    );
+    const totalUnits = stepCounts.reduce((total, counts) => total + (counts?.total ?? 0), 0);
+    const completedUnits = stepCounts.reduce((total, counts) => total + (counts?.completed ?? 0), 0);
+    if (totalUnits > 0) return Math.round((completedUnits / totalUnits) * 100);
+  }
+
   const totalUnits = route.steps.reduce(
     (total, step) => total + (step.topicIds.length || step.factorizationModuleIds?.length || 1),
     0,
@@ -261,7 +318,15 @@ export function getPersonalizedStepProgress(
   step: PersonalizedRouteStep,
   completedTopics: string[],
   completedModules: string[],
+  evidence?: PersonalizedProgressEvidence,
 ) {
+  const exerciseCounts = evidence
+    ? exerciseProgressForStep(step, completedTopics, completedModules, evidence)
+    : null;
+  if (exerciseCounts) {
+    return Math.round((exerciseCounts.completed / exerciseCounts.total) * 100);
+  }
+
   const topicUnits = step.topicIds;
   const moduleUnits = step.factorizationModuleIds ?? [];
   const units = topicUnits.length ? topicUnits : moduleUnits;

@@ -130,6 +130,20 @@ export default function HomeScreen() {
       ]
     : null;
   const routeSteps = personalizedRoute?.steps ?? assignedRoute?.steps ?? [];
+  const personalizedProgressEvidence = personalizedRoute
+    ? {
+        exerciseResults: currentStudent.exerciseResults,
+        topicExerciseIds: Object.fromEntries(
+          ALL_TOPICS.map((topic) => [topic.id, topic.exercises.map((exercise) => exercise.id)]),
+        ),
+        moduleExerciseIds: Object.fromEntries(
+          MODULES.map((module) => [
+            module.id,
+            [...module.exercises, ...module.evaluationExercises].map((exercise) => exercise.id),
+          ]),
+        ),
+      }
+    : undefined;
   const allStrong = personalizedRoute
     ? personalizedRoute.steps.length === 1
     : profileCode === "C" || profileCode === "explorador-factorizacion";
@@ -144,7 +158,12 @@ export default function HomeScreen() {
     ? isPersonalizedRoutePrerequisitesCompleted(personalizedRoute, completedTopics, completedModules)
     : allStrong || routeCompleted;
   const routeProgress = personalizedRoute
-    ? getPersonalizedRouteProgress(personalizedRoute, completedTopics, completedModules)
+    ? getPersonalizedRouteProgress(
+        personalizedRoute,
+        completedTopics,
+        completedModules,
+        personalizedProgressEvidence,
+      )
     : null;
   const routeColor = personalizedRoute?.color ?? assignedRoute?.color ?? colors.primary;
 
@@ -330,7 +349,7 @@ export default function HomeScreen() {
               <View>
                 <Text style={[styles.routeTitle, { color: colors.foreground }]}>Tu Ruta Sugerida</Text>
                 <Text style={[styles.routeSub, { color: colors.mutedForeground }]}>
-                  {profileDetails?.icon} {profileDetails?.label} · {personalizedRoute?.title ?? assignedRoute?.title} · {dp.overallScore}%
+                  {profileDetails?.icon} {profileDetails?.label} · {personalizedRoute?.title ?? assignedRoute?.title} · Diagnóstico inicial: {dp.overallScore}%
                 </Text>
               </View>
             </View>
@@ -385,6 +404,7 @@ export default function HomeScreen() {
                       step as import("@/data/personalizedRoutes").PersonalizedRouteStep,
                       completedTopics,
                       completedModules,
+                      personalizedProgressEvidence,
                     )
                   : null;
                 const stepScore = "score" in step ? step.score : null;
