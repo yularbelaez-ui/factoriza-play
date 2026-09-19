@@ -133,6 +133,7 @@ export default function HomeScreen() {
   const personalizedProgressEvidence = personalizedRoute
     ? {
         exerciseResults: currentStudent.exerciseResults,
+        completedExerciseIds: currentStudent.completedExercises,
         topicExerciseIds: Object.fromEntries(
           ALL_TOPICS.map((topic) => [topic.id, topic.exercises.map((exercise) => exercise.id)]),
         ),

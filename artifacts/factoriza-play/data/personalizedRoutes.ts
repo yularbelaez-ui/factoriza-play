@@ -66,6 +66,7 @@ export interface PersonalizedProgressEvidence {
     exerciseId: string;
     moduleId?: string | null;
   }>;
+  completedExerciseIds?: string[];
   topicExerciseIds: Record<string, string[]>;
   moduleExerciseIds: Record<string, string[]>;
 }
@@ -272,17 +273,20 @@ function exerciseProgressForStep(
   const units = topicUnits.length > 0 ? topicUnits : moduleUnits;
   if (units.length === 0) return null;
 
-  const answered = new Set(
-    evidence.exerciseResults
-      .filter((result) => result.exerciseId)
-      .map((result) => `${result.moduleId ?? ""}:${result.exerciseId}`),
-  );
+  const answered = new Set<string>(evidence.completedExerciseIds ?? []);
+  evidence.exerciseResults
+    .filter((result) => result.exerciseId)
+    .forEach((result) => {
+      answered.add(`${result.moduleId ?? ""}:${result.exerciseId}`);
+      answered.add(result.exerciseId);
+    });
   const completed = units.filter((unit) =>
     (unit.kind === "topic"
       ? completedTopics.includes(unit.ownerId)
       : completedModules.includes(unit.ownerId)) ||
     answered.has(`${unit.kind === "topic" ? `support:${unit.ownerId}` : unit.ownerId}:${unit.exerciseId}`) ||
-    answered.has(`:${unit.exerciseId}`),
+    answered.has(`:${unit.exerciseId}`) ||
+    answered.has(unit.exerciseId),
   ).length;
   return { completed, total: units.length };
 }
