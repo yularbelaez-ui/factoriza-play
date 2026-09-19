@@ -14,3 +14,9 @@ Los perfiles diagnósticos antiguos pueden conservar `moduleResults` sin `result
 **Why:** La nota final debe seguir incluyendo las competencias de perfiles creados antes de que se persistiera el desglose detallado del diagnóstico.
 
 **How to apply:** Preferir `diagnosticProfile.results` cuando exista; usar `moduleResults[].topics` como respaldo tanto en la vista del estudiante como en los reportes docentes.
+
+Los temas de repaso que ya superaron el umbral diagnóstico no deben aparecer como “Pendiente” en el listado académico; deben excluirse del listado visible usando la correspondencia tema → categoría diagnóstica.
+
+**Why:** Algunos temas, como Números Irracionales, pueden no tener evidencia de práctica porque ya fueron aprobados en el diagnóstico; mostrarlos como pendientes contradice el resultado inicial y confunde al estudiante.
+
+**How to apply:** Al construir el resumen académico, filtrar los temas con resultado diagnóstico igual o superior al 75%; conservar los resultados diagnósticos en los agregados generales.
