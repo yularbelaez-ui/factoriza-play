@@ -26,8 +26,8 @@ import { csvCell } from "../lib/csv.js";
 const router = Router();
 const connectors = new ReplitConnectors();
 const isRetiredExercise = (exerciseId: string) =>
-  exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
-const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+  exerciseId.startsWith("ax2-");
+const RETIRED_MODULE_IDS = new Set(["trinomio-ax2-bx-c"]);
 const ACADEMIC_MODULE_TITLES: Record<string, string> = {
   "factor-comun": "Factor común",
   "agrupacion-terminos": "Agrupación de términos",
@@ -71,7 +71,6 @@ const PROFILE_LABELS: Record<string, string> = {
   patrones: "Reconocimiento de patrones",
 };
 const isRetiredTopic = (topicId: string) =>
-  topicId.toLowerCase().includes("reconocimiento-patrones") ||
   topicId.toLowerCase().includes("ax2-bx-c");
 
 function isRetiredCase(...parts: Array<string | null | undefined>): boolean {
@@ -558,7 +557,6 @@ router.get("/teacher/:teacherCode/classes/:classCode/export", async (req, res) =
     const studentLearningSessions = learningSessionRows.filter((session) =>
       session.studentId === student.id &&
       !RETIRED_MODULE_IDS.has(session.activityId) &&
-      !session.activityId.includes("reconocimiento-patrones") &&
       !session.activityId.includes("ax2-bx-c"));
     const studentWeekly = weekly.filter((reflection) => reflection.studentId === student.id);
     const studentEvents = events.filter((event) => event.studentId === student.id);
@@ -583,7 +581,7 @@ router.get("/teacher/:teacherCode/classes/:classCode/export", async (req, res) =
       student.initialRank ?? "", rankName(student.totalXP),
       student.profileHistory ?? [], student.rankHistory ?? [],
       student.totalXP,
-      (student.completedTopics ?? []).filter((id) => !id.startsWith("reconocimiento-patrones") && !id.startsWith("ax2-")).join("|"),
+      (student.completedTopics ?? []).filter((id) => !id.startsWith("ax2-")).join("|"),
       studentModules.join("|"),
       studentResults.reduce((sum, result) => sum + (result.durationSeconds ?? 0), 0),
       studentResults.reduce((sum, result) => sum + (result.attempts ?? 1), 0),

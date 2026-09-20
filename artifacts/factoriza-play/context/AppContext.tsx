@@ -195,6 +195,7 @@ const TEACHER_CODE = "Karyul04";
 
 // Orden de desbloqueo progresivo de los casos activos.
 const MODULE_ORDER = [
+  "reconocimiento-patrones",
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",
@@ -203,6 +204,16 @@ const MODULE_ORDER = [
   "cubo-binomio",
   "suma-diferencia-cubos",
 ];
+
+function isModuleCompleteForUnlock(moduleId: string, completedModules: string[]) {
+  if (completedModules.includes(moduleId)) return true;
+  // Keep students who already completed a later case from losing access when
+  // the introductory module is inserted at the beginning of the sequence.
+  return moduleId === "reconocimiento-patrones" &&
+    completedModules.some((completedId) =>
+      completedId !== "reconocimiento-patrones" && MODULE_ORDER.includes(completedId),
+    );
+}
 
 function computeUnlocked(student: StudentRecord | null): string[] {
   if (!student) return [];
@@ -217,7 +228,7 @@ function computeUnlocked(student: StudentRecord | null): string[] {
     const completedModules = student.completedModules ?? [];
     const unlocked = [MODULE_ORDER[0]];
     for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
-      if (completedModules.includes(MODULE_ORDER[i])) {
+      if (isModuleCompleteForUnlock(MODULE_ORDER[i], completedModules)) {
         unlocked.push(MODULE_ORDER[i + 1]);
       }
     }
@@ -248,7 +259,7 @@ function computeUnlocked(student: StudentRecord | null): string[] {
   const completedModules = student.completedModules ?? [];
   const unlocked = [MODULE_ORDER[0]];
   for (let i = 0; i < MODULE_ORDER.length - 1; i++) {
-    if (completedModules.includes(MODULE_ORDER[i])) {
+    if (isModuleCompleteForUnlock(MODULE_ORDER[i], completedModules)) {
       unlocked.push(MODULE_ORDER[i + 1]);
     }
   }

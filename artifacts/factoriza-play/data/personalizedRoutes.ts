@@ -120,6 +120,7 @@ const MODULE_DEFINITIONS: Record<
 };
 
 const FACTORIZATION_MODULE_IDS = [
+  "reconocimiento-patrones",
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",
@@ -128,6 +129,18 @@ const FACTORIZATION_MODULE_IDS = [
   "cubo-binomio",
   "suma-diferencia-cubos",
 ];
+
+function factorizationModuleCompleted(moduleId: string, completedModules: string[]) {
+  if (completedModules.includes(moduleId)) return true;
+  // Students who started before the introductory module was restored already
+  // demonstrated progress in a later factorization case. Do not lock their
+  // existing route behind a newly inserted prerequisite.
+  return moduleId === "reconocimiento-patrones" &&
+    completedModules.some((completedId) =>
+      completedId !== "reconocimiento-patrones" &&
+      FACTORIZATION_MODULE_IDS.includes(completedId),
+    );
+}
 
 const PREREQUISITE_MODULE_IDS: PersonalizedModuleId[] = [
   "aritmetica",
@@ -202,7 +215,9 @@ function isStepCompleted(
     step.topicIds.every((topicId) => completedTopics.includes(topicId));
   const modulesCompleted =
     !step.factorizationModuleIds ||
-    step.factorizationModuleIds.every((moduleId) => completedModules.includes(moduleId));
+    step.factorizationModuleIds.every((moduleId) =>
+      factorizationModuleCompleted(moduleId, completedModules),
+    );
   return topicsCompleted && modulesCompleted;
 }
 
@@ -283,7 +298,7 @@ function exerciseProgressForStep(
   const completed = units.filter((unit) =>
     (unit.kind === "topic"
       ? completedTopics.includes(unit.ownerId)
-      : completedModules.includes(unit.ownerId)) ||
+      : factorizationModuleCompleted(unit.ownerId, completedModules)) ||
     answered.has(`${unit.kind === "topic" ? `support:${unit.ownerId}` : unit.ownerId}:${unit.exerciseId}`) ||
     answered.has(`:${unit.exerciseId}`) ||
     answered.has(unit.exerciseId),
@@ -312,7 +327,9 @@ export function getPersonalizedRouteProgress(
   );
   const completedUnits = route.steps.reduce((total, step) => {
     const topics = step.topicIds.filter((topicId) => completedTopics.includes(topicId)).length;
-    const modules = step.factorizationModuleIds?.filter((moduleId) => completedModules.includes(moduleId)).length ?? 0;
+    const modules = step.factorizationModuleIds?.filter((moduleId) =>
+      factorizationModuleCompleted(moduleId, completedModules),
+    ).length ?? 0;
     return total + (step.topicIds.length ? topics : modules);
   }, 0);
   return totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
@@ -338,6 +355,8 @@ export function getPersonalizedStepProgress(
 
   const completed = topicUnits.length
     ? topicUnits.filter((topicId) => completedTopics.includes(topicId)).length
-    : moduleUnits.filter((moduleId) => completedModules.includes(moduleId)).length;
+    : moduleUnits.filter((moduleId) =>
+      factorizationModuleCompleted(moduleId, completedModules),
+    ).length;
   return Math.round((completed / units.length) * 100);
 }

@@ -15,8 +15,9 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
 const connectors = new ReplitConnectors();
-const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const RETIRED_MODULE_IDS = new Set(["trinomio-ax2-bx-c"]);
 const ACTIVE_MODULE_IDS = [
+  "reconocimiento-patrones",
   "factor-comun", "agrupacion-terminos", "trinomio-cuadrado-perfecto",
   "diferencia-cuadrados", "trinomio-forma-x2-bx-c", "cubo-binomio",
   "suma-diferencia-cubos",
@@ -35,12 +36,18 @@ const isValidActivity = (activityId: string) =>
   ACTIVE_TOPIC_IDS.includes(activityId) ||
   (activityId.startsWith("evaluacion:") && ACTIVE_MODULE_IDS.includes(activityId.slice("evaluacion:".length)));
 const isRetiredExercise = (exerciseId: string) =>
-  exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
+  exerciseId.startsWith("ax2-");
 const isPrerequisiteExercise = (moduleId: unknown, exerciseId?: string) =>
   (typeof moduleId === "string" && moduleId.startsWith("support:")) ||
   (typeof exerciseId === "string" && /^(s1|s2|s3)-/.test(exerciseId));
 const isRetiredTopic = (topicId: string) =>
-  topicId.startsWith("reconocimiento-patrones") || topicId.startsWith("ax2-");
+  topicId.startsWith("ax2-");
+const isFactorizationModuleComplete = (moduleId: string, completedModules: string[]) =>
+  completedModules.includes(moduleId) ||
+  (moduleId === "reconocimiento-patrones" &&
+    completedModules.some((completedId) =>
+      completedId !== "reconocimiento-patrones" && ACTIVE_MODULE_IDS.includes(completedId),
+    ));
 
 const RANKS = [
   { name: "Bronce", icon: "🥉", min: 0, max: 500 },
@@ -957,7 +964,7 @@ router.post("/students/:studentId/modules", async (req, res) => {
     if (!session || session.activityId !== moduleId) throw new Error("SESSION_REQUIRED");
     const completedModules = student.completedModules ?? [];
     if (completedModules.includes(moduleId)) {
-      if (ACTIVE_MODULE_IDS.every((id) => completedModules.includes(id))) {
+      if (ACTIVE_MODULE_IDS.every((id) => isFactorizationModuleComplete(id, completedModules))) {
         const [routeEvent] = await tx.insert(xpEvents).values({
           studentId, eventType: "route-completion", sourceId: "ruta-factorizacion", xp: 150,
         }).onConflictDoNothing().returning();
@@ -978,7 +985,9 @@ router.post("/students/:studentId/modules", async (req, res) => {
       studentId, eventType: "module-completion", sourceId: moduleId, xp: 50,
     }).onConflictDoNothing().returning();
     const nextModules = [...completedModules, moduleId];
-    const routeComplete = ACTIVE_MODULE_IDS.every((id) => nextModules.includes(id));
+    const routeComplete = ACTIVE_MODULE_IDS.every((id) =>
+      isFactorizationModuleComplete(id, nextModules),
+    );
     const [routeEvent] = routeComplete
       ? await tx.insert(xpEvents).values({
           studentId, eventType: "route-completion", sourceId: "ruta-factorizacion", xp: 150,

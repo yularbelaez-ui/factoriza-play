@@ -17,11 +17,11 @@ import {
 
 const router = Router();
 const connectors = new ReplitConnectors();
-const RETIRED_MODULE_IDS = new Set(["reconocimiento-patrones", "trinomio-ax2-bx-c"]);
+const RETIRED_MODULE_IDS = new Set(["trinomio-ax2-bx-c"]);
 const isRetiredExercise = (exerciseId: string) =>
-  exerciseId.startsWith("reconocimiento-patrones-") || exerciseId.startsWith("ax2-");
+  exerciseId.startsWith("ax2-");
 const isRetiredTopic = (topicId: string) =>
-  topicId.startsWith("reconocimiento-patrones") || topicId.startsWith("ax2-");
+  topicId.startsWith("ax2-");
 
 function rankForXp(totalXP: number) {
   if (totalXP > 5000) return { name: "Gran Maestro", icon: "👑", nextXP: null };

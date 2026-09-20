@@ -1459,7 +1459,6 @@ const ALL_MODULES: FactorizationModule[] = [
 ];
 
 const RETIRED_MODULE_IDS = new Set([
-  "reconocimiento-patrones",
   "trinomio-ax2-bx-c",
 ]);
 
@@ -1468,6 +1467,7 @@ export const MODULES: FactorizationModule[] = ALL_MODULES.filter(
 );
 
 export const MODULE_CASE_ORDER = [
+  "reconocimiento-patrones",
   "factor-comun",
   "agrupacion-terminos",
   "trinomio-cuadrado-perfecto",

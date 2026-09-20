@@ -5,7 +5,7 @@ description: Reglas pedagógicas durables para calcular notas sin mezclarlas con
 
 Las calificaciones académicas de 1.0 a 5.0 deben permanecer separadas de XP, rangos, insignias y rutas. La nota inicial es un punto de partida y pesa 20%; la rúbrica evolutiva usa 40% corrección/retroalimentación, 30% evaluación del caso y 10% reflexión.
 
-**Why:** La nota debe valorar el aprendizaje a partir del error y poder subir cuando el estudiante estudia, usa la retroalimentación y corrige, sin dejar que un diagnóstico inicial bajo domine la calificación. Reconocimiento de patrones fue retirado y el usuario confirmó que debe omitirse también de estas calificaciones.
+**Why:** La nota debe valorar el aprendizaje a partir del error y poder subir cuando el estudiante estudia, usa la retroalimentación y corrige, sin dejar que un diagnóstico inicial bajo domine la calificación. Reconocimiento de patrones es una introducción activa del curso, pero se mantiene fuera de estas calificaciones para no mezclar la inducción con la evidencia de dominio de los casos.
 
 **How to apply:** Usar únicamente evidencia observable. La corrección parte de un error real y valora identificación, uso de retroalimentación y respuesta posterior correcta. La evaluación del caso cuenta las respuestas registradas del examen, aunque no haya una corrección previa. Los componentes sin evidencia quedan pendientes y los informes muestran su cobertura; nunca se imputan como fallos.
 
