@@ -27,10 +27,16 @@ export default function ModulosScreen() {
   if (!currentStudent) return null;
 
   const getProgress = (moduleId: string) => {
-    const done = (currentStudent.completedExercises ?? []).filter((id) =>
-      id.startsWith(moduleId)
-    ).length;
-    const total = MODULES.find((m) => m.id === moduleId)?.exercises.length ?? 1;
+    const module = MODULES.find((m) => m.id === moduleId);
+    if (!module) return 0;
+    const completedIds = new Set([
+      ...(currentStudent.completedExercises ?? []),
+      ...(currentStudent.exerciseResults ?? [])
+        .filter((result) => result.correct)
+        .map((result) => result.exerciseId),
+    ]);
+    const done = module.exercises.filter((exercise) => completedIds.has(exercise.id)).length;
+    const total = module.exercises.length;
     return Math.round((done / total) * 100);
   };
 

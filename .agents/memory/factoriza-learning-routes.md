@@ -30,3 +30,9 @@ Para los casos de factorización, el porcentaje visible debe combinar `exerciseR
 **Why:** La tarjeta de la ruta se quedaba sin avance cuando el servidor había guardado ejercicios completados, pero el dispositivo no conservaba el detalle local de cada respuesta.
 
 **How to apply:** Construye la evidencia de la ruta con ambas fuentes y cuenta cada ID de ejercicio una sola vez; mantén separada la regla de cierre formal del caso.
+
+Los IDs de los ejercicios no necesariamente comparten el prefijo del ID del caso; el porcentaje debe contar la intersección entre los ejercicios definidos por el módulo y los IDs completados.
+
+**Why:** Por ejemplo, `factor-comun` tiene ejercicios con IDs `fc-ex-*`; filtrar con `startsWith(moduleId)` dejaba el porcentaje en cero aunque el ejercicio estuviera resuelto.
+
+**How to apply:** Obtén la lista de ejercicios del módulo y comprueba cada ID contra el conjunto combinado de `completedExercises` y resultados correctos locales.
