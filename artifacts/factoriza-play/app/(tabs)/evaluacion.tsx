@@ -52,6 +52,9 @@ export default function EvaluacionScreen() {
   };
 
   const module = enteredModule ? MODULES.find((m) => m.id === enteredModule) : null;
+  const moduleAlreadyCompleted = Boolean(
+    module && currentStudent?.completedEvaluations?.includes(module.id),
+  );
 
   return (
     <ScrollView
@@ -134,27 +137,36 @@ export default function EvaluacionScreen() {
         <View
           style={[
             styles.unlockedCard,
-            { backgroundColor: colors.success + "10", borderColor: colors.success + "40" },
+            {
+              backgroundColor: moduleAlreadyCompleted ? colors.mutedForeground + "10" : colors.success + "10",
+              borderColor: moduleAlreadyCompleted ? colors.border : colors.success + "40",
+            },
           ]}
         >
           <Text style={[styles.unlockedTitle, { color: colors.success }]}>
-            ✅ Evaluación desbloqueada
+            {moduleAlreadyCompleted ? "✓ Evaluación ya realizada" : "✅ Evaluación desbloqueada"}
           </Text>
           <Text
             style={[styles.unlockedModule, { color: colors.foreground }]}
           >
             {module.icon} {module.title}
           </Text>
-          <TouchableOpacity
-            style={[styles.startEvalBtn, { backgroundColor: colors.success }]}
-            onPress={() =>
-              router.push(`/evaluacion-modulo/${module.id}` as any)
-            }
-            activeOpacity={0.85}
-          >
-            <Text style={styles.startEvalBtnText}>Comenzar Evaluación</Text>
-            <Feather name="play" size={18} color="#fff" />
-          </TouchableOpacity>
+          {moduleAlreadyCompleted ? (
+            <Text style={[styles.evalAlreadyDone, { color: colors.mutedForeground }]}>
+              Ya presentaste este examen y no puedes volver a realizarlo.
+            </Text>
+          ) : (
+            <TouchableOpacity
+              style={[styles.startEvalBtn, { backgroundColor: colors.success }]}
+              onPress={() =>
+                router.push(`/evaluacion-modulo/${module.id}` as any)
+              }
+              activeOpacity={0.85}
+            >
+              <Text style={styles.startEvalBtnText}>Comenzar Evaluación</Text>
+              <Feather name="play" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -184,17 +196,21 @@ export default function EvaluacionScreen() {
         evaluationCodes.map((session) => {
           const mod = MODULES.find((m) => m.id === session.moduleId);
           if (!mod) return null;
+          const completed = currentStudent?.completedEvaluations?.includes(session.moduleId) ?? false;
           return (
             <TouchableOpacity
               key={session.moduleId}
               style={[
                 styles.evalCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                {
+                  backgroundColor: completed ? colors.secondary : colors.card,
+                  borderColor: completed ? colors.success + "45" : colors.border,
+                },
               ]}
               onPress={() =>
-                router.push(`/evaluacion-modulo/${session.moduleId}` as any)
+                !completed && router.push(`/evaluacion-modulo/${session.moduleId}` as any)
               }
-              activeOpacity={0.8}
+              activeOpacity={completed ? 1 : 0.8}
             >
               <Text style={styles.evalIcon}>{mod.icon}</Text>
               <View style={styles.evalInfo}>
@@ -204,13 +220,13 @@ export default function EvaluacionScreen() {
                 <Text
                   style={[styles.evalSub, { color: colors.mutedForeground }]}
                 >
-                  {mod.evaluationExercises.length} preguntas
+                  {completed ? "Ya realizada · No disponible nuevamente" : `${mod.evaluationExercises.length} preguntas`}
                 </Text>
               </View>
               <Feather
-                name="chevron-right"
+                name={completed ? "check-circle" : "chevron-right"}
                 size={20}
-                color={colors.mutedForeground}
+                color={completed ? colors.success : colors.mutedForeground}
               />
             </TouchableOpacity>
           );
@@ -291,6 +307,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   startEvalBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  evalAlreadyDone: { fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 4 },
   sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
   emptyCard: {
     borderRadius: 16,

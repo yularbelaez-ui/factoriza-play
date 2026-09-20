@@ -65,6 +65,7 @@ export interface ApiStudentData {
   completedTopics: string[];
   completedModules: string[];
   completedExercises: string[];
+  completedEvaluations: string[];
   diagnosticProfile?: DiagnosticProfile | null;
   initialProfile?: string | null;
   initialRank?: string | null;
@@ -422,6 +423,16 @@ export async function apiValidateEvaluationCode(
   return apiFetch(`/students/${studentId}/evaluation-code`, {
     method: "POST",
     body: JSON.stringify({ code }),
+  });
+}
+
+export async function apiCompleteEvaluation(
+  studentId: number,
+  moduleId: string,
+): Promise<{ student: ApiStudentData; alreadyCompleted?: boolean }> {
+  return apiFetch(`/students/${studentId}/evaluation-complete`, {
+    method: "POST",
+    body: JSON.stringify({ moduleId }),
   });
 }
 

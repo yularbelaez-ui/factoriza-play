@@ -42,6 +42,7 @@ export const students = pgTable(
     completedTopics: text("completed_topics").array().default([]).notNull(),
     completedModules: text("completed_modules").array().default([]).notNull(),
     completedExercises: text("completed_exercises").array().default([]).notNull(),
+    completedEvaluations: text("completed_evaluations").array().default([]).notNull(),
     diagnosticProfile: jsonb("diagnostic_profile").$type<Record<string, unknown>>(),
     initialProfile: varchar("initial_profile", { length: 80 }),
     initialRank: varchar("initial_rank", { length: 40 }),

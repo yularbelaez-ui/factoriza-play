@@ -29,6 +29,7 @@ import {
   apiStartLearningSession,
   apiRecordHint,
   apiRecordFeedbackView,
+  apiCompleteEvaluation,
   ApiStudentData,
 } from "@/lib/api";
 import { LEARNING_ROUTES, isLearningRouteCompleted } from "@/data/learningRoutes";
@@ -50,6 +51,7 @@ export interface StudentRecord {
   completedModules: string[];
   completedTopics: string[];
   completedExercises: string[];
+  completedEvaluations: string[];
   exerciseResults: ExerciseResult[];
   lastLogin: number;
   diagnosticProfile?: DiagnosticProfile;
@@ -98,7 +100,7 @@ interface PendingExerciseSync {
 
 interface PendingMutation {
   id: string;
-  kind: "session" | "diagnostic" | "module" | "topic" | "session-reflection" | "weekly-reflection";
+  kind: "session" | "diagnostic" | "module" | "topic" | "evaluation" | "session-reflection" | "weekly-reflection";
   backendId: number;
   payload: Record<string, unknown>;
 }
@@ -306,6 +308,7 @@ interface AppContextValue {
   markTheoryRead: (moduleId: string) => void;
   completeLevel: (moduleId: string, level: number) => void;
   completeModule: (moduleId: string, sessionId?: string) => Promise<{ ok: boolean; error?: string }>;
+  completeEvaluation: (moduleId: string) => Promise<{ ok: boolean; alreadyCompleted?: boolean; error?: string }>;
   startActivitySession: (activityId: string) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
   completeTopicPractice: (topicId: string, sessionId?: string) => Promise<{ ok: boolean; error?: string }>;
   moduleProgress: ModuleProgress[];
@@ -476,6 +479,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       totalXP: number; streak: number;
       dailyXP: number; dailyXPDate?: string | null; streakLastDate?: string | null;
       completedTopics: string[]; completedModules: string[]; completedExercises: string[];
+      completedEvaluations?: string[];
       diagnosticProfile?: DiagnosticProfile | null;
       badges?: { id: string; label: string; icon: string }[];
     };
@@ -507,6 +511,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       completedModules: backendStudent.completedModules,
       completedTopics: backendStudent.completedTopics,
       completedExercises: backendStudent.completedExercises,
+      completedEvaluations: backendStudent.completedEvaluations ?? existing?.completedEvaluations ?? [],
       badges: backendStudent.badges ?? existing?.badges,
       exerciseResults: existing?.exerciseResults ?? [],
       lastLogin: Date.now(),
@@ -796,6 +801,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           student = (await apiCompleteTopic(
             mutation.backendId, String(mutation.payload.topicId), String(mutation.payload.sessionId),
           )).student;
+        } else if (mutation.kind === "evaluation") {
+          student = (await apiCompleteEvaluation(
+            mutation.backendId, String(mutation.payload.moduleId),
+          )).student;
         } else if (mutation.kind === "session-reflection") {
           student = (await apiSaveSessionReflection(mutation.backendId, mutation.payload as never)).student;
         } else {
@@ -900,6 +909,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist({ session: { role: "student", studentId: updated.id } });
       return updated;
     });
+  };
+
+  const completeEvaluation = async (moduleId: string) => {
+    const student = currentStudentRef.current;
+    if (!student) return { ok: false, error: "No hay estudiante activo." };
+    if ((student.completedEvaluations ?? []).includes(moduleId)) {
+      return { ok: true, alreadyCompleted: true };
+    }
+
+    const markLocally = (base: StudentRecord) => {
+      const updated: StudentRecord = {
+        ...base,
+        completedEvaluations: [...new Set([...(base.completedEvaluations ?? []), moduleId])],
+      };
+      currentStudentRef.current = updated;
+      setCurrentStudentState(updated);
+      setAllStudents((studentsList) => {
+        const next = studentsList.map((candidate) => candidate.id === updated.id ? updated : candidate);
+        void persist({ allStudents: next });
+        return next;
+      });
+    };
+
+    if (!student.backendId) {
+      markLocally(student);
+      return { ok: true };
+    }
+
+    try {
+      const result = await apiCompleteEvaluation(student.backendId, moduleId);
+      updateStudentFromServer(result.student);
+      return { ok: true, alreadyCompleted: result.alreadyCompleted };
+    } catch {
+      markLocally(student);
+      const mutation: PendingMutation = {
+        id: `evaluation-${student.backendId}-${moduleId}`,
+        kind: "evaluation",
+        backendId: student.backendId,
+        payload: { moduleId },
+      };
+      pendingMutationsRef.current = [
+        ...pendingMutationsRef.current.filter((item) => item.id !== mutation.id),
+        mutation,
+      ];
+      void persist({ pendingMutations: pendingMutationsRef.current });
+      return { ok: true };
+    }
   };
 
   const recordHintEvent = async (exerciseId: string, hintId: string, moduleId?: string) => {
@@ -1136,6 +1192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completedModules: bs.completedModules,
           completedTopics: bs.completedTopics,
           completedExercises: bs.completedExercises,
+          completedEvaluations: bs.completedEvaluations ?? existing?.completedEvaluations ?? [],
           badges: bs.badges ?? existing?.badges,
           exerciseResults: existing?.exerciseResults ?? [],
           lastLogin: existing?.lastLogin ?? Date.now(),
@@ -1195,6 +1252,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               completedModules: bs.completedModules,
               completedTopics: bs.completedTopics,
               completedExercises: bs.completedExercises,
+              completedEvaluations: bs.completedEvaluations ?? existing?.completedEvaluations ?? [],
               badges: bs.badges ?? existing?.badges,
               exerciseResults: existing?.exerciseResults ?? [],
               lastLogin: existing?.lastLogin ?? Date.now(),
@@ -1258,6 +1316,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         markTheoryRead,
         completeLevel,
         completeModule,
+        completeEvaluation,
         startActivitySession,
         completeTopicPractice,
         moduleProgress,

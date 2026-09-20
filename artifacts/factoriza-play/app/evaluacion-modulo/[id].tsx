@@ -33,18 +33,28 @@ export default function EvaluacionModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { evaluationCodes, recordHintEvent, recordExerciseResult, startActivitySession, currentStudent } = useApp();
+  const {
+    evaluationCodes,
+    recordHintEvent,
+    recordExerciseResult,
+    startActivitySession,
+    completeEvaluation,
+    currentStudent,
+  } = useApp();
   const isWeb = Platform.OS === "web";
 
   const module = MODULES.find((m) => m.id === id);
+  const evaluationCompleted = Boolean(
+    module && currentStudent?.completedEvaluations?.includes(module.id),
+  );
   const [sessionId, setSessionId] = useState<string | null>(null);
   useEffect(() => {
-    if (module) {
+    if (module && !evaluationCompleted) {
       startActivitySession(`evaluacion:${module.id}`).then((result) => {
         if (result.ok && result.sessionId) setSessionId(result.sessionId);
       });
     }
-  }, [module?.id]);
+  }, [module?.id, evaluationCompleted]);
 
   const [codeInput, setCodeInput] = useState("");
   const [unlocked, setUnlocked] = useState(() =>
@@ -111,6 +121,51 @@ export default function EvaluacionModuloScreen() {
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.foreground }}>Caso no encontrado</Text>
       </View>
+    );
+  }
+
+  if (evaluationCompleted) {
+    return (
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: isWeb ? 67 + 16 : insets.top + 16,
+            paddingBottom: isWeb ? 34 + 32 : insets.bottom + 32,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="chevron-left" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Evaluación</Text>
+        </TouchableOpacity>
+        <View style={[styles.header, { backgroundColor: module.color, shadowColor: module.color }]}>
+          <Text style={styles.headerIcon}>{module.icon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTag}>Evaluación Final</Text>
+            <Text style={styles.headerTitle}>{module.title}</Text>
+          </View>
+          <View style={[styles.scoreCircle, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+            <Feather name="check-circle" size={22} color="#fff" />
+          </View>
+        </View>
+        <View style={[styles.completedCard, { backgroundColor: colors.success + "12", borderColor: colors.success + "45" }]}>
+          <Feather name="check-circle" size={42} color={colors.success} />
+          <Text style={[styles.completedTitle, { color: colors.foreground }]}>
+            Evaluación ya realizada
+          </Text>
+          <Text style={[styles.completedText, { color: colors.mutedForeground }]}>
+            Ya presentaste esta evaluación. No puedes volver a realizarla.
+          </Text>
+          <TouchableOpacity
+            style={[styles.doneBtn, { backgroundColor: module.color }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.doneBtnText}>← Volver</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     );
   }
 
@@ -193,6 +248,11 @@ export default function EvaluacionModuloScreen() {
   const handleSubmit = async () => {
     if (!photoUri || !photoBase64 || !reflectionComplete || isSubmitting) return;
     setIsSubmitting(true);
+    const completion = await completeEvaluation(module.id);
+    if (!completion.ok || completion.alreadyCompleted) {
+      setIsSubmitting(false);
+      return;
+    }
     setSubmitted(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const answeredExercises = shuffledExercises.filter((ex) => answers[ex.id]);
@@ -717,6 +777,9 @@ const styles = StyleSheet.create({
 
   // Results
   resultCard: { borderRadius: 20, padding: 24, alignItems: "center", borderWidth: 1.5, gap: 8, marginBottom: 20 },
+  completedCard: { borderRadius: 18, borderWidth: 1, padding: 24, alignItems: "center", gap: 10, marginTop: 18 },
+  completedTitle: { fontSize: 20, fontWeight: "900", textAlign: "center" },
+  completedText: { fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 310 },
   resultEmoji: { fontSize: 48 },
   resultScore: { fontSize: 52, fontWeight: "900" },
   resultTitle: { fontSize: 22, fontWeight: "800" },

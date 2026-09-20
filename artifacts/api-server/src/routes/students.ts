@@ -279,6 +279,7 @@ function toStudentData(s: typeof students.$inferSelect) {
     completedTopics: (s.completedTopics ?? []).filter((id) => !isRetiredTopic(id)),
     completedModules: (s.completedModules ?? []).filter((id) => !RETIRED_MODULE_IDS.has(id)),
     completedExercises: (s.completedExercises ?? []).filter((id) => !isRetiredExercise(id)),
+    completedEvaluations: s.completedEvaluations ?? [],
     diagnosticProfile: diagnosticProfile ?? null,
     initialProfile: s.initialProfile,
     initialRank: s.initialRank,
@@ -346,6 +347,43 @@ router.post("/students/:studentId/evaluation-code", async (req, res) => {
   }
 
   res.json({ evaluation });
+});
+
+// A student can submit each module evaluation only once.
+router.post("/students/:studentId/evaluation-complete", async (req, res) => {
+  const studentId = Number.parseInt(req.params.studentId, 10);
+  const moduleId = typeof req.body?.moduleId === "string" ? req.body.moduleId.trim() : "";
+  if (!Number.isInteger(studentId) || !moduleId) {
+    res.status(400).json({ error: "studentId y moduleId son obligatorios" });
+    return;
+  }
+  if (!ACTIVE_MODULE_IDS.includes(moduleId)) {
+    res.status(400).json({ error: "Caso de evaluación no válido" });
+    return;
+  }
+
+  const [student] = await db
+    .select()
+    .from(students)
+    .where(eq(students.id, studentId))
+    .limit(1);
+  if (!student) {
+    res.status(404).json({ error: "Estudiante no encontrado" });
+    return;
+  }
+
+  const completedEvaluations = student.completedEvaluations ?? [];
+  if (completedEvaluations.includes(moduleId)) {
+    res.json({ student: toStudentData(student), alreadyCompleted: true });
+    return;
+  }
+
+  const [updated] = await db
+    .update(students)
+    .set({ completedEvaluations: [...completedEvaluations, moduleId] })
+    .where(eq(students.id, studentId))
+    .returning();
+  res.json({ student: toStudentData(updated), alreadyCompleted: false });
 });
 
 // Opens one server-owned lifecycle session. A stable clientId makes retries
