@@ -1150,6 +1150,7 @@ const styles = StyleSheet.create({
   topicRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   topicDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5, flexShrink: 0 },
   topicText: { flex: 1, fontSize: 13, lineHeight: 19 },
+  noDifficultyText: { fontSize: 12, lineHeight: 17, fontWeight: "600", paddingVertical: 4 },
 
   sectionBtn: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignItems: "center", marginTop: 8 },
   sectionBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },

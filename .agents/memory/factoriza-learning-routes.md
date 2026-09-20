@@ -36,3 +36,9 @@ Los IDs de los ejercicios no necesariamente comparten el prefijo del ID del caso
 **Why:** Por ejemplo, `factor-comun` tiene ejercicios con IDs `fc-ex-*`; filtrar con `startsWith(moduleId)` dejaba el porcentaje en cero aunque el ejercicio estuviera resuelto.
 
 **How to apply:** Obtén la lista de ejercicios del módulo y comprueba cada ID contra el conjunto combinado de `completedExercises` y resultados correctos locales.
+
+En el inicio, el mapa de conocimientos previos solo debe mostrar temas cuyo resultado diagnóstico esté por debajo del 75%; los temas dominados se ocultan, no se presentan como pendientes.
+
+**Why:** La ruta de refuerzo debe dirigir la atención a dificultades reales y no hacer que el estudiante repase contenidos que ya demostró dominar.
+
+**How to apply:** Usa los resultados diagnósticos actuales o su respaldo histórico, filtra cada tema por su categoría correspondiente y muestra un mensaje de bases sólidas cuando una sección no tenga temas por reforzar.
