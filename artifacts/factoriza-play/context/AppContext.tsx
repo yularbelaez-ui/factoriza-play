@@ -335,6 +335,7 @@ interface AppContextValue {
     student?: Pick<StudentRecord, "backendId" | "classCode"> | null
   ) => Promise<void>;
   isRefreshingRanking: boolean;
+  academicProgressVersion: number;
   deleteStudent: (student: StudentRecord) => Promise<{ ok: boolean; error?: string }>;
 
   // Analytics
@@ -355,6 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress[]>([]);
   const [isRefreshingTeacher, setIsRefreshingTeacher] = useState(false);
   const [isRefreshingRanking, setIsRefreshingRanking] = useState(false);
+  const [academicProgressVersion, setAcademicProgressVersion] = useState(0);
   const [activeTeacherCode, setActiveTeacherCode] = useState<string | null>(null);
 
   // Ref so refreshTeacherData doesn't depend on allStudents (avoids infinite loop)
@@ -730,6 +732,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // XP already awarded by the API (especially when a hint was recorded
         // just before the exercise result).
         updateStudentFromServer(result.student);
+        // The academic grade comes from the analytics endpoint. Invalidate it
+        // only after the exercise has been persisted to avoid a stale fetch.
+        setAcademicProgressVersion((version) => version + 1);
         if (sync.evidenceBase64) {
           await apiUploadExerciseEvidence(sync.backendId, {
             exerciseId: sync.exerciseId,
@@ -1327,6 +1332,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isRefreshingTeacher,
         refreshStudentRanking,
         isRefreshingRanking,
+        academicProgressVersion,
         deleteStudent,
         getErrorSummary,
         getDiagnosticSummary,

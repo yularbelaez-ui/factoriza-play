@@ -93,7 +93,7 @@ function stepColor(score: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentStudent, unlockedModules, logout } = useApp();
+  const { currentStudent, unlockedModules, logout, academicProgressVersion } = useApp();
   const isWeb = Platform.OS === "web";
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [serverAcademicSummary, setServerAcademicSummary] = useState<AcademicSummary | null>(null);
@@ -127,6 +127,7 @@ export default function HomeScreen() {
     currentStudent?.completedExercises.length,
     currentStudent?.completedTopics.length,
     currentStudent?.completedModules.length,
+    academicProgressVersion,
   ]);
 
   if (!currentStudent) return null;

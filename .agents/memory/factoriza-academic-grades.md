@@ -32,3 +32,9 @@ El resumen académico remoto debe invalidarse y volver a consultarse cuando camb
 **Why:** Una respuesta nueva podía dejar al estudiante viendo una nota remota anterior, mientras el docente veía la nota actual; además, una señal local no persistida producía componentes distintos con los mismos ejercicios.
 
 **How to apply:** Usa respuestas de analítica sin caché, refresca tras cambios de progreso y mantén la rúbrica basada en evidencia compartida por el servidor.
+
+En estudiantes conectados, la invalidación de la nota debe ocurrir después de que el resultado de ejercicio confirme su guardado en el servidor, no solo después del cambio optimista local.
+
+**Why:** La consulta iniciada por el cambio local podía llegar antes del `INSERT` y dejar visible la nota anterior sin otra actualización posterior.
+
+**How to apply:** Incrementa una señal de versión académica al completar la sincronización del ejercicio y úsala como dependencia de la consulta del resumen académico.
