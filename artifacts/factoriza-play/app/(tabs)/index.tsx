@@ -93,7 +93,7 @@ function stepColor(score: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentStudent, moduleProgress, unlockedModules, logout } = useApp();
+  const { currentStudent, unlockedModules, logout } = useApp();
   const isWeb = Platform.OS === "web";
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [serverAcademicSummary, setServerAcademicSummary] = useState<AcademicSummary | null>(null);
@@ -120,7 +120,14 @@ export default function HomeScreen() {
     return () => {
       active = false;
     };
-  }, [currentStudent?.backendId, currentStudent?.classCode]);
+  }, [
+    currentStudent?.backendId,
+    currentStudent?.classCode,
+    currentStudent?.exerciseResults.length,
+    currentStudent?.completedExercises.length,
+    currentStudent?.completedTopics.length,
+    currentStudent?.completedModules.length,
+  ]);
 
   if (!currentStudent) return null;
 
@@ -169,7 +176,6 @@ export default function HomeScreen() {
       ...currentStudent.completedTopics.map((moduleId) => ({ moduleId, completed: true })),
       ...currentStudent.completedModules.map((moduleId) => ({ moduleId, completed: true })),
     ],
-    theoryReadModuleIds: moduleProgress.filter((item) => item.theoryRead).map((item) => item.moduleId),
     diagnosticResults: academicDiagnosticResults,
   });
   const academicSummary = serverAcademicSummary ?? localAcademicSummary;

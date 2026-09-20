@@ -111,6 +111,43 @@ test("mobile and server calculators agree on correction and transfer fixtures", 
   );
 });
 
+test("mobile and server calculators agree when theory is read without feedback evidence", () => {
+  const records = [
+    {
+      exerciseId: "fc-ex-1",
+      moduleId: null,
+      correct: false,
+      attempts: 1,
+      errorCategory: "variables",
+      feedbackViews: 0,
+      timestamp: 1000,
+    },
+  ];
+  const server = calculateAcademicSummary({ records, activeModules });
+  const mobile = mobileGrading.calculateAcademicSummary({
+    records,
+    activeModules: activeModules.map(({ id, prefix }) => ({
+      id,
+      evaluationExerciseIds: [`${prefix}-eval-1`],
+    })),
+    theoryReadModuleIds: ["factor-comun"],
+  });
+  const serverTopic = server.topics.find((topic) => topic.moduleId === "factor-comun");
+  const mobileTopic = mobile.topics.find((topic) => topic.moduleId === "factor-comun");
+  assert.equal(
+    mobileTopic?.components.find((component) => component.key === "correction")?.proportion,
+    serverTopic?.components.find((component) => component.key === "correction")?.proportion,
+  );
+  assert.equal(
+    mobileTopic?.components.find((component) => component.key === "correction")?.proportion,
+    1 / 3,
+  );
+  assert.equal(
+    mobileTopic?.components.find((component) => component.key === "correction")?.covered,
+    true,
+  );
+});
+
 test("general pools topic components and diagnostics, without numeric factorizacion", () => {
   const summary = calculateAcademicSummary({
     records: [

@@ -380,7 +380,7 @@ export interface ApiStudentAnalytics {
 export async function apiGetClassStudentAnalytics(
   classCode: string
 ): Promise<{ students: ApiStudentAnalytics[] }> {
-  return apiFetch(`/class/${classCode}/student-analytics`);
+  return apiFetch(`/class/${classCode}/student-analytics`, { cache: "no-store" });
 }
 
 export async function apiGetTeacherClasses(

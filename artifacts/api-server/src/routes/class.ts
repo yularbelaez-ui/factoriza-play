@@ -276,6 +276,7 @@ router.get("/class/:classCode/topic-stats", async (req, res) => {
 // teacher panel's per-student drill-down.
 router.get("/class/:classCode/student-analytics", async (req, res) => {
   const { classCode } = req.params;
+  res.setHeader("Cache-Control", "no-store");
 
   const classStudents = await db
     .select({
@@ -485,10 +486,19 @@ router.get("/class/:classCode/student-analytics", async (req, res) => {
       feedbackViews: result.feedbackViews,
       timestamp: result.createdAt,
     }));
+    const diagnosticProfile = student?.diagnosticProfile as {
+      results?: Array<{ category?: string; score?: number | null }>;
+      moduleResults?: Array<{
+        topics?: Array<{ category?: string; score?: number | null }>;
+      }>;
+    } | null;
+    const diagnosticResults = diagnosticProfile?.results?.length
+      ? diagnosticProfile.results
+      : diagnosticProfile?.moduleResults?.flatMap((module) => module.topics ?? []) ?? [];
     const academicSummary = calculateAcademicSummary({
       records: academicRecords,
       reflections: academicReflections,
-      diagnosticResults: ((student?.diagnosticProfile as { results?: Array<{ category?: string; score?: number }> } | null)?.results ?? [])
+      diagnosticResults: diagnosticResults
         .filter((result): result is { category: string; score?: number } => typeof result.category === "string"),
     });
     return {

@@ -133,7 +133,7 @@ function timestampValue(record: AcademicExerciseEvidence): number {
   return new Date(record.timestamp).getTime() || Number(record.timestamp) || 0;
 }
 
-function correctionEvidence(records: AcademicExerciseEvidence[], theoryRead = false): {
+function correctionEvidence(records: AcademicExerciseEvidence[]): {
   proportion: number | null;
   evidenceCount: number;
   successCount: number;
@@ -155,7 +155,7 @@ function correctionEvidence(records: AcademicExerciseEvidence[], theoryRead = fa
     if (incorrect.length === 0) continue;
     opportunities += 1;
     if (incorrect.some(({ record }) => Boolean(record.errorCategory?.trim()))) earnedCriteria += 1;
-    if (theoryRead || entries.some((record) => (record.feedbackViews ?? 0) > 0 || record.feedbackViewed === true)) {
+    if (entries.some((record) => (record.feedbackViews ?? 0) > 0 || record.feedbackViewed === true)) {
       earnedCriteria += 1;
     }
     const corrected = orderedEntries.filter(({ record, index }) =>
@@ -193,7 +193,6 @@ export function calculateTopicGrade(
   evaluationExerciseIds: ReadonlySet<string> = new Set(),
   reflections: AcademicReflectionEvidence[] = [],
   title?: string,
-  theoryRead = false,
 ): TopicGrade {
   const evaluationPrefix = Array.from(evaluationExerciseIds)
     .map((id) => id.split("-eval-")[0])
@@ -212,7 +211,7 @@ export function calculateTopicGrade(
   const initial = first.length > 0
     ? first.filter((record) => record.correct).length / first.length
     : null;
-  const correctionEvidenceResult = correctionEvidence(practiceRecords, theoryRead);
+  const correctionEvidenceResult = correctionEvidence(practiceRecords);
 
   const transferRecords = latestPerExercise(moduleRecords.filter((record) =>
     evaluationExerciseIds.has(record.exerciseId),
@@ -328,7 +327,6 @@ export function calculateAcademicSummary(input: {
   diagnosticResults?: ReadonlyArray<{ category: string; score?: number | null; total?: number | null }>;
   theoryReadModuleIds?: ReadonlyArray<string>;
 }): AcademicSummary {
-  const theoryRead = new Set(input.theoryReadModuleIds ?? []);
   const activeRecords = input.records
     .filter((record) =>
       !record.exerciseId.startsWith("reconocimiento-patrones-") &&
@@ -343,7 +341,6 @@ export function calculateAcademicSummary(input: {
     new Set(module.evaluationExerciseIds ?? []),
     input.reflections ?? [],
     module.title,
-    theoryRead.has(module.id),
   ));
   const diagnostics = (input.diagnosticResults ?? []).filter(
     (result) => result.category !== "patrones" && typeof result.score === "number" && Number.isFinite(result.score),

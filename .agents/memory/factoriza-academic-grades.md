@@ -26,3 +26,9 @@ Cuando el estudiante tiene conexión, su nota visible debe usar el `academicSumm
 **Why:** La copia local y la del API habían evolucionado por separado y podían producir notas diferentes con los mismos datos aparentes; además, sincronizar XP o volver a cargar el perfil podía recalcular una nota local distinta.
 
 **How to apply:** Cargar el resumen académico del estudiante desde el endpoint de analítica al entrar a Inicio y usar el cálculo local únicamente si la consulta falla o el estudiante no tiene backend.
+
+El resumen académico remoto debe invalidarse y volver a consultarse cuando cambien las evidencias o reflexiones locales; el cálculo offline no debe otorgar crédito por leer teoría si el servidor no registra esa evidencia.
+
+**Why:** Una respuesta nueva podía dejar al estudiante viendo una nota remota anterior, mientras el docente veía la nota actual; además, una señal local no persistida producía componentes distintos con los mismos ejercicios.
+
+**How to apply:** Usa respuestas de analítica sin caché, refresca tras cambios de progreso y mantén la rúbrica basada en evidencia compartida por el servidor.
