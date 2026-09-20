@@ -21,8 +21,11 @@ import {
   PROFILE_DETAILS,
   normalizeProfileCode,
 } from "@/data/learningRoutes";
+import { ALL_TOPICS } from "@/data/sectionTopics";
+import { MODULES } from "@/data/modules";
 import {
   getPersonalizedRouteProgress,
+  getPersonalizedStepProgress,
   getPersonalizedStepState,
   getPersonalizedStepTarget,
 } from "@/data/personalizedRoutes";
@@ -357,10 +360,26 @@ export default function DiagnosticoScreen() {
   const profileCode = normalizeProfileCode(profile.profile, profile.level);
   const profileDetails = PROFILE_DETAILS[profileCode];
   const personalizedRoute = profile.personalizedRoute;
+  const personalizedProgressEvidence = currentStudent
+    ? {
+        exerciseResults: currentStudent.exerciseResults,
+        completedExerciseIds: currentStudent.completedExercises,
+        topicExerciseIds: Object.fromEntries(
+          ALL_TOPICS.map((topic) => [topic.id, topic.exercises.map((exercise) => exercise.id)]),
+        ),
+        moduleExerciseIds: Object.fromEntries(
+          MODULES.map((module) => [
+            module.id,
+            [...module.exercises, ...module.evaluationExercises].map((exercise) => exercise.id),
+          ]),
+        ),
+      }
+    : undefined;
   const routeProgress = getPersonalizedRouteProgress(
     personalizedRoute,
     currentStudent?.completedTopics ?? [],
     currentStudent?.completedModules ?? [],
+    personalizedProgressEvidence,
   );
 
   return (
@@ -517,8 +536,21 @@ export default function DiagnosticoScreen() {
 
         <Text style={[styles.routeGroupTitle, { color: colors.foreground, marginTop: 12 }]}>Secuencia personalizada</Text>
         {personalizedRoute.steps.map((step, index) => {
-          const state = getPersonalizedStepState(personalizedRoute, index, [], []);
-          const target = getPersonalizedStepTarget(personalizedRoute, index, []);
+          const completedTopics = currentStudent?.completedTopics ?? [];
+          const completedModules = currentStudent?.completedModules ?? [];
+          const state = getPersonalizedStepState(
+            personalizedRoute,
+            index,
+            completedTopics,
+            completedModules,
+          );
+          const target = getPersonalizedStepTarget(personalizedRoute, index, completedTopics);
+          const stepProgress = getPersonalizedStepProgress(
+            step,
+            completedTopics,
+            completedModules,
+            personalizedProgressEvidence,
+          );
           return (
             <TouchableOpacity
               key={step.id}
@@ -536,7 +568,9 @@ export default function DiagnosticoScreen() {
               <Text style={styles.planStepIcon}>{step.icon}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.planStepTitle, { color: colors.foreground }]}>{step.title}</Text>
-                <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>{step.score}% · {state === "locked" ? "Bloqueado" : step.description}</Text>
+                <Text style={[styles.planStepSub, { color: colors.mutedForeground }]}>
+                  {stepProgress}% completado · {state === "locked" ? "Bloqueado" : step.description}
+                </Text>
               </View>
               <Feather name={state === "locked" ? "lock" : "arrow-right"} size={14} color={state === "locked" ? colors.mutedForeground : step.color} />
             </TouchableOpacity>

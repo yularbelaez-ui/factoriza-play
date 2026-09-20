@@ -42,3 +42,9 @@ En el inicio, el mapa de conocimientos previos solo debe mostrar temas cuyo resu
 **Why:** La ruta de refuerzo debe dirigir la atención a dificultades reales y no hacer que el estudiante repase contenidos que ya demostró dominar.
 
 **How to apply:** Usa los resultados diagnósticos actuales o su respaldo histórico, filtra cada tema por su categoría correspondiente y muestra un mensaje de bases sólidas cuando una sección no tenga temas por reforzar.
+
+La pantalla de resultados del diagnóstico también debe recibir la evidencia de ejercicios para mostrar el avance vivo; `step.score` representa el diagnóstico inicial y nunca debe usarse como porcentaje de progreso.
+
+**Why:** Mostrar el puntaje inicial hacía que aritmética, álgebra, patrones y factorización parecieran congelados aunque el estudiante ya hubiera respondido ejercicios.
+
+**How to apply:** Construye la evidencia con ejercicios de temas y casos, calcula el progreso por paso y conserva el puntaje diagnóstico solo como referencia de necesidad de refuerzo.
