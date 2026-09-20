@@ -66,24 +66,15 @@ test("scores a successful correction after an initial error", () => {
   assert.equal(topic.grade, 3.7);
 });
 
-test("correction criteria and post-correction transfer require timestamps", () => {
+test("exam answers contribute to the 30% evaluation component without prior correction", () => {
   const records = [
-    {
-      exerciseId: "fc-ex-1",
-      moduleId: null,
-      correct: false,
-      attempts: 1,
-      errorCategory: "variables",
-      feedbackViewed: true,
-      timestamp: 1000,
-    },
-    { exerciseId: "fc-ex-1", moduleId: null, correct: true, attempts: 2, timestamp: 2000 },
     { exerciseId: "fc-eval-1", moduleId: null, correct: true, attempts: 1, timestamp: 3000 },
   ];
   const summary = calculateAcademicSummary({ records, activeModules });
   const topic = summary.topics.find((item) => item.moduleId === "factor-comun");
   assert.equal(topic?.components.find((item) => item.key === "transfer")?.proportion, 1);
-  assert.equal(topic?.components.find((item) => item.key === "initial")?.proportion, 0);
+  assert.equal(topic?.components.find((item) => item.key === "transfer")?.covered, true);
+  assert.equal(topic?.components.find((item) => item.key === "initial")?.proportion, null);
 });
 
 test("mobile and server calculators agree on correction and transfer fixtures", () => {

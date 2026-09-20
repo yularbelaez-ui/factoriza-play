@@ -214,12 +214,9 @@ export function calculateTopicGrade(
     : null;
   const correctionEvidenceResult = correctionEvidence(practiceRecords, theoryRead);
 
-  const transferRecords = correctionEvidenceResult.latestCorrectionAt == null
-    ? []
-    : latestPerExercise(moduleRecords.filter((record) =>
-      evaluationExerciseIds.has(record.exerciseId) &&
-      timestampValue(record) > correctionEvidenceResult.latestCorrectionAt!,
-    ));
+  const transferRecords = latestPerExercise(moduleRecords.filter((record) =>
+    evaluationExerciseIds.has(record.exerciseId),
+  ));
   const transfer = transferRecords.length > 0
     ? transferRecords.filter((record) => record.correct).length / transferRecords.length
     : null;

@@ -195,12 +195,9 @@ export function calculateTopicGrade(
   const initialSuccesses = first.filter((record) => record.correct).length;
   const initial = first.length > 0 ? initialSuccesses / first.length : null;
   const correctionEvidenceResult = correctionEvidence(practice);
-  const transfer = correctionEvidenceResult.latestCorrectionAt == null
-    ? []
-    : latest(moduleRecords.filter((record) =>
-      evaluationIds.has(record.exerciseId) &&
-      timestampValue(record) > correctionEvidenceResult.latestCorrectionAt!,
-    ));
+  const transfer = latest(moduleRecords.filter((record) =>
+    evaluationIds.has(record.exerciseId),
+  ));
   const transferSuccesses = transfer.filter((record) => record.correct).length;
   const transferProportion = transfer.length > 0 ? transferSuccesses / transfer.length : null;
   const reflected = reflections.some((reflection) =>

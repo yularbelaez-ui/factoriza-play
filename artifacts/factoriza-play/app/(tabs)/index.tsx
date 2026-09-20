@@ -54,6 +54,35 @@ const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: st
   operaciones:  { topicId: "s3-productos",    title: "Productos notables",               icon: "⚙️", section: "S3 · Operaciones Algebraicas" },
 };
 
+const TOPIC_DIAGNOSTIC_CATEGORY: Record<string, string> = {
+  "s1-naturales": "naturales",
+  "s1-decimales": "decimales",
+  "s1-enteros": "enteros",
+  "s1-racionales": "fracciones",
+  "s1-irracionales": "irracionales",
+  "s1-reales": "reales",
+  "s1-potencias": "potencias",
+  "s1-factores": "factorizacion",
+  "s2-diferencia": "igualdad",
+  "s2-notacion": "variables",
+  "s2-signos": "propiedades",
+  "s2-expresion": "propiedades",
+  "s2-grado": "propiedades",
+  "s2-clasificacion": "terminos",
+  "s2-orden": "igualdad",
+  "s2-semejantes": "terminos",
+  "s3-suma-resta": "operaciones",
+  "s3-agrupacion": "operaciones",
+  "s3-multiplicacion": "operaciones",
+  "s3-division": "operaciones",
+  "s3-productos": "patrones",
+  "s3-cuadrado-diferencia": "patrones",
+  "s3-suma-diferencia": "patrones",
+  "s3-cubo": "patrones",
+};
+
+const DIAGNOSTIC_DIFFICULTY_THRESHOLD = 75;
+
 // ── Colores de paso según puntaje ────────────────────────────────────
 function stepColor(score: number) {
   if (score < 50) return { bg: "#fef2f2", border: "#fecaca", badge: "#dc2626", label: "#dc2626" };
@@ -144,6 +173,17 @@ export default function HomeScreen() {
     diagnosticResults: academicDiagnosticResults,
   });
   const academicSummary = serverAcademicSummary ?? localAcademicSummary;
+  const diagnosticScores = new Map(
+    academicDiagnosticResults
+      .filter((result) => typeof result.score === "number")
+      .map((result) => [result.category, result.score as number]),
+  );
+  const topicNeedsStrengthening = (topicId: string | null) => {
+    if (!topicId || !dp) return true;
+    const category = TOPIC_DIAGNOSTIC_CATEGORY[topicId];
+    const score = category ? diagnosticScores.get(category) : undefined;
+    return score === undefined || score < DIAGNOSTIC_DIFFICULTY_THRESHOLD;
+  };
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
@@ -344,7 +384,7 @@ export default function HomeScreen() {
           ))}
         </View>
         <Text style={[styles.academicRubric, { color: colors.mutedForeground }]}>
-           Punto de partida 20% · corrección y uso de retroalimentación 40% · transferencia post-corrección 30% · reflexión 10%.
+           Punto de partida 20% · corrección y uso de retroalimentación 40% · evaluación del caso 30% · reflexión 10%.
           Cobertura {Math.round(academicSummary.general.coverage * 100)}%.
         </Text>
         <View style={styles.academicTopics}>
@@ -703,12 +743,21 @@ export default function HomeScreen() {
 
               {isExpanded && (
                 <View style={[styles.topicsList, { borderTopColor: section.borderColor }]}>
-                  {section.topics.map((topic, ti) => (
+                  {(() => {
+                    const visibleTopics = section.topics.filter((topic) => topicNeedsStrengthening(topic.topicId));
+                    return (
+                      <>
+                  {visibleTopics.map((topic, ti) => (
                     <View key={ti} style={styles.topicRow}>
                       <View style={[styles.topicDot, { backgroundColor: section.color }]} />
                       <Text style={[styles.topicText, { color: "#374151" }]}>{topic.label}</Text>
                     </View>
                   ))}
+                  {visibleTopics.length === 0 && dp && (
+                    <Text style={[styles.noDifficultyText, { color: "#059669" }]}>
+                      El diagnóstico no detectó dificultades en estos conocimientos previos.
+                    </Text>
+                  )}
 
                   {section.status === "diagnostico" && dp && (
                     <View style={styles.diagMini}>
@@ -718,7 +767,9 @@ export default function HomeScreen() {
                           Nivel {dp.level} · {dp.overallScore}%
                         </Text>
                       </View>
-                      {dp.results.map((r) => {
+                      {academicDiagnosticResults
+                        .filter((result) => (result.score ?? 0) < DIAGNOSTIC_DIFFICULTY_THRESHOLD)
+                        .map((r) => {
                         const info = DIAGNOSTIC_CATEGORY_INFO[r.category as keyof typeof DIAGNOSTIC_CATEGORY_INFO];
                         if (!info) return null;
                         return (
@@ -741,6 +792,13 @@ export default function HomeScreen() {
                           </View>
                         );
                       })}
+                      {academicDiagnosticResults.filter(
+                        (result) => (result.score ?? 0) < DIAGNOSTIC_DIFFICULTY_THRESHOLD,
+                      ).length === 0 && (
+                        <Text style={styles.noDifficultyText}>
+                          No hay conocimientos previos que requieran refuerzo.
+                        </Text>
+                      )}
                     </View>
                   )}
 
@@ -755,7 +813,7 @@ export default function HomeScreen() {
 
                   {section.status === "disponible" && (
                     <View style={{ gap: 4, marginTop: 4 }}>
-                      {section.topics.filter(t => t.topicId).map((topic, ti) => (
+                      {visibleTopics.filter(t => t.topicId).map((topic, ti) => (
                         <TouchableOpacity
                           key={ti}
                           style={[styles.topicLink, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}
@@ -767,7 +825,7 @@ export default function HomeScreen() {
                           <Feather name="chevron-right" size={13} color={section.color} />
                         </TouchableOpacity>
                       ))}
-                      {section.topics.every(t => !t.topicId) && (
+                      {visibleTopics.every(t => !t.topicId) && (
                         <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
                           <Feather name="book-open" size={13} color={section.color} />
                           <Text style={[styles.comingSoonText, { color: section.color }]}>
@@ -777,6 +835,9 @@ export default function HomeScreen() {
                       )}
                     </View>
                   )}
+                      </>
+                    );
+                  })()}
                 </View>
               )}
             </TouchableOpacity>

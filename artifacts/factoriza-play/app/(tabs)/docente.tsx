@@ -839,7 +839,7 @@ export default function DocenteScreen() {
                           Progreso académico
                         </Text>
                         <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground }]}>
-                          Rúbrica 40/30/20/10 · transferencia = evaluación posterior a una corrección · componentes sin evidencia quedan pendientes
+                          Rúbrica 20/40/30/10 · evaluación del caso = respuestas del examen · componentes sin evidencia quedan pendientes
                         </Text>
                         <Text style={[styles.teacherAcademicMeta, { color: colors.mutedForeground, marginTop: 2 }]}>
                           {attemptsTotal} intentos · {wrongCount} errores · {correctedTotal} corregidos · {repeatedTotal} persistentes · {hintsTotal} pistas · {formatDuration(timeTotal)} · {analytics?.sessionReflections?.length ?? 0} reflexiones
