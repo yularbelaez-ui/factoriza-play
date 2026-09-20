@@ -389,6 +389,20 @@ export async function apiGetTeacherClasses(
   return apiFetch(`/teacher/${teacherCode}/classes`);
 }
 
+export async function apiCreateStudentPseudonym(
+  teacherCode: string,
+  classCode: string,
+  pseudonym: string,
+): Promise<{ student: { id: number; pseudonym: string; classCode: string } }> {
+  return apiFetch(
+    `/teacher/${encodeURIComponent(teacherCode)}/classes/${encodeURIComponent(classCode)}/students`,
+    {
+      method: "POST",
+      body: JSON.stringify({ pseudonym }),
+    },
+  );
+}
+
 export async function apiCreateEvalCode(
   teacherCode: string,
   classCode: string,

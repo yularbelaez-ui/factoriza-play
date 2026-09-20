@@ -12,7 +12,7 @@ import {
   weeklyReflections,
   xpEvents,
 } from "@workspace/db/schema";
-import { and, eq, count, inArray } from "drizzle-orm";
+import { and, eq, count, inArray, sql } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import PDFDocument from "pdfkit";
 import sharp from "sharp";
@@ -429,6 +429,85 @@ router.get("/teacher/:teacherCode/classes", async (req, res) => {
 
   res.json({ classes: result });
 });
+
+// POST /api/teacher/:teacherCode/classes/:classCode/students
+// A student profile is created only from the teacher panel. Student login is
+// intentionally read-only and can only find an existing profile.
+router.post(
+  "/teacher/:teacherCode/classes/:classCode/students",
+  async (req, res) => {
+    const { teacherCode, classCode } = req.params;
+    const requestedPseudonym = (req.body as { pseudonym?: string }).pseudonym;
+    const pseudonym = typeof requestedPseudonym === "string"
+      ? requestedPseudonym.trim().replace(/\s+/g, " ")
+      : "";
+    const normalizedClassCode = classCode.trim().toUpperCase();
+
+    if (!pseudonym) {
+      res.status(400).json({ error: "El pseudónimo no puede estar vacío." });
+      return;
+    }
+    if (pseudonym.length > 80) {
+      res.status(400).json({ error: "El pseudónimo no puede superar 80 caracteres." });
+      return;
+    }
+
+    const [teacher] = await db
+      .select({ id: teachers.id })
+      .from(teachers)
+      .where(eq(teachers.teacherCode, teacherCode.trim()))
+      .limit(1);
+    if (!teacher) {
+      res.status(401).json({ error: "Código de docente inválido" });
+      return;
+    }
+
+    const [teacherClass] = await db
+      .select({ code: classCodes.code })
+      .from(classCodes)
+      .where(and(
+        eq(classCodes.teacherId, teacher.id),
+        eq(classCodes.code, normalizedClassCode),
+      ))
+      .limit(1);
+    if (!teacherClass) {
+      res.status(403).json({ error: "La clase no pertenece a este docente." });
+      return;
+    }
+
+    const [existing] = await db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(
+        eq(students.classCode, normalizedClassCode),
+        sql`lower(${students.pseudonym}) = lower(${pseudonym})`,
+      ))
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: "Ese pseudónimo ya está registrado en esta clase." });
+      return;
+    }
+
+    const [student] = await db
+      .insert(students)
+      .values({
+        pseudonym,
+        classCode: normalizedClassCode,
+        totalXP: 0,
+        streak: 0,
+        completedTopics: [],
+        completedModules: [],
+        completedExercises: [],
+      })
+      .returning({
+        id: students.id,
+        pseudonym: students.pseudonym,
+        classCode: students.classCode,
+      });
+
+    res.status(201).json({ student });
+  },
+);
 
 // Research export. It is scoped to a class owned by the requesting teacher
 // and intentionally emits one row per student so CSV imports remain simple.

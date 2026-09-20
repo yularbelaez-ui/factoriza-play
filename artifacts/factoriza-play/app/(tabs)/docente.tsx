@@ -33,6 +33,7 @@ import {
   ApiStudentAnalytics,
   apiResearchExportUrl,
   apiStudentPdfUrl,
+  apiCreateStudentPseudonym,
   apiCreateEvalCode,
 } from "@/lib/api";
 import { EVALUATION_ACCESS_CODES } from "@/data/evaluationCodes";
@@ -136,6 +137,9 @@ export default function DocenteScreen() {
   const [selectedModuleForEval, setSelectedModuleForEval] = useState("");
   const [newCode, setNewCode] = useState("");
   const [newCodeLabel, setNewCodeLabel] = useState("");
+  const [studentPseudonym, setStudentPseudonym] = useState("");
+  const [selectedStudentClass, setSelectedStudentClass] = useState("");
+  const [isCreatingStudent, setIsCreatingStudent] = useState(false);
   const [filterClass, setFilterClass] = useState<string>("all");
   const [expandedSection, setExpandedSection] = useState<string | null>("saberes");
   const [deletingStudentId, setDeletingStudentId] = useState<number | null>(null);
@@ -381,6 +385,37 @@ export default function DocenteScreen() {
     Alert.alert("Código creado", `El código "${trimCode}" (${trimLabel}) está listo para compartir con tus estudiantes.`);
   };
 
+  const handleCreateStudent = async () => {
+    const pseudonym = studentPseudonym.trim();
+    if (!teacherCode || !selectedStudentClass) {
+      Alert.alert("Sin clase", "Primero selecciona una clase registrada.");
+      return;
+    }
+    if (!pseudonym) {
+      Alert.alert("Pseudónimo requerido", "Escribe el pseudónimo que entregarás al estudiante.");
+      return;
+    }
+
+    setIsCreatingStudent(true);
+    try {
+      await apiCreateStudentPseudonym(teacherCode, selectedStudentClass, pseudonym);
+      await refreshTeacherData();
+      setStudentPseudonym("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Pseudónimo registrado",
+        `"${pseudonym}" ya puede ingresar únicamente con este pseudónimo y el código de su clase.`,
+      );
+    } catch (error) {
+      Alert.alert(
+        "No se pudo registrar",
+        error instanceof Error ? error.message : "Intenta de nuevo.",
+      );
+    } finally {
+      setIsCreatingStudent(false);
+    }
+  };
+
   const handleDeleteStudent = (student: (typeof allStudents)[number]) => {
     if (!student.backendId || deletingStudentId !== null) return;
     setDeleteError(null);
@@ -560,6 +595,76 @@ export default function DocenteScreen() {
             >
               <Feather name="plus-circle" size={16} color="#fff" />
               <Text style={styles.createBtnText}>Crear código</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 22 }]}>
+            Registrar pseudónimo de estudiante
+          </Text>
+          <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
+            Solo los pseudónimos registrados aquí podrán entrar al perfil estudiante. Comparte cada uno únicamente con su estudiante.
+          </Text>
+          <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.formLabel, { color: colors.foreground }]}>Clase</Text>
+            {classCodes.length === 0 ? (
+              <Text style={[styles.formHint, { color: colors.mutedForeground }]}>
+                Primero crea o carga un código de clase.
+              </Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {classCodes.map((cc) => (
+                    <TouchableOpacity
+                      key={cc.code}
+                      style={[
+                        styles.moduleChip,
+                        {
+                          backgroundColor: selectedStudentClass === cc.code ? colors.primary : colors.secondary,
+                          borderColor: selectedStudentClass === cc.code ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedStudentClass(cc.code)}
+                    >
+                      <Feather
+                        name="users"
+                        size={14}
+                        color={selectedStudentClass === cc.code ? "#fff" : colors.mutedForeground}
+                      />
+                      <Text style={[styles.moduleChipText, { color: selectedStudentClass === cc.code ? "#fff" : colors.foreground }]}>
+                        {cc.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+            <Text style={[styles.formLabel, { color: colors.foreground }]}>Pseudónimo</Text>
+            <TextInput
+              style={[styles.formInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Ej: SuperMath01"
+              placeholderTextColor={colors.mutedForeground}
+              value={studentPseudonym}
+              onChangeText={setStudentPseudonym}
+              autoCapitalize="none"
+              maxLength={80}
+              editable={!isCreatingStudent}
+            />
+            <TouchableOpacity
+              style={[
+                styles.createBtn,
+                { backgroundColor: colors.primary, opacity: isCreatingStudent || classCodes.length === 0 ? 0.6 : 1 },
+              ]}
+              onPress={() => void handleCreateStudent()}
+              disabled={isCreatingStudent || classCodes.length === 0}
+            >
+              {isCreatingStudent ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="user-plus" size={16} color="#fff" />
+              )}
+              <Text style={styles.createBtnText}>
+                {isCreatingStudent ? "Registrando..." : "Registrar estudiante"}
+              </Text>
             </TouchableOpacity>
           </View>
 

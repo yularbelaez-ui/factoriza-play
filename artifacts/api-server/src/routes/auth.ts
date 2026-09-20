@@ -94,7 +94,7 @@ router.post("/auth/student", async (req, res) => {
   }
 
   const normalizedCode = classCode.trim().toUpperCase();
-  const normalizedPseudonym = pseudonym.trim();
+  const normalizedPseudonym = pseudonym.trim().replace(/\s+/g, " ");
 
   // Verify class code exists
   const classRow = await db
@@ -108,32 +108,24 @@ router.post("/auth/student", async (req, res) => {
     return;
   }
 
-  // Find or create student
-  let studentRow = await db
+  // Only a teacher can register a student profile. Student login must never
+  // create a new record from an arbitrary pseudonym.
+  const studentRow = await db
     .select()
     .from(students)
     .where(
       and(
-        eq(students.pseudonym, normalizedPseudonym),
-        eq(students.classCode, normalizedCode)
+        sql`lower(${students.pseudonym}) = lower(${normalizedPseudonym})`,
+        eq(students.classCode, normalizedCode),
       )
     )
     .limit(1);
 
   if (studentRow.length === 0) {
-    const [newStudent] = await db
-      .insert(students)
-      .values({
-        pseudonym: normalizedPseudonym,
-        classCode: normalizedCode,
-        totalXP: 0,
-        streak: 0,
-        completedTopics: [],
-        completedModules: [],
-        completedExercises: [],
-      })
-      .returning();
-    studentRow = [newStudent];
+    res.status(404).json({
+      error: "Ese pseudónimo no está registrado por tu docente.",
+    });
+    return;
   }
 
   const reconciled = await reconcileLegacyPrerequisiteXp(studentRow[0].id);

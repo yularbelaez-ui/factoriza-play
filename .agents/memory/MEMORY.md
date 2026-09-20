@@ -10,3 +10,4 @@
 - [Racha diaria por XP](factoriza-daily-streak.md) — un día solo cuenta con mínimo 200 XP, calculado en America/Bogota y sin duplicar el día
 - [PDFKit en el API](pdfkit-runtime.md) — PDFKit debe quedar externalizado del bundle de esbuild para resolver sus fuentes estándar en runtime
 - [Cierre y avance de actividades](reflection-advance-flow.md) — la reflexión de sesión es obligatoria antes de marcar un tema o caso como completado y abrir el siguiente
+- [Registro de pseudónimos](student-pseudonym-access.md) — el docente registra cada pseudónimo y el login estudiante nunca crea perfiles automáticamente
