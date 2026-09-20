@@ -47,7 +47,9 @@ export default function EvaluacionModuloScreen() {
   }, [module?.id]);
 
   const [codeInput, setCodeInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() =>
+    Boolean(module && evaluationCodes.some((evaluation) => evaluation.moduleId === module.id))
+  );
   const [codeError, setCodeError] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -61,6 +63,12 @@ export default function EvaluacionModuloScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoStep, setPhotoStep] = useState(false); // show photo step before submit
   const [hintsShown, setHintsShown] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (module && evaluationCodes.some((evaluation) => evaluation.moduleId === module.id)) {
+      setUnlocked(true);
+    }
+  }, [module?.id, evaluationCodes]);
 
   // Total time spent on the evaluation, for the teacher panel's per-topic
   // time analytics (attributed evenly across the answered questions since
