@@ -193,6 +193,7 @@ export function calculateTopicGrade(
   evaluationExerciseIds: ReadonlySet<string> = new Set(),
   reflections: AcademicReflectionEvidence[] = [],
   title?: string,
+  diagnosticScore?: number | null,
 ): TopicGrade {
   const evaluationPrefix = Array.from(evaluationExerciseIds)
     .map((id) => id.split("-eval-")[0])
@@ -208,9 +209,10 @@ export function calculateTopicGrade(
   );
   const practiceRecords = moduleRecords.filter((record) => !evaluationExerciseIds.has(record.exerciseId));
   const first = latestPerExercise(practiceRecords.filter((record) => (record.attempts ?? 1) <= 1));
-  const initial = first.length > 0
-    ? first.filter((record) => record.correct).length / first.length
-    : null;
+  const initialSuccesses = first.filter((record) => record.correct).length +
+    (diagnosticScore == null ? 0 : diagnosticScore / 100);
+  const initialOpportunities = first.length + (diagnosticScore == null ? 0 : 1);
+  const initial = initialOpportunities > 0 ? initialSuccesses / initialOpportunities : null;
   const correctionEvidenceResult = correctionEvidence(practiceRecords);
 
   const transferRecords = latestPerExercise(moduleRecords.filter((record) =>
@@ -225,7 +227,7 @@ export function calculateTopicGrade(
     (reflection.moduleId === moduleId || reflection.activityId === moduleId),
   );
   const components = [
-    component("initial", initial, first.length, first.filter((record) => record.correct).length, first.length),
+    component("initial", initial, initialOpportunities, initialSuccesses, initialOpportunities),
     component(
       "correction",
       correctionEvidenceResult.proportion,
@@ -276,6 +278,17 @@ const ACADEMIC_TOPIC_TITLES: Record<string, string> = {
   "s2-notacion": "Variables y notación algebraica",
   "s2-diferencia": "Igualdad y equivalencia",
 };
+const ACADEMIC_TOPIC_CATEGORY: Record<string, string> = {
+  "s1-naturales": "naturales",
+  "s1-decimales": "decimales",
+  "s1-enteros": "enteros",
+  "s1-racionales": "fracciones",
+  "s1-potencias": "potencias",
+  "s2-signos": "propiedades",
+  "s2-semejantes": "terminos",
+  "s2-notacion": "variables",
+  "s2-diferencia": "igualdad",
+};
 const ACTIVE_ACADEMIC_MODULE_IDS = [
   "factor-comun",
   "agrupacion-terminos",
@@ -285,10 +298,7 @@ const ACTIVE_ACADEMIC_MODULE_IDS = [
   "cubo-binomio",
   "suma-diferencia-cubos",
 ] as const;
-function pooledComponents(
-  topics: TopicGrade[],
-  diagnostics: ReadonlyArray<{ category: string; score?: number | null }>,
-): AcademicComponent[] {
+function pooledComponents(topics: TopicGrade[]): AcademicComponent[] {
   const pooled = new Map<AcademicComponentKey, {
     evidenceCount: number;
     successCount: number;
@@ -304,12 +314,6 @@ function pooledComponents(
       target.successCount += item.successCount;
       target.opportunityCount += item.opportunityCount;
     }
-  }
-  const initial = pooled.get("initial")!;
-  for (const diagnostic of diagnostics) {
-    initial.evidenceCount += 1;
-    initial.successCount += (diagnostic.score ?? 0) / 100;
-    initial.opportunityCount += 1;
   }
   return EMPTY_COMPONENTS.map((key) => {
     const value = pooled.get(key)!;
@@ -343,6 +347,13 @@ export function calculateAcademicSummary(input: {
       evaluationExerciseIds: topic?.evaluationExerciseIds,
     };
   });
+  const diagnostics = (input.diagnosticResults ?? []).filter(
+    (result) =>
+      ACADEMIC_DIAGNOSTIC_CATEGORIES.has(result.category) &&
+      typeof result.score === "number" &&
+      Number.isFinite(result.score),
+  );
+  const diagnosticScores = new Map(diagnostics.map((result) => [result.category, result.score ?? 0]));
   const factorizationTopics = input.activeModules.filter((module) =>
     ACTIVE_ACADEMIC_MODULE_IDS.includes(module.id as typeof ACTIVE_ACADEMIC_MODULE_IDS[number]),
   );
@@ -352,13 +363,10 @@ export function calculateAcademicSummary(input: {
     new Set(module.evaluationExerciseIds ?? []),
     input.reflections ?? [],
     module.title,
+    ACADEMIC_TOPIC_CATEGORY[module.id] == null
+      ? null
+      : diagnosticScores.get(ACADEMIC_TOPIC_CATEGORY[module.id]),
   ));
-  const diagnostics = (input.diagnosticResults ?? []).filter(
-    (result) =>
-      ACADEMIC_DIAGNOSTIC_CATEGORIES.has(result.category) &&
-      typeof result.score === "number" &&
-      Number.isFinite(result.score),
-  );
   const topics = allTopics;
   const diagnosticGrades = Object.fromEntries(
     diagnostics.map((result) => [result.category, scoreToGrade((result.score ?? 0) / 100)]),
@@ -371,8 +379,8 @@ export function calculateAcademicSummary(input: {
   const algebraTopics = topics.filter((topic) =>
     topic.moduleId.startsWith("s2-") || topic.moduleId.startsWith("s3-"),
   );
-  const pensamientoNumerico = makeSummary(pooledComponents(numericTopics, numeric));
-  const pensamientoAlgebraico = makeSummary(pooledComponents(algebraTopics, algebra));
-  const general = makeSummary(pooledComponents(topics, diagnostics));
+  const pensamientoNumerico = makeSummary(pooledComponents(numericTopics));
+  const pensamientoAlgebraico = makeSummary(pooledComponents(algebraTopics));
+  const general = makeSummary(pooledComponents(topics));
   return { general, topics, diagnosticGrades, pensamientoNumerico, pensamientoAlgebraico };
 }

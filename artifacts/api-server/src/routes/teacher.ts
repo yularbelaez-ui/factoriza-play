@@ -786,6 +786,9 @@ router.get(
       ? profileData.moduleResults as Array<Record<string, unknown>>
       : [];
     const topicGradeByModule = new Map(academic.topics.map((topic) => [topic.moduleId, topic.grade]));
+    const evaluationRows = results.filter((row) => isTransferExercise(row.exerciseId));
+    const practiceRows = results.filter((row) => !isTransferExercise(row.exerciseId));
+    const reportRows = [...evaluationRows, ...practiceRows];
     const researchRows = results.filter((row) =>
       RESEARCH_CASES.some((item) => item.id === row.moduleId),
     );
@@ -1071,17 +1074,30 @@ router.get(
       `Diagnóstico inicial: ${reportScore(storedProfile?.overallScore)} → desempeño académico final: ${reportGrade(academic.general.grade)}`,
     ]);
 
-    heading("Evidencias y ejercicios trabajados");
-    if (results.length === 0) field("Estado", "No hay intentos registrados");
+    heading("Resultados de evaluaciones y evidencias");
+    field("Evaluaciones registradas", evaluationRows.length);
     field(
-      "Imágenes de factorización incluidas",
-      researchRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
+      "Evaluaciones con imagen",
+      evaluationRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
+    );
+    if (evaluationRows.length === 0) {
+      field("Estado de evaluaciones", "No hay evaluaciones registradas");
+    }
+    if (practiceRows.length === 0 && evaluationRows.length === 0) {
+      field("Estado general", "No hay intentos registrados");
+    }
+    field(
+      "Imágenes incluidas en el reporte",
+      reportRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
     );
     // Fetch, normalize, embed, and release each source image before moving on
     // to the next attempt. PDFKit retains page objects for footer numbering,
     // but no source evidence buffers are retained in the report.
-    for (const row of results) {
+    for (const [reportIndex, row] of reportRows.entries()) {
       if (clientGone || document.destroyed) return;
+      if (reportIndex === evaluationRows.length && practiceRows.length > 0) {
+        heading("Ejercicios de práctica y evidencias");
+      }
       const controlledId = row.evidenceDriveFileId ??
         controlledEvidenceFileId(row.evidenceUrl, normalizedClassCode, req.get("host"));
       let evidence: Evidence | null = null;
@@ -1106,6 +1122,7 @@ router.get(
         );
       document.y += 23;
       field("Módulo / tema", `${row.moduleId ?? "—"} / ${row.topicName ?? "—"}`);
+      field("Tipo de actividad", isTransferExercise(row.exerciseId) ? "Evaluación" : "Práctica");
       field("Pregunta", row.questionText);
       field("Respuesta", row.answer);
       field("Respuesta correcta", row.correctAnswer);
