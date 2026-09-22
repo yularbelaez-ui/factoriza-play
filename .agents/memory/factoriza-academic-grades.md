@@ -9,6 +9,12 @@ Las calificaciones académicas de 1.0 a 5.0 deben permanecer separadas de XP, ra
 
 **How to apply:** Usar únicamente evidencia observable. La corrección parte de un error real y valora identificación, uso de retroalimentación y respuesta posterior correcta. La evaluación del caso cuenta las respuestas registradas del examen, aunque no haya una corrección previa. Los componentes sin evidencia quedan pendientes y los informes muestran su cobertura; nunca se imputan como fallos.
 
+El alcance académico visible y calculable queda limitado a nueve categorías del diagnóstico —naturales, decimales, enteros, fracciones, potencias, propiedades, términos, variables e igualdad— más los casos técnicos de factorización.
+
+**Why:** Los demás temas internos de apoyo pueden existir para la ruta pedagógica, pero no deben aparecer como componentes de la nota si no hacen parte del conjunto evaluable acordado.
+
+**How to apply:** Mantener el mismo conjunto de nueve categorías en la vista del estudiante, el panel docente y el cálculo del servidor; los casos de factorización se agregan aparte.
+
 Los perfiles diagnósticos antiguos pueden conservar `moduleResults` sin `results`; al calcular la nota académica, reconstruir la evidencia diagnóstica desde los temas de esos resultados para no perder pensamiento algebraico.
 
 **Why:** La nota final debe seguir incluyendo las competencias de perfiles creados antes de que se persistiera el desglose detallado del diagnóstico.

@@ -257,34 +257,34 @@ const NUMERIC_CATEGORIES = new Set([
   "naturales", "decimales", "enteros", "fracciones", "irracionales", "reales", "potencias",
 ]);
 const ALGEBRA_CATEGORIES = new Set(["propiedades", "terminos", "variables", "igualdad"]);
-const DIAGNOSTIC_PASS_THRESHOLD = 75;
-const TOPIC_DIAGNOSTIC_CATEGORY: Record<string, string> = {
-  "s1-naturales": "naturales",
-  "s1-decimales": "decimales",
-  "s1-enteros": "enteros",
-  "s1-racionales": "fracciones",
-  "s1-irracionales": "irracionales",
-  "s1-reales": "reales",
-  "s1-potencias": "potencias",
-  "s1-factores": "factorizacion",
-  "s2-diferencia": "igualdad",
-  "s2-notacion": "variables",
-  "s2-signos": "propiedades",
-  "s2-expresion": "propiedades",
-  "s2-grado": "propiedades",
-  "s2-clasificacion": "terminos",
-  "s2-orden": "igualdad",
-  "s2-semejantes": "terminos",
-  "s3-suma-resta": "operaciones",
-  "s3-agrupacion": "operaciones",
-  "s3-multiplicacion": "operaciones",
-  "s3-division": "operaciones",
-  "s3-productos": "patrones",
-  "s3-cuadrado-diferencia": "patrones",
-  "s3-suma-diferencia": "patrones",
-  "s3-cubo": "patrones",
+const ACADEMIC_DIAGNOSTIC_CATEGORIES = new Set([
+  "naturales", "decimales", "enteros", "fracciones", "potencias",
+  "propiedades", "terminos", "variables", "igualdad",
+]);
+const ACADEMIC_DIAGNOSTIC_TOPIC_IDS = [
+  "s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales", "s1-potencias",
+  "s2-signos", "s2-semejantes", "s2-notacion", "s2-diferencia",
+] as const;
+const ACADEMIC_TOPIC_TITLES: Record<string, string> = {
+  "s1-naturales": "Números naturales y operaciones",
+  "s1-decimales": "Números decimales y operaciones",
+  "s1-enteros": "Números enteros y ley de signos",
+  "s1-racionales": "Fracciones y números racionales",
+  "s1-potencias": "Potencias y propiedades",
+  "s2-signos": "Propiedades y signos algebraicos",
+  "s2-semejantes": "Términos semejantes",
+  "s2-notacion": "Variables y notación algebraica",
+  "s2-diferencia": "Igualdad y equivalencia",
 };
-
+const ACTIVE_ACADEMIC_MODULE_IDS = [
+  "factor-comun",
+  "agrupacion-terminos",
+  "trinomio-cuadrado-perfecto",
+  "diferencia-cuadrados",
+  "trinomio-forma-x2-bx-c",
+  "cubo-binomio",
+  "suma-diferencia-cubos",
+] as const;
 function pooledComponents(
   topics: TopicGrade[],
   diagnostics: ReadonlyArray<{ category: string; score?: number | null }>,
@@ -335,7 +335,18 @@ export function calculateAcademicSummary(input: {
       !normalizedModuleId(record.moduleId)?.startsWith("trinomio-ax2"),
     )
     .map((record) => ({ ...record, moduleId: normalizedModuleId(record.moduleId) }));
-  const allTopics = input.activeModules.map((module) => calculateTopicGrade(
+  const diagnosticTopics = ACADEMIC_DIAGNOSTIC_TOPIC_IDS.map((topicId) => {
+    const topic = input.activeModules.find((module) => module.id === topicId);
+    return {
+      id: topicId,
+      title: topic?.title ?? ACADEMIC_TOPIC_TITLES[topicId],
+      evaluationExerciseIds: topic?.evaluationExerciseIds,
+    };
+  });
+  const factorizationTopics = input.activeModules.filter((module) =>
+    ACTIVE_ACADEMIC_MODULE_IDS.includes(module.id as typeof ACTIVE_ACADEMIC_MODULE_IDS[number]),
+  );
+  const allTopics = [...diagnosticTopics, ...factorizationTopics].map((module) => calculateTopicGrade(
     module.id,
     activeRecords,
     new Set(module.evaluationExerciseIds ?? []),
@@ -343,14 +354,12 @@ export function calculateAcademicSummary(input: {
     module.title,
   ));
   const diagnostics = (input.diagnosticResults ?? []).filter(
-    (result) => result.category !== "patrones" && typeof result.score === "number" && Number.isFinite(result.score),
+    (result) =>
+      ACADEMIC_DIAGNOSTIC_CATEGORIES.has(result.category) &&
+      typeof result.score === "number" &&
+      Number.isFinite(result.score),
   );
-  const diagnosticScores = new Map(diagnostics.map((result) => [result.category, result.score ?? 0]));
-  const topics = allTopics.filter((topic) => {
-    const category = TOPIC_DIAGNOSTIC_CATEGORY[topic.moduleId];
-    const diagnosticScore = category == null ? undefined : diagnosticScores.get(category);
-    return diagnosticScore == null || diagnosticScore < DIAGNOSTIC_PASS_THRESHOLD;
-  });
+  const topics = allTopics;
   const diagnosticGrades = Object.fromEntries(
     diagnostics.map((result) => [result.category, scoreToGrade((result.score ?? 0) / 100)]),
   );
