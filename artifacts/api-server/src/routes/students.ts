@@ -774,7 +774,7 @@ router.post("/students/:studentId/weekly-reflection", async (req, res) => {
 // is loaded only when used so installations without Drive remain compatible.
 router.post("/students/:studentId/evidence", async (req, res) => {
   const studentId = Number.parseInt(req.params.studentId, 10);
-  const { exerciseId, topicName, imageBase64, clientId, mimeType } =
+  const { exerciseId, topicName, imageBase64, clientId, mimeType, append, evidenceId } =
     req.body as Record<string, unknown>;
   if (!Number.isInteger(studentId) || typeof exerciseId !== "string" ||
       typeof topicName !== "string" || typeof imageBase64 !== "string" ||
@@ -793,7 +793,21 @@ router.post("/students/:studentId/evidence", async (req, res) => {
     res.status(409).json({ error: "Exercise result required before uploading evidence" });
     return;
   }
-  if (existing[0]?.evidenceDriveFileId || existing[0]?.evidenceUrl) {
+  const appendEvidence = append === true;
+  const requestedEvidenceId = typeof evidenceId === "string" && evidenceId.trim()
+    ? evidenceId.trim()
+    : null;
+  const previousMetadata = existing[0].evidenceMetadata;
+  const previousFiles = previousMetadata &&
+    Array.isArray(previousMetadata.files)
+    ? previousMetadata.files.filter((file): file is Record<string, unknown> =>
+      Boolean(file && typeof file === "object"))
+    : [];
+  if (requestedEvidenceId && previousFiles.some((file) => file.evidenceId === requestedEvidenceId)) {
+    res.json({ evidence: { url: existing[0].evidenceUrl, driveFileId: existing[0].evidenceDriveFileId } });
+    return;
+  }
+  if (!appendEvidence && (existing[0].evidenceDriveFileId || existing[0].evidenceUrl)) {
     res.json({ evidence: { url: existing[0].evidenceUrl, driveFileId: existing[0].evidenceDriveFileId } });
     return;
   }
@@ -811,13 +825,39 @@ router.post("/students/:studentId/evidence", async (req, res) => {
     );
     const driveFileId = uploaded.id;
     const url = uploaded.webViewLink ?? null;
+    const legacyFile = previousFiles.length === 0 &&
+      (existing[0].evidenceDriveFileId || existing[0].evidenceUrl)
+      ? [{
+          url: existing[0].evidenceUrl,
+          driveFileId: existing[0].evidenceDriveFileId,
+          fileName: previousMetadata?.fileName ?? null,
+          mimeType: previousMetadata?.mimeType ?? null,
+          size: previousMetadata?.size ?? null,
+        }]
+      : [];
+    const file = {
+      url,
+      driveFileId,
+      fileName: name,
+      mimeType: resolvedMimeType,
+      size: Buffer.byteLength(raw, "base64"),
+      evidenceId: requestedEvidenceId,
+    };
+    const files = [...(appendEvidence ? [...previousFiles, ...legacyFile] : []), file];
+    const firstFile = files[0];
+    const firstUrl = typeof firstFile?.url === "string" ? firstFile.url : url;
+    const firstDriveFileId = typeof firstFile?.driveFileId === "string"
+      ? firstFile.driveFileId
+      : driveFileId;
     const [updated] = await db.update(exerciseResults).set({
-          evidenceUrl: url, evidenceDriveFileId: driveFileId,
+          evidenceUrl: firstUrl,
+          evidenceDriveFileId: firstDriveFileId,
           evidenceMetadata: {
             folder: ["FactorIzA-Play", student.pseudonym, topicName, exerciseId].join("/"),
             fileName: name,
             mimeType: resolvedMimeType,
             size: Buffer.byteLength(raw, "base64"),
+            files,
           },
         }).where(eq(exerciseResults.id, existing[0].id)).returning();
     res.status(201).json({ evidence: { url, driveFileId, resultId: updated?.id ?? null } });

@@ -1061,7 +1061,21 @@ export default function DocenteScreen() {
                                         ✅{ex.correctCount} · ❌{ex.incorrectCount} · {ex.attemptsTotal} intentos · 💡{ex.hintsUsed} · ⏱ {formatDuration(ex.totalDurationSeconds)}
                                         {ex.attemptsTotal > 1 ? " · repetido" : ""}
                                       </Text>
-                                      {ex.attempts.map((attempt, attemptIndex) => (
+                                      {ex.attempts.map((attempt, attemptIndex) => {
+                                        const metadata = attempt.evidenceMetadata;
+                                        const metadataFiles = metadata && Array.isArray(metadata.files)
+                                          ? metadata.files.filter((file): file is Record<string, unknown> =>
+                                            Boolean(file && typeof file === "object"))
+                                          : [];
+                                        const evidenceFiles = metadataFiles.length > 0
+                                          ? metadataFiles
+                                          : (attempt.evidenceUrl || attempt.evidenceDriveFileId
+                                            ? [{
+                                                url: attempt.evidenceUrl,
+                                                driveFileId: attempt.evidenceDriveFileId,
+                                              }]
+                                            : []);
+                                        return (
                                         <View key={`${ex.exerciseId}-${attemptIndex}`} style={{ marginTop: 7, paddingTop: 7, borderTopWidth: 1, borderTopColor: colors.border, gap: 3 }}>
                                           <Text style={{ color: attempt.correct ? colors.success : colors.error, fontSize: 11, fontWeight: "800" }}>
                                             {attempt.correct ? "Respuesta correcta" : "Respuesta incorrecta"} · intento {attempt.attempts}
@@ -1075,33 +1089,44 @@ export default function DocenteScreen() {
                                           <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
                                             {new Date(attempt.createdAt).toLocaleString()} · ⏱ {formatDuration(ex.avgDurationSeconds)}
                                           </Text>
-                                          {attempt.evidenceUrl ? (
+                                          {evidenceFiles.length > 0 ? (
                                             <View style={styles.evidenceCard}>
-                                              {attempt.evidenceDriveFileId ? (
-                                                <TouchableOpacity
-                                                  accessibilityLabel={`Abrir evidencia del ejercicio ${ex.exerciseId}`}
-                                                  onPress={() => Linking.openURL(attempt.evidenceUrl!)}
-                                                >
-                                                  <Image
-                                                    source={{ uri: apiEvidencePreviewUrl(student.classCode, attempt.evidenceDriveFileId) }}
-                                                    style={[styles.evidenceImage, { backgroundColor: colors.muted }]}
-                                                    resizeMode="cover"
-                                                  />
-                                                </TouchableOpacity>
-                                              ) : null}
-                                              <TouchableOpacity
-                                                style={[styles.evidenceButton, { borderColor: colors.primary + "55" }]}
-                                                onPress={() => Linking.openURL(attempt.evidenceUrl!)}
-                                              >
-                                                <Feather name="external-link" size={13} color={colors.primary} />
-                                                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>
-                                                  Abrir imagen en Drive
-                                                </Text>
-                                              </TouchableOpacity>
+                                              {evidenceFiles.map((file, evidenceIndex) => {
+                                                const fileUrl = typeof file.url === "string" ? file.url : null;
+                                                const fileId = typeof file.driveFileId === "string" ? file.driveFileId : null;
+                                                return (
+                                                  <View key={`${ex.exerciseId}-${attemptIndex}-evidence-${evidenceIndex}`} style={{ gap: 5 }}>
+                                                    {fileId ? (
+                                                      <TouchableOpacity
+                                                        accessibilityLabel={`Abrir evidencia ${evidenceIndex + 1} del ejercicio ${ex.exerciseId}`}
+                                                        onPress={() => fileUrl && Linking.openURL(fileUrl)}
+                                                      >
+                                                        <Image
+                                                          source={{ uri: apiEvidencePreviewUrl(student.classCode, fileId) }}
+                                                          style={[styles.evidenceImage, { backgroundColor: colors.muted }]}
+                                                          resizeMode="cover"
+                                                        />
+                                                      </TouchableOpacity>
+                                                    ) : null}
+                                                    {fileUrl ? (
+                                                      <TouchableOpacity
+                                                        style={[styles.evidenceButton, { borderColor: colors.primary + "55" }]}
+                                                        onPress={() => Linking.openURL(fileUrl)}
+                                                      >
+                                                        <Feather name="external-link" size={13} color={colors.primary} />
+                                                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: "700" }}>
+                                                          Abrir imagen {evidenceIndex + 1} en Drive
+                                                        </Text>
+                                                      </TouchableOpacity>
+                                                    ) : null}
+                                                  </View>
+                                                );
+                                              })}
                                             </View>
                                           ) : null}
                                         </View>
-                                      ))}
+                                        );
+                                      })}
                                     </View>
                                   ))}
                                   {mod.reflections.map((reflection) => (

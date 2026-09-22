@@ -789,6 +789,12 @@ router.get(
     const evaluationRows = results.filter((row) => isTransferExercise(row.exerciseId));
     const practiceRows = results.filter((row) => !isTransferExercise(row.exerciseId));
     const reportRows = [...evaluationRows, ...practiceRows];
+    const evidenceCountFor = (row: typeof results[number]): number => {
+      const metadata = row.evidenceMetadata as Record<string, unknown> | null;
+      const files = metadata && Array.isArray(metadata.files) ? metadata.files : [];
+      if (files.length > 0) return files.length;
+      return row.evidenceDriveFileId || row.evidenceUrl ? 1 : 0;
+    };
     const researchRows = results.filter((row) =>
       RESEARCH_CASES.some((item) => item.id === row.moduleId),
     );
@@ -1078,7 +1084,7 @@ router.get(
     field("Evaluaciones registradas", evaluationRows.length);
     field(
       "Evaluaciones con imagen",
-      evaluationRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
+      evaluationRows.reduce((total, row) => total + (evidenceCountFor(row) > 0 ? 1 : 0), 0),
     );
     if (evaluationRows.length === 0) {
       field("Estado de evaluaciones", "No hay evaluaciones registradas");
@@ -1088,7 +1094,7 @@ router.get(
     }
     field(
       "Imágenes incluidas en el reporte",
-      reportRows.filter((row) => Boolean(row.evidenceDriveFileId || row.evidenceUrl)).length,
+      reportRows.reduce((total, row) => total + evidenceCountFor(row), 0),
     );
     // Fetch, normalize, embed, and release each source image before moving on
     // to the next attempt. PDFKit retains page objects for footer numbering,
@@ -1098,17 +1104,6 @@ router.get(
       if (reportIndex === evaluationRows.length && practiceRows.length > 0) {
         heading("Ejercicios de práctica y evidencias");
       }
-      const controlledId = row.evidenceDriveFileId ??
-        controlledEvidenceFileId(row.evidenceUrl, normalizedClassCode, req.get("host"));
-      let evidence: Evidence | null = null;
-      if (controlledId) {
-        evidence = await evidenceFor(controlledId);
-      } else if (row.evidenceUrl) {
-        evidence = {
-          error: "Enlace registrado, pero no se descargó por no ser un destino controlado",
-        };
-      }
-      if (clientGone || document.destroyed) return;
       addPageIfNeeded(100);
       document.roundedRect(46, document.y, 503, 18).fill("#eaf2f7");
       document.fillColor("#17324d").font("Helvetica-Bold").fontSize(9)
@@ -1142,12 +1137,43 @@ router.get(
         sizeBytes: evidenceMetadata?.size,
         date: row.createdAt,
       });
-      if (row.evidenceDriveFileId || row.evidenceUrl) {
+      const storedEvidenceFiles = evidenceMetadata && Array.isArray(evidenceMetadata.files)
+        ? evidenceMetadata.files.filter((file): file is Record<string, unknown> =>
+          Boolean(file && typeof file === "object"))
+        : [];
+      const evidenceFiles = storedEvidenceFiles.length > 0
+        ? storedEvidenceFiles
+        : (row.evidenceDriveFileId || row.evidenceUrl
+          ? [{
+              driveFileId: row.evidenceDriveFileId,
+              url: row.evidenceUrl,
+              fileName: evidenceMetadata?.fileName,
+              mimeType: evidenceMetadata?.mimeType,
+              size: evidenceMetadata?.size,
+            }]
+          : []);
+      for (const [evidenceIndex, file] of evidenceFiles.entries()) {
+        const driveFileId = typeof file.driveFileId === "string"
+          ? file.driveFileId
+          : controlledEvidenceFileId(
+              typeof file.url === "string" ? file.url : null,
+              normalizedClassCode,
+              req.get("host"),
+            );
+        let evidence: Evidence | null = null;
+        if (driveFileId) {
+          evidence = await evidenceFor(driveFileId);
+        } else if (file.url) {
+          evidence = {
+            error: "Enlace registrado, pero no se descargó por no ser un destino controlado",
+          };
+        }
+        if (clientGone || document.destroyed) return;
         if (evidence?.bytes && evidence.mime) {
           try {
             addPageIfNeeded(290);
             document.font("Helvetica-Bold").fontSize(9).fillColor("#374151")
-              .text("Foto de evidencia");
+              .text(`Foto de evidencia ${evidenceIndex + 1} de ${evidenceFiles.length}`);
             document.image(evidence.bytes, {
               fit: [470, 250],
               align: "center",
@@ -1155,13 +1181,13 @@ router.get(
             });
             document.moveDown(0.3);
           } catch {
-            field("Foto de evidencia", "Evidencia no disponible: no se pudo insertar la imagen");
+            field(`Foto de evidencia ${evidenceIndex + 1}`, "Evidencia no disponible: no se pudo insertar la imagen");
           }
-          // Do not let the local reference keep the source bytes alive for
-          // subsequent attempts.
-          evidence = null;
-        } else {
-          field("Foto de evidencia", `Evidencia no disponible: ${evidence?.error ?? "sin archivo"}`);
+        } else if (file.url || file.driveFileId) {
+          field(
+            `Foto de evidencia ${evidenceIndex + 1}`,
+            `Evidencia no disponible: ${evidence?.error ?? "sin archivo"}`,
+          );
         }
       }
       divider();

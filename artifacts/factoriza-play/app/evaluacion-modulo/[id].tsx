@@ -29,6 +29,12 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
+type EvidencePhoto = {
+  uri: string;
+  base64: string;
+  mimeType: string;
+};
+
 export default function EvaluacionModuloScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -64,9 +70,7 @@ export default function EvaluacionModuloScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [started, setStarted] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
-  const [photoMimeType, setPhotoMimeType] = useState("image/jpeg");
+  const [photos, setPhotos] = useState<EvidencePhoto[]>([]);
   const [aspectsWorked, setAspectsWorked] = useState("");
   const [difficulties, setDifficulties] = useState("");
   const [improvementSuggestions, setImprovementSuggestions] = useState("");
@@ -197,6 +201,17 @@ export default function EvaluacionModuloScreen() {
     setAnswers((prev) => ({ ...prev, [exerciseId]: option }));
   };
 
+  const addPickedPhotos = (assets: ImagePicker.ImagePickerAsset[]) => {
+    const picked = assets
+      .filter((asset) => asset.base64)
+      .map((asset) => ({
+        uri: asset.uri,
+        base64: asset.base64!,
+        mimeType: asset.mimeType ?? "image/jpeg",
+      }));
+    if (picked.length > 0) setPhotos((previous) => [...previous, ...picked]);
+  };
+
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -206,12 +221,9 @@ export default function EvaluacionModuloScreen() {
         quality: 0.8,
         allowsEditing: false,
         base64: true,
+        allowsMultipleSelection: true,
       });
-      if (!galleryResult.canceled && galleryResult.assets[0]) {
-        setPhotoUri(galleryResult.assets[0].uri);
-        setPhotoBase64(galleryResult.assets[0].base64 ?? null);
-        setPhotoMimeType(galleryResult.assets[0].mimeType ?? "image/jpeg");
-      }
+      if (!galleryResult.canceled) addPickedPhotos(galleryResult.assets);
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -219,11 +231,7 @@ export default function EvaluacionModuloScreen() {
       allowsEditing: false,
       base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      setPhotoBase64(result.assets[0].base64 ?? null);
-      setPhotoMimeType(result.assets[0].mimeType ?? "image/jpeg");
-    }
+    if (!result.canceled) addPickedPhotos(result.assets);
   };
 
   const handlePickFromGallery = async () => {
@@ -232,12 +240,13 @@ export default function EvaluacionModuloScreen() {
       quality: 0.8,
       allowsEditing: false,
       base64: true,
+      allowsMultipleSelection: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      setPhotoBase64(result.assets[0].base64 ?? null);
-      setPhotoMimeType(result.assets[0].mimeType ?? "image/jpeg");
-    }
+    if (!result.canceled) addPickedPhotos(result.assets);
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((previous) => previous.filter((_, photoIndex) => photoIndex !== index));
   };
 
   const reflectionComplete =
@@ -246,7 +255,7 @@ export default function EvaluacionModuloScreen() {
     improvementSuggestions.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!photoUri || !photoBase64 || !reflectionComplete || isSubmitting) return;
+    if (photos.length === 0 || !reflectionComplete || isSubmitting) return;
     setIsSubmitting(true);
     const completion = await completeEvaluation(module.id);
     if (!completion.ok || completion.alreadyCompleted) {
@@ -275,8 +284,11 @@ export default function EvaluacionModuloScreen() {
           attempts: 1,
           questionText: `${ex.question}${ex.expression ? ` — ${ex.expression}` : ""}`,
           topicName: module.title,
-          evidenceBase64: index === 0 ? photoBase64 : undefined,
-          evidenceMimeType: index === 0 ? photoMimeType : undefined,
+          evidenceBase64: index === 0 ? photos[0].base64 : undefined,
+          evidenceMimeType: index === 0 ? photos[0].mimeType : undefined,
+          evidenceAttachments: index === 0
+            ? photos.map((photo) => ({ base64: photo.base64, mimeType: photo.mimeType }))
+            : undefined,
         },
         { hintsUsed: hintsUsedRef.current[ex.id] ?? 0, durationSeconds: perQuestionSeconds }
       );
@@ -528,7 +540,7 @@ export default function EvaluacionModuloScreen() {
             Toma una foto clara de los ejercicios resueltos en tu cuaderno. El docente revisará tu procedimiento.
           </Text>
 
-          {!photoUri ? (
+           {photos.length === 0 ? (
             <View style={{ gap: 10, width: "100%" }}>
               <TouchableOpacity
                 style={[styles.photoBtn, { backgroundColor: module.color }]}
@@ -547,16 +559,31 @@ export default function EvaluacionModuloScreen() {
             </View>
           ) : (
             <View style={styles.photoPreviewArea}>
-              <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="contain" />
+               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, width: "100%" }}>
+                 {photos.map((photo, index) => (
+                   <View key={`${photo.uri}-${index}`} style={{ position: "relative" }}>
+                     <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
+                     <TouchableOpacity
+                       accessibilityLabel={`Eliminar imagen ${index + 1}`}
+                       style={styles.removePhotoButton}
+                       onPress={() => removePhoto(index)}
+                     >
+                       <Feather name="x" size={14} color="#fff" />
+                     </TouchableOpacity>
+                   </View>
+                 ))}
+               </View>
               <View style={[styles.photoCheck, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
                 <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={[styles.photoCheckText, { color: colors.success }]}>Foto adjuntada correctamente</Text>
+                 <Text style={[styles.photoCheckText, { color: colors.success }]}>
+                   {photos.length} {photos.length === 1 ? "imagen adjuntada" : "imágenes adjuntadas"}
+                 </Text>
               </View>
               <TouchableOpacity
                 style={[styles.photoBtnAlt, { borderColor: colors.mutedForeground }]}
                 onPress={handlePickPhoto}
               >
-                <Text style={[styles.photoBtnAltText, { color: colors.mutedForeground }]}>Cambiar foto</Text>
+                 <Text style={[styles.photoBtnAltText, { color: colors.mutedForeground }]}>Agregar otra imagen</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -564,7 +591,7 @@ export default function EvaluacionModuloScreen() {
           <View style={[styles.optionalNote, { backgroundColor: colors.accent + "10", borderColor: colors.accent + "20" }]}>
             <Feather name="info" size={14} color={colors.accent} />
             <Text style={[styles.optionalNoteText, { color: colors.foreground }]}>
-              La foto del procedimiento es obligatoria para enviar esta evaluación.
+               Adjunta una o varias fotos claras del procedimiento en tu cuaderno. Al menos una imagen es obligatoria.
             </Text>
           </View>
 
@@ -602,11 +629,11 @@ export default function EvaluacionModuloScreen() {
 
           <TouchableOpacity
             style={[styles.submitBtn, {
-              backgroundColor: photoBase64 && reflectionComplete ? module.color : colors.secondary,
-              opacity: photoBase64 && reflectionComplete ? 1 : 0.55,
+               backgroundColor: photos.length > 0 && reflectionComplete ? module.color : colors.secondary,
+               opacity: photos.length > 0 && reflectionComplete ? 1 : 0.55,
             }]}
             onPress={handleSubmit}
-            disabled={!photoBase64 || !reflectionComplete || isSubmitting}
+             disabled={photos.length === 0 || !reflectionComplete || isSubmitting}
           >
             <Feather name="send" size={18} color="#fff" />
             <Text style={[styles.submitBtnText, { color: "#fff" }]}>
@@ -635,10 +662,12 @@ export default function EvaluacionModuloScreen() {
             <Text style={[styles.resultSub, { color: colors.mutedForeground }]}>
               {correctCount} de {shuffledExercises.length} respuestas correctas
             </Text>
-            {photoUri && (
+             {photos.length > 0 && (
               <View style={[styles.photoCheck, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
                 <Feather name="camera" size={14} color={colors.success} />
-                <Text style={[styles.photoCheckText, { color: colors.success }]}>Procedimiento adjuntado</Text>
+                 <Text style={[styles.photoCheckText, { color: colors.success }]}>
+                   {photos.length} {photos.length === 1 ? "imagen adjuntada" : "imágenes adjuntadas"}
+                 </Text>
               </View>
             )}
           </View>
@@ -767,7 +796,8 @@ const styles = StyleSheet.create({
   photoBtnAlt: { borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", borderWidth: 1.5 },
   photoBtnAltText: { fontSize: 15, fontWeight: "700" },
   photoPreviewArea: { width: "100%", gap: 10 },
-  photoPreview: { width: "100%", height: 200, borderRadius: 14 },
+  photoPreview: { width: 120, height: 120, borderRadius: 14 },
+  removePhotoButton: { position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(17,24,39,0.78)", justifyContent: "center", alignItems: "center" },
   photoCheck: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, padding: 10, borderWidth: 1, alignSelf: "stretch" },
   photoCheckText: { fontSize: 13, fontWeight: "600" },
   optionalNote: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, padding: 10, borderWidth: 1, alignSelf: "stretch" },

@@ -75,6 +75,7 @@ export interface ExerciseResult {
   topicName?: string;
   evidenceBase64?: string;
   evidenceMimeType?: string;
+  evidenceAttachments?: Array<{ base64: string; mimeType?: string }>;
 }
 
 // A submission that failed to reach the server and must be retried so XP,
@@ -96,6 +97,7 @@ interface PendingExerciseSync {
   correctAnswer: string | null;
   evidenceBase64?: string;
   evidenceMimeType?: string;
+  evidenceAttachments?: Array<{ base64: string; mimeType?: string }>;
 }
 
 interface PendingMutation {
@@ -746,13 +748,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // The academic grade comes from the analytics endpoint. Invalidate it
         // only after the exercise has been persisted to avoid a stale fetch.
         setAcademicProgressVersion((version) => version + 1);
-        if (sync.evidenceBase64) {
+        const evidenceAttachments = sync.evidenceAttachments ??
+          (sync.evidenceBase64
+            ? [{ base64: sync.evidenceBase64, mimeType: sync.evidenceMimeType }]
+            : []);
+        for (const [index, attachment] of evidenceAttachments.entries()) {
           await apiUploadExerciseEvidence(sync.backendId, {
             exerciseId: sync.exerciseId,
             topicName: sync.topicName || sync.moduleId,
-            imageBase64: sync.evidenceBase64,
+            imageBase64: attachment.base64,
             clientId: sync.clientId,
-            mimeType: sync.evidenceMimeType,
+            mimeType: attachment.mimeType,
+            append: index > 0,
+            evidenceId: `${sync.clientId}-evidence-${index}`,
           });
         }
         return true;
@@ -885,6 +893,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         correctAnswer: result.correctAnswer || null,
         evidenceBase64: result.evidenceBase64,
         evidenceMimeType: result.evidenceMimeType,
+        evidenceAttachments: result.evidenceAttachments,
       };
       attemptExerciseSync(sync).then((ok) => {
         if (ok) {

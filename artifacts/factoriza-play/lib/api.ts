@@ -154,6 +154,8 @@ export async function apiUploadExerciseEvidence(
     imageBase64: string;
     clientId: string;
     mimeType?: string;
+    append?: boolean;
+    evidenceId?: string;
   }
 ): Promise<{ evidence: { url: string | null; driveFileId: string | null } }> {
   return apiFetch(`/students/${studentId}/evidence`, {
@@ -339,6 +341,7 @@ export interface ApiExerciseAttempt {
   correctAnswer: string | null;
   evidenceUrl: string | null;
   evidenceDriveFileId: string | null;
+  evidenceMetadata?: Record<string, unknown> | null;
   createdAt: string;
 }
 
