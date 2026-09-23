@@ -36,6 +36,10 @@ export default function ReflectionScreen() {
   const nextDestination = useMemo(() => {
     if (kind !== "session" || !params.activityId) return null;
 
+    if (params.activityId.startsWith("ruta:")) {
+      return { path: "/(tabs)" as const, label: "Volver a la ruta" };
+    }
+
     const moduleIndex = MODULE_CASE_ORDER.indexOf(params.activityId);
     if (moduleIndex >= 0) {
       const nextModuleId = MODULE_CASE_ORDER[moduleIndex + 1];
@@ -104,7 +108,13 @@ export default function ReflectionScreen() {
       Alert.alert("No se guardó", result.error ?? "Comprueba tu conexión e inténtalo de nuevo.");
       return;
     }
-    if (kind === "session" && params.activityId && params.activityId !== "diagnostico" && params.sessionId) {
+    if (
+      kind === "session" &&
+      params.activityId &&
+      !params.activityId.startsWith("ruta:") &&
+      params.activityId !== "diagnostico" &&
+      params.sessionId
+    ) {
       const completion = params.topicId
         ? await completeTopicPractice(params.topicId, params.sessionId)
         : await completeModule(params.activityId, params.sessionId);

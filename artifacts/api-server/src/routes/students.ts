@@ -10,7 +10,7 @@ import {
   learningSessions,
   evalCodes,
 } from "@workspace/db/schema";
-import { eq, sql, and, desc, gt, like } from "drizzle-orm";
+import { eq, sql, and, desc, gt, like, inArray } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router = Router();
@@ -30,10 +30,16 @@ const ACTIVE_TOPIC_IDS = [
   "s3-suma-resta", "s3-agrupacion", "s3-multiplicacion", "s3-division",
   "s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia", "s3-cubo",
 ];
+const PERSONALIZED_ROUTE_TOPIC_IDS: Record<string, string[]> = {
+  "ruta:aritmetica": ["s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales", "s1-potencias"],
+  "ruta:algebra": ["s2-notacion", "s2-expresion", "s2-semejantes", "s2-diferencia"],
+  "ruta:patrones": ["s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia"],
+};
 const isValidActivity = (activityId: string) =>
   activityId === "diagnostico" ||
   ACTIVE_MODULE_IDS.includes(activityId) ||
   ACTIVE_TOPIC_IDS.includes(activityId) ||
+  Object.prototype.hasOwnProperty.call(PERSONALIZED_ROUTE_TOPIC_IDS, activityId) ||
   (activityId.startsWith("evaluacion:") && ACTIVE_MODULE_IDS.includes(activityId.slice("evaluacion:".length)));
 const isRetiredExercise = (exerciseId: string) =>
   exerciseId.startsWith("ax2-");
@@ -644,15 +650,21 @@ router.post("/students/:studentId/session-reflection", async (req, res) => {
         if (existing) return { reflection: existing, student, duplicate: true };
         throw new Error("SESSION_ALREADY_CLOSED");
       }
+      const routeTopicIds = PERSONALIZED_ROUTE_TOPIC_IDS[session.activityId];
       const workRows = session.activityId === "diagnostico"
         ? (student.diagnosticProfile ? [{ id: 1 }] : [])
-        : await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
-            eq(exerciseResults.studentId, studentId),
-            eq(exerciseResults.moduleId,
-              session.activityId.startsWith("evaluacion:")
-                ? session.activityId.slice("evaluacion:".length)
-                : session.activityId.startsWith("s") ? `support:${session.activityId}` : session.activityId),
-          )).limit(1);
+        : routeTopicIds
+          ? await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+              eq(exerciseResults.studentId, studentId),
+              inArray(exerciseResults.moduleId, routeTopicIds.map((topicId) => `support:${topicId}`)),
+            )).limit(1)
+          : await tx.select({ id: exerciseResults.id }).from(exerciseResults).where(and(
+              eq(exerciseResults.studentId, studentId),
+              eq(exerciseResults.moduleId,
+                session.activityId.startsWith("evaluacion:")
+                  ? session.activityId.slice("evaluacion:".length)
+                  : session.activityId.startsWith("s") ? `support:${session.activityId}` : session.activityId),
+            )).limit(1);
       if (workRows.length === 0) throw new Error("SESSION_WORK_REQUIRED");
       let reflection: typeof sessionReflections.$inferSelect;
       try {
@@ -894,7 +906,8 @@ router.post("/students/:studentId/topics", async (req, res) => {
     if (!student) return null;
     const [session] = await tx.select().from(learningSessions).where(and(
       eq(learningSessions.id, numericSessionId), eq(learningSessions.studentId, studentId),
-      eq(learningSessions.activityId, topicId), eq(learningSessions.status, "reflected"),
+      eq(learningSessions.activityId, topicId),
+      inArray(learningSessions.status, ["open", "reflected"]),
     )).limit(1);
     if (!session) throw new Error("SESSION_REQUIRED");
     if ((student.completedTopics ?? []).includes(topicId)) return student;

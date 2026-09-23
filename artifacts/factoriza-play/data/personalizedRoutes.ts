@@ -158,6 +158,10 @@ export function isPersonalizedPrerequisiteTopic(topicId: string) {
   );
 }
 
+export function getPersonalizedRouteActivityId(moduleId: PersonalizedModuleId) {
+  return `ruta:${moduleId}`;
+}
+
 export function buildPersonalizedRoute(
   moduleResults: DiagnosticModuleResult[],
   threshold = PERSONALIZED_ROUTE_THRESHOLD,

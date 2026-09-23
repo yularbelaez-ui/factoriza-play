@@ -18,7 +18,11 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { getTopicById, TopicExercise } from "@/data/sectionTopics";
 import { getBalancedAnswerOptions } from "@/lib/answerOptions";
-import { isPersonalizedPrerequisiteTopic } from "@/data/personalizedRoutes";
+import {
+  buildPersonalizedRoute,
+  getPersonalizedRouteActivityId,
+  isPersonalizedPrerequisiteTopic,
+} from "@/data/personalizedRoutes";
 
 type Tab = "teoria" | "ejemplos" | "practica";
 
@@ -41,7 +45,14 @@ export default function TemaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { startActivitySession, recordHintEvent, recordExerciseResult, markTheoryRead } = useApp();
+  const {
+    startActivitySession,
+    recordHintEvent,
+    recordExerciseResult,
+    markTheoryRead,
+    completeTopicPractice,
+    currentStudent,
+  } = useApp();
 
   const topic = getTopicById(id ?? "");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -102,7 +113,71 @@ export default function TemaScreen() {
     : [];
   const totalEx   = queue.length;
   const maxXP     = totalEx * XP_FIRST_TRY;
-  const requiresReflection = isPersonalizedPrerequisiteTopic(topic.id);
+  const personalizedRoute = currentStudent?.diagnosticProfile?.moduleResults?.length
+    ? buildPersonalizedRoute(currentStudent.diagnosticProfile.moduleResults)
+    : currentStudent?.diagnosticProfile?.personalizedRoute;
+  const personalizedStep = personalizedRoute?.steps.find((step) => step.topicIds.includes(topic.id));
+  const personalizedRouteTopic = Boolean(personalizedStep);
+  const isLastTopicInPersonalizedStep = personalizedStep
+    ? personalizedStep.topicIds.every((topicId) =>
+        topicId === topic.id || (currentStudent?.completedTopics ?? []).includes(topicId),
+      )
+    : false;
+  const requiresReflection = personalizedRouteTopic || isPersonalizedPrerequisiteTopic(topic.id);
+
+  const handlePracticeComplete = async () => {
+    if (!sessionId && currentStudent?.backendId) {
+      Alert.alert(
+        "Sesión no disponible",
+        "No se pudo iniciar la sesión de aprendizaje. Vuelve a abrir el tema e inténtalo de nuevo.",
+      );
+      return;
+    }
+
+    if (personalizedRouteTopic) {
+      const completion = await completeTopicPractice(topic.id, sessionId ?? undefined);
+      if (!completion.ok) {
+        Alert.alert("No se pudo cerrar el tema", completion.error ?? "Inténtalo de nuevo.");
+        return;
+      }
+
+      if (!isLastTopicInPersonalizedStep || !personalizedStep) {
+        router.replace("/(tabs)" as any);
+        return;
+      }
+
+      if (!currentStudent?.backendId) {
+        router.replace("/(tabs)" as any);
+        return;
+      }
+
+      const routeSession = await startActivitySession(
+        getPersonalizedRouteActivityId(personalizedStep.moduleId),
+      );
+      if (!routeSession.ok || !routeSession.sessionId) {
+        Alert.alert(
+          "Sesión de módulo no disponible",
+          routeSession.error ?? "No se pudo abrir la reflexión del módulo.",
+        );
+        return;
+      }
+      router.push(
+        `/reflexion?kind=session&sessionId=${encodeURIComponent(routeSession.sessionId)}&activityId=${encodeURIComponent(getPersonalizedRouteActivityId(personalizedStep.moduleId))}` as any,
+      );
+      return;
+    }
+
+    if (!sessionId) {
+      Alert.alert(
+        "Sesión no disponible",
+        "No se pudo iniciar la sesión de aprendizaje. Vuelve a abrir el tema e inténtalo de nuevo.",
+      );
+      return;
+    }
+    router.push(
+      `/reflexion?kind=session&sessionId=${encodeURIComponent(sessionId)}&activityId=${encodeURIComponent(topic.id)}&topicId=${encodeURIComponent(topic.id)}` as any,
+    );
+  };
 
   // ── Shake animation for wrong answer ────────────────────────────
   const triggerShake = () => {
@@ -271,18 +346,21 @@ export default function TemaScreen() {
                 total={totalEx}
                 color={topic.color}
                 onRetry={resetPractice}
-                onComplete={requiresReflection ? () => {
-                  if (!sessionId) {
-                    Alert.alert(
-                      "Sesión no disponible",
-                      "No se pudo iniciar la sesión de aprendizaje. Vuelve a abrir el tema e inténtalo de nuevo.",
-                    );
-                    return;
-                  }
-                  router.push(
-                    `/reflexion?kind=session&sessionId=${encodeURIComponent(sessionId)}&activityId=${encodeURIComponent(topic.id)}&topicId=${encodeURIComponent(topic.id)}` as any,
-                  );
-                } : undefined}
+                onComplete={requiresReflection ? handlePracticeComplete : undefined}
+                completionMessage={
+                  personalizedRouteTopic
+                    ? isLastTopicInPersonalizedStep
+                      ? "Completaste todos los temas de este bloque. Realiza la reflexión para cerrarlo."
+                      : "Tema completado. Continúa con el siguiente tema de tu ruta."
+                    : undefined
+                }
+                completionActionLabel={
+                  personalizedRouteTopic
+                    ? isLastTopicInPersonalizedStep
+                      ? "Completar reflexión del módulo"
+                      : "Completar tema y continuar"
+                    : undefined
+                }
                 onBack={() => router.back()}
               />
             </ScrollView>
@@ -532,10 +610,12 @@ export default function TemaScreen() {
 
 // ── Score Card ───────────────────────────────────────────────────────
 function PracticeScoreCard({
-  earnedXP, maxXP, total, color, onRetry, onComplete, onBack,
+  earnedXP, maxXP, total, color, onRetry, onComplete, completionMessage, completionActionLabel, onBack,
 }: {
   earnedXP: number; maxXP: number; total: number; color: string; onRetry: () => void; onBack: () => void;
   onComplete?: () => void;
+  completionMessage?: string;
+  completionActionLabel?: string;
 }) {
   const pct     = maxXP > 0 ? Math.round((earnedXP / maxXP) * 100) : 0;
   const passed  = pct >= Math.round(XP_PASS_PCT * 100);
@@ -566,7 +646,7 @@ function PracticeScoreCard({
             <Feather name="award" size={15} color="#059669" />
             <Text style={[styles.passedText, { color: "#059669" }]}>
               {onComplete
-                ? "¡Superaste el 85% de XP! Completa la reflexión para cerrar el tema."
+                ? `¡Superaste el 85% de XP! ${completionMessage ?? "Completa la reflexión para cerrar el tema."}`
                 : "¡Superaste el 85% de XP! Puedes continuar con el curso."}
             </Text>
           </View>
@@ -583,7 +663,7 @@ function PracticeScoreCard({
       {passed && onComplete && (
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: color }]} onPress={onComplete}>
           <Feather name="arrow-right-circle" size={15} color="#fff" />
-          <Text style={styles.retryBtnText}>Completar reflexión y avanzar</Text>
+          <Text style={styles.retryBtnText}>{completionActionLabel ?? "Completar reflexión y avanzar"}</Text>
         </TouchableOpacity>
       )}
 
