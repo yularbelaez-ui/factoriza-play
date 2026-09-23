@@ -55,6 +55,15 @@ const DIAGNOSTIC_LABELS: Record<string, string> = {
   irracionales: "Irracionales",
   reales: "Números reales",
   potencias: "Potencias",
+  factores_primos: "Factores primos",
+  notacion_grado: "Notación algebraica y grado de un término",
+  expresion_termino: "Expresión y término algebraico",
+  clasificacion_expresiones: "Clasificación de expresiones algebraicas",
+  terminos_semejantes: "Términos semejantes y valor numérico",
+  suma_resta: "Suma y resta algebraica",
+  multiplicacion: "Multiplicación algebraica",
+  division: "División algebraica",
+  productos_notables: "Productos notables",
   propiedades: "Propiedades",
   terminos: "Términos semejantes",
   variables: "Variables",
@@ -63,11 +72,8 @@ const DIAGNOSTIC_LABELS: Record<string, string> = {
   patrones: "Reconocimiento de patrones",
 };
 const PROFILE_LABELS: Record<string, string> = {
-  aritmetica: "Pensamiento numérico",
-  propiedades: "Propiedades",
-  terminos: "Términos semejantes",
-  variables: "Variables",
-  igualdad: "Signo igual como equivalencia",
+  aritmetica: "Fortalecimiento algebraico",
+  algebra: "Pensamiento algebraico",
   patrones: "Reconocimiento de patrones",
 };
 const isRetiredTopic = (topicId: string) =>

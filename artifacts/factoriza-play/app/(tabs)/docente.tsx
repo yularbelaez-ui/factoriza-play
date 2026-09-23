@@ -42,8 +42,14 @@ const MODULE_TOPIC_LABELS: Record<string, string> = {
   "s1-naturales": "Números naturales y operaciones",
   "s1-decimales": "Números decimales y operaciones",
   "s1-enteros": "Números enteros y ley de signos",
+  "s1-irracionales": "Números irracionales",
+  "s1-reales": "Números reales",
   "s1-racionales": "Fracciones y números racionales",
   "s1-potencias": "Potencias y propiedades",
+  "s1-factores": "Factores primos",
+  "s2-grado": "Grado de un término",
+  "s2-expresion": "Expresión y término algebraico",
+  "s2-clasificacion": "Clasificación de expresiones algebraicas",
   "s2-signos": "Propiedades y signos algebraicos",
   "s2-semejantes": "Términos semejantes",
   "s2-notacion": "Variables y notación algebraica",
@@ -776,11 +782,9 @@ export default function DocenteScreen() {
                 (student.diagnosticProfile?.level === "básico" ? "A" : student.diagnosticProfile?.level === "intermedio" ? "B" : "C");
               const profileDetails = student.diagnosticProfile ? PROFILE_DETAILS[profileCode] : null;
               const competencyLabels: Record<string, string> = {
-                aritmetica: "aritmética",
-                propiedades: "propiedades",
-                terminos: "términos",
-                variables: "variables",
-                igualdad: "signo igual",
+                aritmetica: "fortalecimiento algebraico",
+                algebra: "pensamiento algebraico",
+                patrones: "reconocimiento de patrones",
               };
               const weakCompetencies = (student.diagnosticProfile?.competencyResults ?? [])
                 .filter((result) => result.score < 75)

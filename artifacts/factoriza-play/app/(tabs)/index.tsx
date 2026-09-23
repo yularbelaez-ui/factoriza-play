@@ -45,11 +45,11 @@ const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: st
   irracionales: { topicId: "s1-irracionales", title: "Números Irracionales y Radicación",icon: "√",  section: "S1 · Zona de Repaso" },
   reales:       { topicId: "s1-reales",       title: "Números Reales",                   icon: "♾️", section: "S1 · Zona de Repaso" },
   potencias:    { topicId: "s1-potencias",    title: "Potencias y sus Propiedades",      icon: "⚡", section: "S1 · Zona de Repaso" },
-  factorizacion:{ topicId: "s1-factores",     title: "Descomposición en Factores Primos",icon: "🔑", section: "S1 · Zona de Repaso" },
-  // S2 — Álgebra Básica
+  factorizacion:{ topicId: "s1-factores",     title: "Factores primos",                   icon: "🔑", section: "S1 · Zona de Repaso" },
+  // S2 — Introducción al Álgebra
   algebra:      { topicId: "s2-semejantes",   title: "Términos semejantes y valor numérico", icon: "✏️", section: "S2 · Introducción al Álgebra" },
   // S3 — Operaciones Algebraicas
-  operaciones:  { topicId: "s3-productos",    title: "Productos notables",               icon: "⚙️", section: "S3 · Operaciones Algebraicas" },
+  operaciones:  { topicId: "s3-productos",    title: "Productos notables",                icon: "⚙️", section: "S3 · Operaciones Algebraicas" },
 };
 
 // ── Colores de paso según puntaje ────────────────────────────────────

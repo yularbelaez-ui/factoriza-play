@@ -31,6 +31,8 @@ export interface PersonalizedRouteModule {
   color: string;
   topicIds: string[];
   topicLabels: string[];
+  topicGroups: string[][];
+  topicGroupLabels: string[];
   score: number;
   needsStrengthening: boolean;
 }
@@ -77,36 +79,108 @@ const MODULE_DEFINITIONS: Record<
 > = {
   aritmetica: {
     id: "aritmetica",
-    title: "Fortalecimiento aritmético",
-    description: "Naturales, decimales, enteros, fracciones y potencias.",
+    title: "Fortalecimiento algebraico",
+    description: "Naturales, decimales, enteros, irracionales, reales, potencias, fracciones y factores primos.",
     icon: "🧮",
     color: "#7c3aed",
     topicIds: [
       "s1-naturales",
       "s1-decimales",
       "s1-enteros",
+      "s1-irracionales",
+      "s1-reales",
       "s1-racionales",
       "s1-potencias",
+      "s1-factores",
     ],
-    topicLabels: ["Naturales", "Decimales", "Enteros", "Fracciones", "Potencias"],
+    topicLabels: [
+      "Números naturales",
+      "Números decimales",
+      "Números enteros",
+      "Números irracionales",
+      "Números reales",
+      "Fracciones",
+      "Potencias",
+      "Factores primos",
+    ],
+    topicGroups: [
+      ["s1-naturales"],
+      ["s1-decimales"],
+      ["s1-enteros"],
+      ["s1-irracionales"],
+      ["s1-reales"],
+      ["s1-racionales"],
+      ["s1-potencias"],
+      ["s1-factores"],
+    ],
+    topicGroupLabels: [
+      "Números naturales",
+      "Números decimales",
+      "Números enteros",
+      "Números irracionales",
+      "Números reales",
+      "Fracciones",
+      "Potencias",
+      "Factores primos",
+    ],
   },
   algebra: {
     id: "algebra",
     title: "Pensamiento algebraico",
-    description: "Variables, expresiones, términos semejantes y signo igual.",
+    description: "Notación, términos, clasificación de expresiones y términos semejantes.",
     icon: "✏️",
     color: "#2563eb",
-    topicIds: ["s2-notacion", "s2-expresion", "s2-semejantes", "s2-diferencia"],
-    topicLabels: ["Variables", "Expresiones algebraicas", "Términos semejantes", "Signo igual"],
+    topicIds: [
+      "s2-notacion",
+      "s2-grado",
+      "s2-expresion",
+      "s2-clasificacion",
+      "s2-semejantes",
+    ],
+    topicLabels: [
+      "Notación algebraica y grado de un término",
+      "Expresión y término algebraico",
+      "Clasificación de expresiones algebraicas",
+      "Términos semejantes y valor numérico",
+    ],
+    topicGroups: [
+      ["s2-notacion", "s2-grado"],
+      ["s2-expresion"],
+      ["s2-clasificacion"],
+      ["s2-semejantes"],
+    ],
+    topicGroupLabels: [
+      "Notación algebraica y grado de un término",
+      "Expresión y término algebraico",
+      "Clasificación de expresiones algebraicas",
+      "Términos semejantes y valor numérico",
+    ],
   },
   patrones: {
     id: "patrones",
     title: "Reconocimiento de patrones",
-    description: "Estructuras algebraicas y patrones necesarios para factorizar.",
+    description: "Suma, resta, multiplicación, división y productos notables.",
     icon: "🔍",
     color: "#0891b2",
-    topicIds: ["s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia"],
-    topicLabels: ["Estructuras algebraicas", "Productos notables", "Patrones de factorización"],
+    topicIds: ["s3-suma-resta", "s3-multiplicacion", "s3-division", "s3-productos"],
+    topicLabels: [
+      "Suma y resta algebraica",
+      "Multiplicación algebraica",
+      "División algebraica",
+      "Productos notables",
+    ],
+    topicGroups: [
+      ["s3-suma-resta"],
+      ["s3-multiplicacion"],
+      ["s3-division"],
+      ["s3-productos"],
+    ],
+    topicGroupLabels: [
+      "Suma y resta algebraica",
+      "Multiplicación algebraica",
+      "División algebraica",
+      "Productos notables",
+    ],
   },
   factorizacion: {
     id: "factorizacion",
@@ -116,6 +190,8 @@ const MODULE_DEFINITIONS: Record<
     color: "#d97706",
     topicIds: [],
     topicLabels: [],
+    topicGroups: [],
+    topicGroupLabels: [],
   },
 };
 
@@ -182,8 +258,13 @@ export function buildPersonalizedRoute(
         .map((topic, index) => (topic.score < threshold ? index : -1))
         .filter((index) => index >= 0) ?? [],
     );
-    const topicIds = definition.topicIds.filter((_, index) => weakTopicIndexes.has(index));
-    const topicLabels = definition.topicLabels.filter((_, index) => weakTopicIndexes.has(index));
+    const topicGroups = definition.topicGroups;
+    const topicIds = topicGroups.flatMap((group, index) =>
+      weakTopicIndexes.has(index) ? group : [],
+    );
+    const topicLabels = definition.topicGroupLabels.filter((_, index) =>
+      weakTopicIndexes.has(index),
+    );
     return {
       ...definition,
       description: topicLabels.length > 0

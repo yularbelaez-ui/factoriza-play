@@ -31,9 +31,14 @@ const ACTIVE_TOPIC_IDS = [
   "s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia", "s3-cubo",
 ];
 const PERSONALIZED_ROUTE_TOPIC_IDS: Record<string, string[]> = {
-  "ruta:aritmetica": ["s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales", "s1-potencias"],
-  "ruta:algebra": ["s2-notacion", "s2-expresion", "s2-semejantes", "s2-diferencia"],
-  "ruta:patrones": ["s3-productos", "s3-cuadrado-diferencia", "s3-suma-diferencia"],
+  "ruta:aritmetica": [
+    "s1-naturales", "s1-decimales", "s1-enteros", "s1-irracionales",
+    "s1-reales", "s1-racionales", "s1-potencias", "s1-factores",
+  ],
+  "ruta:algebra": [
+    "s2-notacion", "s2-grado", "s2-expresion", "s2-clasificacion", "s2-semejantes",
+  ],
+  "ruta:patrones": ["s3-suma-resta", "s3-multiplicacion", "s3-division", "s3-productos"],
 };
 const isValidActivity = (activityId: string) =>
   activityId === "diagnostico" ||
@@ -691,9 +696,9 @@ router.post("/students/:studentId/session-reflection", async (req, res) => {
         const profile = student.diagnosticProfile as { results?: Array<{ category?: string; total?: number }> };
         const categories = new Set((profile.results ?? []).filter((result) => (result.total ?? 0) > 0).map((result) => result.category));
         const sections = [
-          ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones"]],
-          ["algebra", ["propiedades", "terminos", "variables", "igualdad", "factorizacion"]],
-          ["patrones", ["patrones"]],
+          ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones", "factores_primos"]],
+          ["algebra", ["notacion_grado", "expresion_termino", "clasificacion_expresiones", "terminos_semejantes"]],
+          ["patrones", ["suma_resta", "multiplicacion", "division", "productos_notables"]],
         ] as const;
         for (const [section, sectionCategories] of sections) {
           if (!sectionCategories.some((category) => categories.has(category))) continue;
@@ -1114,9 +1119,9 @@ router.post("/students/:studentId/diagnostic", async (req, res) => {
         .map((result) => result.category),
     );
     const sections = [
-      ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones"]],
-      ["algebra", ["propiedades", "terminos", "variables", "igualdad", "factorizacion"]],
-      ["patrones", ["patrones"]],
+      ["aritmetica", ["naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones", "factores_primos"]],
+      ["algebra", ["notacion_grado", "expresion_termino", "clasificacion_expresiones", "terminos_semejantes"]],
+      ["patrones", ["suma_resta", "multiplicacion", "division", "productos_notables"]],
     ] as const;
     for (const [section, sectionCategories] of sections) {
       if (!sectionCategories.some((category) => categories.has(category))) continue;

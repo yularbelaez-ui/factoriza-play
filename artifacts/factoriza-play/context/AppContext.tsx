@@ -1306,15 +1306,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : allStudents
     ).filter((s) => s.diagnosticProfile);
 
-    const categories = ["aritmetica", "propiedades", "terminos", "variables", "igualdad", "patrones"];
+    const categories = ["aritmetica", "algebra", "patrones"];
     return categories.map((cat) => {
       const scores = students
         .map((s) => {
-          if (cat === "aritmetica") {
-            return s.diagnosticProfile!.competencyResults?.find((r) => r.competency === cat)?.score ?? null;
-          }
           return s.diagnosticProfile!.competencyResults?.find((r) => r.competency === cat)?.score ??
-            s.diagnosticProfile!.results.find((r) => r.category === cat)?.score ?? null;
+            s.diagnosticProfile!.moduleResults?.find((module) => module.id === cat)?.score ?? null;
         })
         .filter((s): s is number => s !== null);
       const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;

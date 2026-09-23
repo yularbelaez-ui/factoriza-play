@@ -256,38 +256,60 @@ function directSummary(proportion: number | null, evidenceCount: number): Academ
 }
 
 const NUMERIC_CATEGORIES = new Set([
-  "naturales", "decimales", "enteros", "fracciones", "irracionales", "reales", "potencias",
+  "naturales", "decimales", "enteros", "fracciones", "irracionales", "reales", "potencias", "factores_primos",
 ]);
-const ALGEBRA_CATEGORIES = new Set(["propiedades", "terminos", "variables", "igualdad"]);
+const ALGEBRA_CATEGORIES = new Set([
+  "notacion_grado", "expresion_termino", "clasificacion_expresiones", "terminos_semejantes",
+  "suma_resta", "multiplicacion", "division", "productos_notables",
+]);
 const ACADEMIC_DIAGNOSTIC_CATEGORIES = new Set([
-  "naturales", "decimales", "enteros", "fracciones", "potencias",
-  "propiedades", "terminos", "variables", "igualdad",
+  "naturales", "decimales", "enteros", "irracionales", "reales", "potencias", "fracciones", "factores_primos",
+  "notacion_grado", "expresion_termino", "clasificacion_expresiones", "terminos_semejantes",
+  "suma_resta", "multiplicacion", "division", "productos_notables",
 ]);
 const ACADEMIC_DIAGNOSTIC_TOPIC_IDS = [
-  "s1-naturales", "s1-decimales", "s1-enteros", "s1-racionales", "s1-potencias",
-  "s2-signos", "s2-semejantes", "s2-notacion", "s2-diferencia",
+  "s1-naturales", "s1-decimales", "s1-enteros", "s1-irracionales", "s1-reales",
+  "s1-racionales", "s1-potencias", "s1-factores",
+  "s2-notacion", "s2-grado", "s2-expresion", "s2-clasificacion", "s2-semejantes",
+  "s3-suma-resta", "s3-multiplicacion", "s3-division", "s3-productos",
 ] as const;
 const ACADEMIC_TOPIC_TITLES: Record<string, string> = {
   "s1-naturales": "Números naturales y operaciones",
   "s1-decimales": "Números decimales y operaciones",
   "s1-enteros": "Números enteros y ley de signos",
+  "s1-irracionales": "Números irracionales",
+  "s1-reales": "Números reales",
   "s1-racionales": "Fracciones y números racionales",
   "s1-potencias": "Potencias y propiedades",
-  "s2-signos": "Propiedades y signos algebraicos",
-  "s2-semejantes": "Términos semejantes",
-  "s2-notacion": "Variables y notación algebraica",
-  "s2-diferencia": "Igualdad y equivalencia",
+  "s1-factores": "Factores primos",
+  "s2-notacion": "Notación algebraica",
+  "s2-grado": "Grado de un término",
+  "s2-expresion": "Expresión y término algebraico",
+  "s2-clasificacion": "Clasificación de expresiones algebraicas",
+  "s2-semejantes": "Términos semejantes y valor numérico",
+  "s3-suma-resta": "Suma y resta algebraica",
+  "s3-multiplicacion": "Multiplicación algebraica",
+  "s3-division": "División algebraica",
+  "s3-productos": "Productos notables",
 };
 const ACADEMIC_TOPIC_CATEGORY: Record<string, string> = {
   "s1-naturales": "naturales",
   "s1-decimales": "decimales",
   "s1-enteros": "enteros",
+  "s1-irracionales": "irracionales",
+  "s1-reales": "reales",
   "s1-racionales": "fracciones",
   "s1-potencias": "potencias",
-  "s2-signos": "propiedades",
-  "s2-semejantes": "terminos",
-  "s2-notacion": "variables",
-  "s2-diferencia": "igualdad",
+  "s1-factores": "factores_primos",
+  "s2-notacion": "notacion_grado",
+  "s2-grado": "notacion_grado",
+  "s2-expresion": "expresion_termino",
+  "s2-clasificacion": "clasificacion_expresiones",
+  "s2-semejantes": "terminos_semejantes",
+  "s3-suma-resta": "suma_resta",
+  "s3-multiplicacion": "multiplicacion",
+  "s3-division": "division",
+  "s3-productos": "productos_notables",
 };
 const ACTIVE_ACADEMIC_MODULE_IDS = [
   "factor-comun",

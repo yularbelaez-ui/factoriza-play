@@ -15,6 +15,16 @@ export type DiagnosticCategory =
   | "reales"
   | "potencias"
   | "fracciones"
+  | "factores_primos"
+  | "notacion_grado"
+  | "expresion_termino"
+  | "clasificacion_expresiones"
+  | "terminos_semejantes"
+  | "suma_resta"
+  | "multiplicacion"
+  | "division"
+  | "productos_notables"
+  // Legacy categories remain readable for profiles created before this structure.
   | "factorizacion"
   | "propiedades"
   | "terminos"
@@ -24,10 +34,7 @@ export type DiagnosticCategory =
 
 export type DiagnosticCompetency =
   | "aritmetica"
-  | "propiedades"
-  | "terminos"
-  | "variables"
-  | "igualdad"
+  | "algebra"
   | "patrones";
 
 /**
@@ -251,90 +258,31 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
     explanation: "Potencia de potencia: se multiplican los exponentes. (2³)² = 2^(3×2) = 2⁶ = 64.",
   },
 
-  // ── ÁLGEBRA BÁSICA (S2) ──────────────────────────────────────────
-  {
-    id: "alg-1",
-    category: "variables",
-    question: "Evalúa la expresión para x = 3:",
-    expression: "2x² − 5x + 1",
-    options: ["4", "7", "10", "−2"],
-    correctAnswer: "4",
-    explanation: "2(3)² − 5(3) + 1 = 2·9 − 15 + 1 = 18 − 15 + 1 = 4.",
-  },
-  {
-    id: "alg-2",
-    category: "terminos",
-    question: "¿Cuál es el resultado de simplificar los términos semejantes?",
-    expression: "3x² + 5x − 2x² + x",
-    options: ["x² + 6x", "5x² + 6x", "x² + 4x", "5x + x²"],
-    correctAnswer: "x² + 6x",
-    explanation: "Agrupa términos semejantes: (3x²−2x²) + (5x+x) = x² + 6x.",
-  },
-  {
-    id: "alg-3",
-    category: "terminos",
-    question: "¿Cuál es el grado del polinomio?",
-    expression: "4x³ − 7x + 2",
-    options: ["3", "4", "2", "1"],
-    correctAnswer: "3",
-    explanation: "El grado de un polinomio es el mayor exponente de sus términos. Aquí el mayor exponente es 3.",
-  },
-
-  // ── OPERACIONES ALGEBRAICAS (S3) ─────────────────────────────────
-  {
-    id: "op-1",
-    category: "propiedades",
-    question: "Multiplica y simplifica:",
-    expression: "3x(2x + 5)",
-    options: ["6x² + 15x", "6x + 15", "5x² + 8x", "6x² + 5"],
-    correctAnswer: "6x² + 15x",
-    explanation: "Distribuye: 3x·2x = 6x² y 3x·5 = 15x. Resultado: 6x² + 15x.",
-  },
-  {
-    id: "op-2",
-    category: "propiedades",
-    question: "Aplica el producto notable (cuadrado de la suma):",
-    expression: "(x + 4)²",
-    options: ["x² + 8x + 16", "x² + 4", "x² + 16", "x² + 4x + 16"],
-    correctAnswer: "x² + 8x + 16",
-    explanation: "(a+b)² = a²+2ab+b². Aquí a=x, b=4: x²+2·x·4+16 = x²+8x+16.",
-  },
-  {
-    id: "op-3",
-    category: "igualdad",
-    question: "Multiplica usando la diferencia de cuadrados:",
-    expression: "(x + 3)(x − 3)",
-    options: ["x² − 9", "x² + 9", "x² − 6x + 9", "x² + 6x − 9"],
-    correctAnswer: "x² − 9",
-    explanation: "(a+b)(a−b) = a²−b². Aquí: x²−3² = x²−9.",
-  },
-
-  // ── DESCOMPOSICIÓN EN FACTORES ───────────────────────────────────
+  // ── FACTORES PRIMOS ───────────────────────────────────────────────
   {
     id: "fac-1",
-    category: "factorizacion",
+    category: "factores_primos",
     question: "¿Cuál es la descomposición en factores primos de 12?",
     options: ["2² × 3", "4 × 3", "2 × 6", "3²"],
     correctAnswer: "2² × 3",
-    explanation: "12 ÷ 2 = 6, 6 ÷ 2 = 3, 3 ÷ 3 = 1. Factores primos: 2 × 2 × 3 = 2² × 3.",
+    explanation: "12 ÷ 2 = 6, 6 ÷ 2 = 3 y 3 ÷ 3 = 1. Entonces 12 = 2² × 3.",
   },
   {
     id: "fac-2",
-    category: "factorizacion",
+    category: "factores_primos",
     question: "¿Cuál es la descomposición en factores primos de 18?",
     options: ["2 × 3²", "2² × 3", "3 × 6", "9 × 2"],
     correctAnswer: "2 × 3²",
-    explanation: "18 ÷ 2 = 9, 9 ÷ 3 = 3, 3 ÷ 3 = 1. Factores primos: 2 × 3 × 3 = 2 × 3².",
+    explanation: "18 = 2 × 3 × 3 = 2 × 3².",
   },
   {
     id: "fac-3",
-    category: "factorizacion",
+    category: "factores_primos",
     question: "¿Cuántos factores primos distintos tiene 30?",
     options: ["3", "2", "4", "5"],
     correctAnswer: "3",
-    explanation: "30 = 2 × 3 × 5. Tiene tres factores primos distintos: 2, 3 y 5.",
+    explanation: "30 = 2 × 3 × 5. Tiene tres factores primos distintos.",
   },
-  // ── FRACCIONES Y RACIONALES ──────────────────────────────────────
   {
     id: "frac-1",
     category: "fracciones",
@@ -359,88 +307,214 @@ export const DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
     correctAnswer: "6/5",
     explanation: "Dividir entre una fracción equivale a multiplicar por su inversa: 3/5 × 2/1 = 6/5.",
   },
-  // ── COMPETENCIAS ALGEBRAICAS ─────────────────────────────────────
+
+  // ── INTRODUCCIÓN AL ÁLGEBRA ──────────────────────────────────────
   {
-    id: "prop-3",
-    category: "propiedades",
-    question: "¿Cuál expresión es equivalente a 4(x + 3)?",
-    expression: "4(x + 3)",
-    options: ["4x + 12", "4x + 3", "7x", "4x × 3"],
-    correctAnswer: "4x + 12",
-    explanation: "Por la propiedad distributiva, 4 multiplica a cada término: 4·x + 4·3 = 4x + 12.",
+    id: "not-1",
+    category: "notacion_grado",
+    question: "¿Qué representa la expresión 3x?",
+    options: ["Tres veces x", "x más 3", "El tercer valor de x", "x dividido entre 3"],
+    correctAnswer: "Tres veces x",
+    explanation: "Un número junto a una variable indica multiplicación: 3x = 3 × x.",
   },
   {
-    id: "term-3",
-    category: "terminos",
+    id: "not-2",
+    category: "notacion_grado",
+    question: "¿Cuál es el grado del término 7a³b²?",
+    options: ["5", "3", "2", "7"],
+    correctAnswer: "5",
+    explanation: "El grado de un término es la suma de sus exponentes: 3 + 2 = 5.",
+  },
+  {
+    id: "not-3",
+    category: "notacion_grado",
+    question: "En el término −4mn², ¿cuál es su parte literal?",
+    options: ["mn²", "−4", "−4mn²", "n²"],
+    correctAnswer: "mn²",
+    explanation: "La parte literal está formada por las variables y sus exponentes.",
+  },
+  {
+    id: "expr-1",
+    category: "expresion_termino",
+    question: "¿Cuál de las siguientes es un término algebraico?",
+    options: ["−5x²y", "x + 3", "2a − b", "m ÷ n"],
+    correctAnswer: "−5x²y",
+    explanation: "Un término algebraico no contiene sumas ni restas separando sus partes.",
+  },
+  {
+    id: "expr-2",
+    category: "expresion_termino",
+    question: "¿Cuál expresión representa el doble de n más 5?",
+    options: ["2n + 5", "2(n + 5)", "n + 10", "n² + 5"],
+    correctAnswer: "2n + 5",
+    explanation: "El doble de n es 2n y luego se suma 5.",
+  },
+  {
+    id: "expr-3",
+    category: "expresion_termino",
+    question: "¿Qué significa la expresión 4ab?",
+    options: ["4 × a × b", "4 + a + b", "4 ÷ (a × b)", "aᵇ ÷ 4"],
+    correctAnswer: "4 × a × b",
+    explanation: "Los números y letras juntos representan multiplicación: 4ab = 4 × a × b.",
+  },
+  {
+    id: "clas-1",
+    category: "clasificacion_expresiones",
+    question: "¿Cómo se clasifica la expresión 7x² − 3x + 1?",
+    options: ["Trinomio", "Monomio", "Binomio", "Término semejante"],
+    correctAnswer: "Trinomio",
+    explanation: "Tiene tres términos separados por signos: 7x², −3x y 1.",
+  },
+  {
+    id: "clas-2",
+    category: "clasificacion_expresiones",
+    question: "¿Cómo se clasifica la expresión 5a − 2?",
+    options: ["Binomio", "Monomio", "Trinomio", "Polinomio de cuatro términos"],
+    correctAnswer: "Binomio",
+    explanation: "Tiene dos términos: 5a y −2.",
+  },
+  {
+    id: "clas-3",
+    category: "clasificacion_expresiones",
+    question: "¿Cómo se clasifica la expresión 9m³?",
+    options: ["Monomio", "Binomio", "Trinomio", "Ecuación"],
+    correctAnswer: "Monomio",
+    explanation: "Tiene un solo término algebraico.",
+  },
+  {
+    id: "sem-1",
+    category: "terminos_semejantes",
     question: "¿Cuál grupo contiene solo términos semejantes?",
     options: ["3x², −5x², x²", "2x, 2y, 2", "4a, 4a², a", "x, xy, y"],
     correctAnswer: "3x², −5x², x²",
-    explanation: "Los términos semejantes tienen exactamente la misma parte literal: aquí todos contienen x².",
+    explanation: "Los términos semejantes tienen la misma parte literal y los mismos exponentes.",
   },
   {
-    id: "var-2",
-    category: "variables",
-    question: "En la expresión 5n + 2, ¿qué representa n?",
-    options: ["Una cantidad que puede cambiar", "Siempre el número 5", "Un signo de suma", "Un objeto fijo"],
-    correctAnswer: "Una cantidad que puede cambiar",
-    explanation: "Una variable representa una cantidad cuyo valor puede cambiar según la situación.",
+    id: "sem-2",
+    category: "terminos_semejantes",
+    question: "Simplifica:",
+    expression: "3x² + 5x − 2x² + x",
+    options: ["x² + 6x", "5x² + 6x", "x² + 4x", "5x + x²"],
+    correctAnswer: "x² + 6x",
+    explanation: "Agrupa términos semejantes: (3x²−2x²) + (5x+x) = x² + 6x.",
   },
   {
-    id: "var-3",
-    category: "variables",
-    question: "Si x representa el número de cuadernos, ¿qué significa 3x?",
-    options: ["Tres veces el número de cuadernos", "x + 3 cuadernos", "El tercer cuaderno", "Un valor fijo igual a 3"],
-    correctAnswer: "Tres veces el número de cuadernos",
-    explanation: "3x indica una multiplicación: tres grupos de x cuadernos.",
+    id: "sem-3",
+    category: "terminos_semejantes",
+    question: "Si a = 4, ¿cuál es el valor numérico de 2a + 3?",
+    options: ["11", "8", "10", "14"],
+    correctAnswer: "11",
+    explanation: "Sustituye a por 4: 2(4) + 3 = 8 + 3 = 11.",
+  },
+
+  // ── OPERACIONES ALGEBRAICAS ──────────────────────────────────────
+  {
+    id: "sum-1",
+    category: "suma_resta",
+    question: "Suma y simplifica:",
+    expression: "(3x + 2) + (5x − 7)",
+    options: ["8x − 5", "8x + 9", "2x − 5", "15x − 5"],
+    correctAnswer: "8x − 5",
+    explanation: "Suma términos semejantes: 3x + 5x = 8x y 2 − 7 = −5.",
   },
   {
-    id: "igual-2",
-    category: "igualdad",
-    question: "Completa para que ambos lados sean equivalentes:",
-    expression: "2(x + 4) = 2x + ___",
-    options: ["8", "4", "6x", "x + 8"],
-    correctAnswer: "8",
-    explanation: "Distribuye el 2: 2·x + 2·4 = 2x + 8. Los dos lados tienen el mismo valor.",
+    id: "sum-2",
+    category: "suma_resta",
+    question: "Resta y simplifica:",
+    expression: "(7a − 3b) − (2a + b)",
+    options: ["5a − 4b", "5a − 2b", "9a − 4b", "5a + 4b"],
+    correctAnswer: "5a − 4b",
+    explanation: "Cambia los signos del segundo paréntesis: 7a − 3b − 2a − b = 5a − 4b.",
   },
   {
-    id: "igual-3",
-    category: "igualdad",
-    question: "¿Qué afirma correctamente el signo igual en 3x + 6 = 3(x + 2)?",
-    options: [
-      "Las dos expresiones tienen el mismo valor para cualquier x",
-      "Se debe calcular primero el lado izquierdo",
-      "La expresión de la derecha es mayor",
-      "x siempre vale 2",
-    ],
-    correctAnswer: "Las dos expresiones tienen el mismo valor para cualquier x",
-    explanation: "El signo igual expresa equivalencia: ambas formas representan la misma cantidad.",
-  },
-  // ── LECTURA DE ESTRUCTURAS Y PATRONES (independent gate) ──────────
-  {
-    id: "pat-1",
-    category: "patrones",
-    question: "Sin desarrollar, ¿qué estructura tiene 6x + 6y?",
-    expression: "6x + 6y",
-    options: ["Factor común", "Diferencia de cuadrados", "Trinomio cuadrado perfecto", "Suma de cubos"],
-    correctAnswer: "Factor común",
-    explanation: "Los dos términos comparten el factor 6; la estructura sugiere extraerlo.",
+    id: "sum-3",
+    category: "suma_resta",
+    question: "Simplifica:",
+    expression: "4m − 3m + 2",
+    options: ["m + 2", "7m + 2", "m − 2", "4m − 1"],
+    correctAnswer: "m + 2",
+    explanation: "4m − 3m = m; el resultado es m + 2.",
   },
   {
-    id: "pat-2",
-    category: "patrones",
-    question: "¿Qué estructura reconoces en x² − 49?",
-    expression: "x² − 49",
-    options: ["Diferencia de cuadrados", "Factor común", "Agrupación de términos", "Cubo de un binomio"],
-    correctAnswer: "Diferencia de cuadrados",
-    explanation: "x² y 49 = 7² son cuadrados perfectos separados por una resta.",
+    id: "mul-1",
+    category: "multiplicacion",
+    question: "Multiplica y simplifica:",
+    expression: "3x(2x + 5)",
+    options: ["6x² + 15x", "6x + 15", "5x² + 8x", "6x² + 5"],
+    correctAnswer: "6x² + 15x",
+    explanation: "Distribuye: 3x·2x = 6x² y 3x·5 = 15x.",
   },
   {
-    id: "pat-3",
-    category: "patrones",
-    question: "¿Qué debes observar primero para elegir un caso de factorización?",
-    options: ["La cantidad de términos y sus elementos repetidos", "Aplicar siempre la misma fórmula", "Sumar todos los exponentes", "Eliminar los signos"],
-    correctAnswer: "La cantidad de términos y sus elementos repetidos",
-    explanation: "Leer la estructura permite seleccionar una estrategia adecuada.",
+    id: "mul-2",
+    category: "multiplicacion",
+    question: "Multiplica:",
+    expression: "(2a)(−3a²b)",
+    options: ["−6a³b", "6a²b", "−a³b", "−6a²b²"],
+    correctAnswer: "−6a³b",
+    explanation: "Multiplica coeficientes y suma exponentes de a: 2(−3) = −6 y a·a² = a³.",
+  },
+  {
+    id: "mul-3",
+    category: "multiplicacion",
+    question: "Desarrolla:",
+    expression: "(x + 2)(x + 3)",
+    options: ["x² + 5x + 6", "x² + 6", "x² + 5x + 5", "x² + x + 6"],
+    correctAnswer: "x² + 5x + 6",
+    explanation: "Multiplica cada término: x² + 3x + 2x + 6 = x² + 5x + 6.",
+  },
+  {
+    id: "div-1",
+    category: "division",
+    question: "Divide y simplifica:",
+    expression: "12x³y² ÷ 4xy",
+    options: ["3x²y", "3x⁴y³", "8x²y", "3xy"],
+    correctAnswer: "3x²y",
+    explanation: "12 ÷ 4 = 3, x³ ÷ x = x² y y² ÷ y = y.",
+  },
+  {
+    id: "div-2",
+    category: "division",
+    question: "Divide y simplifica:",
+    expression: "18a²b ÷ (−6ab)",
+    options: ["−3a", "3a", "−3ab", "−12a"],
+    correctAnswer: "−3a",
+    explanation: "18 ÷ (−6) = −3, a² ÷ a = a y b ÷ b = 1.",
+  },
+  {
+    id: "div-3",
+    category: "division",
+    question: "Divide:",
+    expression: "(6x² + 9x) ÷ 3x",
+    options: ["2x + 3", "2x² + 3x", "3x + 3", "2x + 9"],
+    correctAnswer: "2x + 3",
+    explanation: "Divide cada término entre 3x: 6x² ÷ 3x = 2x y 9x ÷ 3x = 3.",
+  },
+  {
+    id: "prod-1",
+    category: "productos_notables",
+    question: "Aplica el producto notable (cuadrado de la suma):",
+    expression: "(x + 4)²",
+    options: ["x² + 8x + 16", "x² + 4", "x² + 16", "x² + 4x + 16"],
+    correctAnswer: "x² + 8x + 16",
+    explanation: "(a+b)² = a² + 2ab + b². Entonces (x+4)² = x² + 8x + 16.",
+  },
+  {
+    id: "prod-2",
+    category: "productos_notables",
+    question: "Aplica el producto notable (diferencia de cuadrados):",
+    expression: "(x + 3)(x − 3)",
+    options: ["x² − 9", "x² + 9", "x² − 6x + 9", "x² + 6x − 9"],
+    correctAnswer: "x² − 9",
+    explanation: "(a+b)(a−b) = a² − b². Aquí x² − 3² = x² − 9.",
+  },
+  {
+    id: "prod-3",
+    category: "productos_notables",
+    question: "Desarrolla el cuadrado de la diferencia:",
+    expression: "(2a − b)²",
+    options: ["4a² − 4ab + b²", "4a² − b²", "2a² − 2ab + b²", "4a² + 4ab + b²"],
+    correctAnswer: "4a² − 4ab + b²",
+    explanation: "(a−b)² = a² − 2ab + b². Con 2a y b resulta 4a² − 4ab + b².",
   },
 ];
 
@@ -489,6 +563,60 @@ export const DIAGNOSTIC_CATEGORY_INFO: Record<
     icon: "½",
     color: "#0f766e",
     description: "Equivalencias y operaciones con fracciones",
+  },
+  factores_primos: {
+    label: "Factores primos",
+    icon: "🔑",
+    color: "#7c3aed",
+    description: "Descomposición de números en factores primos",
+  },
+  notacion_grado: {
+    label: "Notación algebraica y grado de un término",
+    icon: "🔤",
+    color: "#2563eb",
+    description: "Lectura de variables, coeficientes, exponentes y grado",
+  },
+  expresion_termino: {
+    label: "Expresión y término algebraico",
+    icon: "✏️",
+    color: "#0891b2",
+    description: "Interpretación y escritura de expresiones y términos algebraicos",
+  },
+  clasificacion_expresiones: {
+    label: "Clasificación de expresiones algebraicas",
+    icon: "🧩",
+    color: "#7c3aed",
+    description: "Monomios, binomios, trinomios y polinomios",
+  },
+  terminos_semejantes: {
+    label: "Términos semejantes y valor numérico",
+    icon: "🔢",
+    color: "#2563eb",
+    description: "Identificación, simplificación y evaluación de términos semejantes",
+  },
+  suma_resta: {
+    label: "Suma y resta algebraica",
+    icon: "➕",
+    color: "#059669",
+    description: "Operaciones de suma y resta con expresiones algebraicas",
+  },
+  multiplicacion: {
+    label: "Multiplicación algebraica",
+    icon: "✖️",
+    color: "#0891b2",
+    description: "Multiplicación de monomios y polinomios",
+  },
+  division: {
+    label: "División algebraica",
+    icon: "➗",
+    color: "#d97706",
+    description: "División y simplificación de expresiones algebraicas",
+  },
+  productos_notables: {
+    label: "Productos notables",
+    icon: "⚙️",
+    color: "#2563eb",
+    description: "Cuadrados de binomios y diferencia de cuadrados",
   },
   factorizacion: {
     label: "Factores Primos",
@@ -553,10 +681,24 @@ export function buildDiagnosticProfile(
   const scoreFor = (category: DiagnosticCategory) =>
     results.find((result) => result.category === category)?.score ?? 0;
   const moduleCategoryMap: Record<PersonalizedModuleId, DiagnosticCategory[]> = {
-    aritmetica: ["naturales", "decimales", "enteros", "fracciones", "potencias"],
-    algebra: ["variables", "propiedades", "terminos", "igualdad"],
-    patrones: ["patrones"],
-    factorizacion: ["factorizacion"],
+    aritmetica: [
+      "naturales",
+      "decimales",
+      "enteros",
+      "irracionales",
+      "reales",
+      "potencias",
+      "fracciones",
+      "factores_primos",
+    ],
+    algebra: [
+      "notacion_grado",
+      "expresion_termino",
+      "clasificacion_expresiones",
+      "terminos_semejantes",
+    ],
+    patrones: ["suma_resta", "multiplicacion", "division", "productos_notables"],
+    factorizacion: [],
   };
   const moduleResults: DiagnosticModuleResult[] = (Object.entries(moduleCategoryMap) as [
     PersonalizedModuleId,
@@ -578,7 +720,7 @@ export function buildDiagnosticProfile(
     return {
       id,
       title: id === "aritmetica"
-        ? "Fortalecimiento aritmético"
+        ? "Fortalecimiento algebraico"
         : id === "algebra"
           ? "Pensamiento algebraico"
           : id === "patrones"
@@ -591,39 +733,29 @@ export function buildDiagnosticProfile(
       topics,
     };
   });
-  const arithmeticCategories = moduleCategoryMap.aritmetica;
   const arithmeticScore = moduleResults.find((module) => module.id === "aritmetica")?.score ?? 0;
-  const algebraCompetencies = ["propiedades", "terminos", "variables", "igualdad"] as const;
   const algebraScore = moduleResults.find((module) => module.id === "algebra")?.score ?? 0;
-  // Pattern-readiness is intentionally a separate gate. It measures whether
-  // the student can connect an expression's structure to a strategy, rather
-  // than merely calculating correctly. Existing diagnostic categories provide
-  // the evidence without bringing back the retired pattern module.
-  const patternScore = scoreFor("patrones");
+  const patternScore = moduleResults.find((module) => module.id === "patrones")?.score ?? 0;
   const competencyResults: CompetencyResult[] = [
     {
       competency: "aritmetica",
       score: arithmeticScore,
-      meetsThreshold: arithmeticCategories.every((category) => scoreFor(category) >= PERSONALIZED_ROUTE_THRESHOLD),
+      meetsThreshold: moduleResults.find((module) => module.id === "aritmetica")?.meetsThreshold ?? false,
     },
-    ...algebraCompetencies.map(
-      (competency) => ({
-        competency,
-        score: scoreFor(competency),
-        meetsThreshold: scoreFor(competency) >= PERSONALIZED_ROUTE_THRESHOLD,
-      })
-    ),
+    {
+      competency: "algebra",
+      score: algebraScore,
+      meetsThreshold: moduleResults.find((module) => module.id === "algebra")?.meetsThreshold ?? false,
+    },
     {
       competency: "patrones",
       score: patternScore,
-      meetsThreshold: patternScore >= PERSONALIZED_ROUTE_THRESHOLD,
+      meetsThreshold: moduleResults.find((module) => module.id === "patrones")?.meetsThreshold ?? false,
     },
   ];
 
   const arithmeticReady = competencyResults[0].meetsThreshold;
-  const algebraReady = algebraCompetencies.every((competency) =>
-    competencyResults.find((result) => result.competency === competency)?.meetsThreshold
-  );
+  const algebraReady = competencyResults.find((result) => result.competency === "algebra")?.meetsThreshold ?? false;
   const patternReady = competencyResults.find((result) => result.competency === "patrones")?.meetsThreshold ?? false;
   const profile: LearningProfileCode = !arithmeticReady
     ? "aprendiz-numerico"
