@@ -14,10 +14,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MODULES } from "@/data/modules";
 import { ALL_TOPICS } from "@/data/sectionTopics";
-import { ProgressBar } from "@/components/ProgressBar";
 import { getRankForXp } from "@/data/progression";
-import { DIAGNOSTIC_CATEGORY_INFO } from "@/data/diagnostic";
-import { COURSE_SECTIONS, SectionStatus } from "@/data/courseSections";
 import { calculateAcademicSummary } from "@/lib/academicGrading";
 import type { AcademicSummary } from "@/lib/academicGrading";
 import { apiGetClassStudentAnalytics } from "@/lib/api";
@@ -54,35 +51,6 @@ const CATEGORY_TOPICS: Record<string, { topicId: string; title: string; icon: st
   operaciones:  { topicId: "s3-productos",    title: "Productos notables",               icon: "⚙️", section: "S3 · Operaciones Algebraicas" },
 };
 
-const TOPIC_DIAGNOSTIC_CATEGORY: Record<string, string> = {
-  "s1-naturales": "naturales",
-  "s1-decimales": "decimales",
-  "s1-enteros": "enteros",
-  "s1-racionales": "fracciones",
-  "s1-irracionales": "irracionales",
-  "s1-reales": "reales",
-  "s1-potencias": "potencias",
-  "s1-factores": "factorizacion",
-  "s2-diferencia": "igualdad",
-  "s2-notacion": "variables",
-  "s2-signos": "propiedades",
-  "s2-expresion": "propiedades",
-  "s2-grado": "propiedades",
-  "s2-clasificacion": "terminos",
-  "s2-orden": "igualdad",
-  "s2-semejantes": "terminos",
-  "s3-suma-resta": "operaciones",
-  "s3-agrupacion": "operaciones",
-  "s3-multiplicacion": "operaciones",
-  "s3-division": "operaciones",
-  "s3-productos": "patrones",
-  "s3-cuadrado-diferencia": "patrones",
-  "s3-suma-diferencia": "patrones",
-  "s3-cubo": "patrones",
-};
-
-const DIAGNOSTIC_DIFFICULTY_THRESHOLD = 75;
-
 // ── Colores de paso según puntaje ────────────────────────────────────
 function stepColor(score: number) {
   if (score < 50) return { bg: "#fef2f2", border: "#fecaca", badge: "#dc2626", label: "#dc2626" };
@@ -95,7 +63,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { currentStudent, unlockedModules, logout, academicProgressVersion } = useApp();
   const isWeb = Platform.OS === "web";
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [serverAcademicSummary, setServerAcademicSummary] = useState<AcademicSummary | null>(null);
 
   useEffect(() => {
@@ -134,8 +101,6 @@ export default function HomeScreen() {
 
   const totalModules = MODULES.length;
   const completedModulesCount = currentStudent.completedModules.length;
-  const overallProgress =
-    totalModules > 0 ? Math.round((completedModulesCount / totalModules) * 100) : 0;
 
   const nextModule = MODULES.find(
     (m) =>
@@ -161,8 +126,6 @@ export default function HomeScreen() {
   const dailyGoalProgress = Math.min(100, Math.round((dailyXP / 200) * 100));
   const currentStreak = currentStudent.streakLastDate ? currentStudent.streak : 0;
   const rank = getRankForXp(currentStudent.totalXP);
-  const levelColors = { básico: "#dc2626", intermedio: "#d97706", avanzado: "#059669" };
-  const levelEmoji  = { básico: "🌱",      intermedio: "🌿",      avanzado: "🌳" };
   const localAcademicSummary = calculateAcademicSummary({
     records: currentStudent.exerciseResults,
     activeModules: [
@@ -180,17 +143,6 @@ export default function HomeScreen() {
     diagnosticResults: academicDiagnosticResults,
   });
   const academicSummary = serverAcademicSummary ?? localAcademicSummary;
-  const diagnosticScores = new Map(
-    academicDiagnosticResults
-      .filter((result) => typeof result.score === "number")
-      .map((result) => [result.category, result.score as number]),
-  );
-  const topicNeedsStrengthening = (topicId: string | null) => {
-    if (!topicId || !dp) return true;
-    const category = TOPIC_DIAGNOSTIC_CATEGORY[topicId];
-    const score = category ? diagnosticScores.get(category) : undefined;
-    return score === undefined || score < DIAGNOSTIC_DIFFICULTY_THRESHOLD;
-  };
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
@@ -648,222 +600,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Progreso general + por módulo ── */}
-      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          Progreso en Factorización
-        </Text>
-        <ProgressBar progress={overallProgress} />
-        <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-          {overallProgress}% completado · {completedModulesCount} de {totalModules} casos
-        </Text>
-
-        {/* Per-module mini progress */}
-        <View style={styles.modGrid}>
-          {MODULES.map((mod) => {
-            const totalEx = mod.exercises.length;
-            const doneEx = mod.exercises.filter(e =>
-              currentStudent.completedExercises.includes(e.id)
-            ).length;
-            const pct = totalEx > 0 ? Math.round((doneEx / totalEx) * 100) : 0;
-            const completed = currentStudent.completedModules.includes(mod.id);
-            const unlocked = unlockedModules.includes(mod.id);
-            return (
-              <TouchableOpacity
-                key={mod.id}
-                style={[styles.modRow, {
-                  backgroundColor: completed ? colors.success + "08" : colors.background,
-                  borderColor: completed ? colors.success + "40" : colors.border,
-                }]}
-                onPress={() => unlocked && router.push(`/modulo/${mod.id}` as any)}
-                activeOpacity={unlocked ? 0.8 : 1}
-              >
-                <Text style={styles.modIcon}>{mod.icon}</Text>
-                <View style={styles.modInfo}>
-                  <Text style={[styles.modTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    {mod.title}
-                  </Text>
-                  {unlocked && doneEx > 0 && (
-                    <View style={[styles.modBarBg, { backgroundColor: colors.border }]}>
-                      <View style={[styles.modBarFill, {
-                        width: `${pct}%` as any,
-                        backgroundColor: completed ? colors.success : mod.color,
-                      }]} />
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.modPct, {
-                  color: completed ? colors.success : unlocked && doneEx > 0 ? mod.color : colors.mutedForeground,
-                }]}>
-                  {completed ? "✅" : unlocked ? (doneEx > 0 ? `${pct}%` : "0%") : "🔒"}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* ── Mapa de ruta resumido ── */}
-      <View style={styles.mapHeader}>
-        <Text style={[styles.mapTitle, { color: colors.foreground }]}>📚 Módulos del Curso</Text>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/modulos" as any)}>
-          <Text style={[styles.mapLink, { color: colors.primary }]}>Ver todo →</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={[styles.mapSubtitle, { color: colors.mutedForeground }]}>
-        Toca una sección para expandirla
-      </Text>
-
-      {COURSE_SECTIONS.map((section, idx) => {
-        const isExpanded = expandedSection === section.id;
-        const isLast = idx === COURSE_SECTIONS.length - 1;
-
-        return (
-          <View key={section.id} style={styles.roadmapItem}>
-            {!isLast && (
-              <View style={[styles.connector, { backgroundColor: section.borderColor }]} />
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.sectionCard,
-                {
-                  backgroundColor: section.lightColor,
-                  borderColor: section.borderColor,
-                  borderLeftColor: section.color,
-                },
-              ]}
-              onPress={() => setExpandedSection(isExpanded ? null : section.id)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.sectionCardTop}>
-                <View style={[styles.sectionNumBadge, { backgroundColor: section.color }]}>
-                  <Text style={styles.sectionNum}>{section.number}</Text>
-                </View>
-                <Text style={styles.sectionIcon}>{section.icon}</Text>
-                <View style={styles.sectionTexts}>
-                  <Text style={[styles.sectionCardTitle, { color: "#1e1b4b" }]}>
-                    {section.title}
-                  </Text>
-                  <Text style={[styles.sectionCardSub, { color: "#6b7280" }]}>
-                    {section.subtitle}
-                  </Text>
-                </View>
-                <View style={styles.sectionRight}>
-                  <StatusBadge status={section.status} color={section.color} />
-                  <Feather
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={16}
-                    color={section.color}
-                    style={{ marginTop: 6 }}
-                  />
-                </View>
-              </View>
-
-              {isExpanded && (
-                <View style={[styles.topicsList, { borderTopColor: section.borderColor }]}>
-                  {(() => {
-                    const visibleTopics = section.topics.filter((topic) => topicNeedsStrengthening(topic.topicId));
-                    return (
-                      <>
-                  {visibleTopics.map((topic, ti) => (
-                    <View key={ti} style={styles.topicRow}>
-                      <View style={[styles.topicDot, { backgroundColor: section.color }]} />
-                      <Text style={[styles.topicText, { color: "#374151" }]}>{topic.label}</Text>
-                    </View>
-                  ))}
-                  {visibleTopics.length === 0 && dp && (
-                    <Text style={[styles.noDifficultyText, { color: "#059669" }]}>
-                      El diagnóstico no detectó dificultades en estos conocimientos previos.
-                    </Text>
-                  )}
-
-                  {section.status === "diagnostico" && dp && (
-                    <View style={styles.diagMini}>
-                      <View style={styles.diagMiniHeader}>
-                        <Text style={styles.diagMiniEmoji}>{levelEmoji[dp.level]}</Text>
-                        <Text style={[styles.diagMiniLevel, { color: levelColors[dp.level] }]}>
-                          Nivel {dp.level} · {dp.overallScore}%
-                        </Text>
-                      </View>
-                      {academicDiagnosticResults
-                        .filter((result) => (result.score ?? 0) < DIAGNOSTIC_DIFFICULTY_THRESHOLD)
-                        .map((r) => {
-                        const info = DIAGNOSTIC_CATEGORY_INFO[r.category as keyof typeof DIAGNOSTIC_CATEGORY_INFO];
-                        if (!info) return null;
-                        return (
-                          <View key={r.category} style={styles.diagMiniRow}>
-                            <Text style={styles.diagMiniIcon}>{info.icon}</Text>
-                            <View style={[styles.diagMiniBarBg, { backgroundColor: "#ddd6fe" }]}>
-                              <View
-                                style={[
-                                  styles.diagMiniBarFill,
-                                  {
-                                    width: `${r.score}%` as any,
-                                    backgroundColor: r.score < 60 ? "#dc2626" : "#059669",
-                                  },
-                                ]}
-                              />
-                            </View>
-                            <Text style={[styles.diagMiniPct, { color: r.score < 60 ? "#dc2626" : "#059669" }]}>
-                              {r.score}%
-                            </Text>
-                          </View>
-                        );
-                      })}
-                      {academicDiagnosticResults.filter(
-                        (result) => (result.score ?? 0) < DIAGNOSTIC_DIFFICULTY_THRESHOLD,
-                      ).length === 0 && (
-                        <Text style={styles.noDifficultyText}>
-                          No hay conocimientos previos que requieran refuerzo.
-                        </Text>
-                      )}
-                    </View>
-                  )}
-
-                  {section.status === "activo" && (
-                    <TouchableOpacity
-                      style={[styles.sectionBtn, { backgroundColor: section.color }]}
-                      onPress={() => router.push("/(tabs)/modulos" as any)}
-                    >
-                      <Text style={styles.sectionBtnText}>Ver casos de factorización →</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {section.status === "disponible" && (
-                    <View style={{ gap: 4, marginTop: 4 }}>
-                      {visibleTopics.filter(t => t.topicId).map((topic, ti) => (
-                        <TouchableOpacity
-                          key={ti}
-                          style={[styles.topicLink, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}
-                          onPress={() => router.push(`/tema/${topic.topicId}` as any)}
-                          activeOpacity={0.8}
-                        >
-                          <View style={[styles.topicDot, { backgroundColor: section.color }]} />
-                          <Text style={[styles.topicLinkText, { color: "#374151" }]} numberOfLines={1}>{topic.label}</Text>
-                          <Feather name="chevron-right" size={13} color={section.color} />
-                        </TouchableOpacity>
-                      ))}
-                      {visibleTopics.every(t => !t.topicId) && (
-                        <View style={[styles.comingSoon, { backgroundColor: section.lightColor, borderColor: section.borderColor }]}>
-                          <Feather name="book-open" size={13} color={section.color} />
-                          <Text style={[styles.comingSoonText, { color: section.color }]}>
-                            Contenido interactivo en construcción
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-                      </>
-                    );
-                  })()}
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        );
-      })}
-
       {/* ── Acceso rápido ── */}
       <Text style={[styles.quickHeading, { color: colors.foreground }]}>
         Acceso rápido
@@ -907,21 +643,6 @@ export default function HomeScreen() {
         <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
       </TouchableOpacity>
     </ScrollView>
-  );
-}
-
-// ── Sub-componente StatusBadge ───────────────────────────────────────
-function StatusBadge({ status, color }: { status: SectionStatus; color: string }) {
-  const config: Record<SectionStatus, { label: string; bg: string; text: string }> = {
-    activo:      { label: "Activo",       bg: color + "20", text: color },
-    diagnostico: { label: "Diagnóstico",  bg: "#7c3aed20",  text: "#7c3aed" },
-    disponible:  { label: "Disponible",   bg: "#f0fdf4",    text: "#059669" },
-  };
-  const c = config[status];
-  return (
-    <View style={[styles.statusBadge, { backgroundColor: c.bg }]}>
-      <Text style={[styles.statusText, { color: c.text }]}>{c.label}</Text>
-    </View>
   );
 }
 
