@@ -102,12 +102,6 @@ export default function HomeScreen() {
   const totalModules = MODULES.length;
   const completedModulesCount = currentStudent.completedModules.length;
 
-  const nextModule = MODULES.find(
-    (m) =>
-      unlockedModules.includes(m.id) &&
-      !currentStudent.completedModules.includes(m.id)
-  );
-
   const dp = currentStudent.diagnosticProfile;
   const academicDiagnosticResults = dp?.results?.length
     ? dp.results
@@ -580,23 +574,6 @@ export default function HomeScreen() {
             </Text>
           </View>
           <Feather name="arrow-right-circle" size={26} color="rgba(255,255,255,0.9)" />
-        </TouchableOpacity>
-      )}
-
-      {/* ── Continuar con el siguiente caso ── */}
-      {nextModule && (
-        <TouchableOpacity
-          style={[styles.continueCard, { backgroundColor: nextModule.color, shadowColor: nextModule.color }]}
-          onPress={() => router.push(`/modulo/${nextModule.id}` as any)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.continueIcon}>{nextModule.icon}</Text>
-          <View style={styles.continueInfo}>
-            <Text style={styles.continueLevel}>Continúa donde lo dejaste</Text>
-            <Text style={styles.continueTitle}>{nextModule.title}</Text>
-            <Text style={styles.continueSub}>{nextModule.subtitle}</Text>
-          </View>
-          <Feather name="arrow-right-circle" size={28} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
       )}
 
