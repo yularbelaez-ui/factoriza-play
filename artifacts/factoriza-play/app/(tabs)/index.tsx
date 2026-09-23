@@ -524,31 +524,43 @@ export default function HomeScreen() {
                         }}
                       activeOpacity={canOpenStep ? 0.8 : 1}
                     >
-                      <View style={[styles.stepBadge, { backgroundColor: canOpenStep ? sc.badge : colors.mutedForeground }]}>
-                          {stepState === "locked" ? (
-                            <Feather name="lock" size={12} color="#fff" />
-                          ) : (
-                            <Text style={styles.stepNum}>{idx + 1}</Text>
-                          )}
+                      <View style={styles.stepTopRow}>
+                        <View style={[styles.stepBadge, { backgroundColor: canOpenStep ? sc.badge : colors.mutedForeground }]}>
+                            {stepState === "locked" ? (
+                              <Feather name="lock" size={12} color="#fff" />
+                            ) : (
+                              <Text style={styles.stepNum}>{idx + 1}</Text>
+                            )}
+                        </View>
+                        <Text style={styles.stepIcon}>{step.icon}</Text>
+                        <View style={styles.stepInfo}>
+                          <Text style={[styles.stepTitle, { color: colors.foreground }]} numberOfLines={2}>
+                            {step.title}
+                          </Text>
+                          <Text style={[styles.stepSection, { color: colors.mutedForeground }]} numberOfLines={2}>
+                            {step.description}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.stepIcon}>{step.icon}</Text>
-                      <View style={styles.stepInfo}>
-                        <Text style={[styles.stepTitle, { color: colors.foreground }]} numberOfLines={2}>
-                          {step.title}
-                        </Text>
-                        <Text style={[styles.stepSection, { color: colors.mutedForeground }]}>
-                          {step.description}
-                        </Text>
-                      </View>
-                      <View style={styles.stepRight}>
-                        <Text style={[styles.stepScore, { color: stepStatus.color }]}>
+                      <View style={styles.stepStatusRow}>
+                        <Text
+                          style={[styles.stepScore, { color: stepStatus.color }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.85}
+                        >
                           {personalizedRoute
-                            ? `${stepProgress}% completado · ${stepStatus.label}`
+                            ? `${stepProgress}% completado`
                             : stepScore !== null
-                              ? `${stepScore}% · ${stepStatus.label}`
-                              : stepStatus.label}
+                              ? `${stepScore}%`
+                              : "Progreso pendiente"}
                         </Text>
-                        <Feather name={stepStatus.icon} size={16} color={stepStatus.color} />
+                        <View style={styles.stepStatusLabel}>
+                          <Feather name={stepStatus.icon} size={15} color={stepStatus.color} />
+                          <Text style={[styles.stepStatusText, { color: stepStatus.color }]}>
+                            {stepStatus.label}
+                          </Text>
+                        </View>
                       </View>
                     </TouchableOpacity>
                     {/* Conector vertical entre pasos */}
@@ -1003,15 +1015,22 @@ const styles = StyleSheet.create({
   routeModulePill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   routeModulePillText: { fontSize: 11, fontWeight: "800" },
 
-  stepsContainer: { gap: 0 },
+  stepsContainer: { gap: 0, alignSelf: "stretch" },
   stepRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    width: "100%",
     borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
+    gap: 9,
+    alignSelf: "stretch",
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  stepTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
+    minHeight: 42,
   },
   stepBadge: {
     width: 26,
@@ -1023,11 +1042,20 @@ const styles = StyleSheet.create({
   },
   stepNum: { color: "#fff", fontSize: 12, fontWeight: "800" },
   stepIcon: { fontSize: 20 },
-  stepInfo: { flex: 1 },
+  stepInfo: { flex: 1, minWidth: 0 },
   stepTitle: { fontSize: 13, fontWeight: "700", lineHeight: 18 },
-  stepSection: { fontSize: 11, marginTop: 1 },
-  stepRight: { alignItems: "flex-end", gap: 2 },
-  stepScore: { fontSize: 12, fontWeight: "800" },
+  stepSection: { fontSize: 11, lineHeight: 15, marginTop: 1 },
+  stepStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingLeft: 36,
+    minHeight: 22,
+  },
+  stepScore: { flex: 1, minWidth: 0, fontSize: 12, fontWeight: "800" },
+  stepStatusLabel: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
+  stepStatusText: { fontSize: 11, fontWeight: "800" },
 
   stepConnector: { alignItems: "flex-start", paddingLeft: 22, height: 14 },
   stepConnectorLine: { width: 2, flex: 1 },
