@@ -22,13 +22,15 @@ export default function PracticaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { recordExerciseResult } = useApp();
+  const { recordExerciseResult, recordHintEvent } = useApp();
 
   const cat = PRACTICE_CATEGORIES.find((c) => c.id === categoria);
 
   const [expandedConcept, setExpandedConcept] = useState<number | null>(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [hintsShown, setHintsShown] = useState<Record<string, boolean>>({});
+  const [hintsUsed, setHintsUsed] = useState<Record<string, number>>({});
 
   const shuffledExercises = useMemo(
     () =>
@@ -72,12 +74,26 @@ export default function PracticaScreen() {
       attempts: 1,
       questionText: ex.question,
       topicName: cat.title,
-    });
+    }, { hintsUsed: hintsUsed[ex.id] ?? 0 });
     if (isCorrect) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
+  };
+
+  const toggleHint = (exId: string, index: number) => {
+    setHintsShown((prev) => {
+      if (prev[exId]) return { ...prev, [exId]: false };
+      const nextCount = (hintsUsed[exId] ?? 0) + 1;
+      setHintsUsed((counts) => ({ ...counts, [exId]: nextCount }));
+      void recordHintEvent(
+        exId,
+        `${exId}-practice-hint-${index + 1}-${nextCount}`,
+        `support:${cat.id}`,
+      );
+      return { ...prev, [exId]: true };
+    });
   };
 
   const donePractice = () => {
@@ -231,6 +247,43 @@ export default function PracticaScreen() {
               </View>
             )}
 
+            <TouchableOpacity
+              style={[
+                styles.hintToggle,
+                { borderColor: colors.accent + "60", backgroundColor: colors.accent + "10" },
+              ]}
+              onPress={() => toggleHint(ex.id, idx)}
+              disabled={isChecked}
+            >
+              <Feather name="help-circle" size={15} color={colors.accent} />
+              <Text style={[styles.hintToggleText, { color: colors.accent }]}>
+                {hintsShown[ex.id] ? "Ocultar pista" : "Usar pista"}
+              </Text>
+              <Feather
+                name={hintsShown[ex.id] ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={colors.accent}
+              />
+            </TouchableOpacity>
+            {hintsShown[ex.id] && (
+              <View
+                style={[
+                  styles.hintBox,
+                  { backgroundColor: colors.accent + "10", borderColor: colors.accent + "30" },
+                ]}
+              >
+                <Text style={[styles.hintTitle, { color: colors.accent }]}>💡 Pista</Text>
+                <Text style={[styles.hintText, { color: colors.foreground }]}>
+                  {cat.concepts.length > 0
+                    ? cat.concepts[idx % cat.concepts.length].tip
+                    : "Revisa el concepto y elimina las opciones que no coinciden con la regla."}
+                </Text>
+                <Text style={[styles.hintReward, { color: colors.accent }]}>
+                  Si aciertas usando la pista, ganas 8 XP.
+                </Text>
+              </View>
+            )}
+
             <View style={styles.options}>
               {ex.shuffledOptions.map((opt) => {
                 let bg = colors.background;
@@ -301,7 +354,11 @@ export default function PracticaScreen() {
                 ]}
               >
                 <Text style={[styles.feedbackText, { color: isCorrect ? colors.success : colors.error }]}>
-                  {isCorrect ? "✅ ¡Correcto! +10 XP" : "❌ Incorrecto · 0 XP"}
+                  {isCorrect
+                    ? hintsUsed[ex.id]
+                      ? "✅ ¡Correcto con pista! +8 XP"
+                      : "✅ ¡Correcto! +10 XP"
+                    : "❌ Incorrecto · 0 XP"}
                 </Text>
                 <Text style={[styles.feedbackExplan, { color: colors.foreground }]}>
                   {ex.explanation}
@@ -399,6 +456,21 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   tipText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  hintToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  hintToggleText: { flex: 1, fontSize: 12, fontWeight: "700" },
+  hintBox: { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 10, gap: 5 },
+  hintTitle: { fontSize: 13, fontWeight: "800" },
+  hintText: { fontSize: 12.5, lineHeight: 18 },
+  hintReward: { fontSize: 12, fontWeight: "700", marginTop: 2 },
   exCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 14 },
   exHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 12 },
   exNum: {

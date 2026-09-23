@@ -116,15 +116,10 @@ function getExerciseXp(
   result: Pick<ExerciseResult, "moduleId" | "correct" | "attempts" | "hintsUsed" | "feedbackViewed">
 ): number {
   const isPrerequisiteExercise = result.moduleId?.startsWith("support:") ?? false;
-  if (isPrerequisiteExercise) {
-    return result.correct ? (result.attempts <= 1 ? 10 : 5) : 0;
-  }
-  const base = result.correct
-    ? result.attempts <= 1 ? 25 : result.attempts === 2 ? 20 : result.attempts === 3 ? 15 : 10
-    : 5;
-  const correction = result.correct && result.attempts > 1 ? 15 : 0;
-  const hints = (result.hintsUsed ?? 0) * 3 + (result.correct && (result.hintsUsed ?? 0) > 0 ? 10 : 0);
-  return base + correction + hints;
+  if (!result.correct) return 0;
+  if (result.attempts > 1) return 5;
+  if ((result.hintsUsed ?? 0) > 0) return 8;
+  return isPrerequisiteExercise ? 10 : 25;
 }
 
 const DAILY_STREAK_XP = 200;

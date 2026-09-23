@@ -12,3 +12,4 @@
 - [Cierre y avance de actividades](reflection-advance-flow.md) — la reflexión de sesión es obligatoria antes de marcar un tema o caso como completado y abrir el siguiente
 - [Registro de pseudónimos](student-pseudonym-access.md) — el docente registra cada pseudónimo y el login estudiante nunca crea perfiles automáticamente
 - [Desbloqueo de evaluaciones](factoriza-evaluation-unlock.md) — un código validado debe conservar el acceso al examen al cambiar de pantalla
+- [Recompensas por pistas](factoriza-hint-xp.md) — pista antes de responder vale 8 XP al acertar; una corrección después de error vale 5 XP

@@ -97,7 +97,11 @@ export default function EvaluacionModuloScreen() {
       const next = { ...prev, [exerciseId]: !prev[exerciseId] };
       if (next[exerciseId] && !prev[exerciseId]) {
         hintsUsedRef.current[exerciseId] = (hintsUsedRef.current[exerciseId] ?? 0) + 1;
-        void recordHintEvent(exerciseId, `${exerciseId}-evaluation-hint-${hintsUsedRef.current[exerciseId]}`);
+        void recordHintEvent(
+          exerciseId,
+          `${exerciseId}-evaluation-hint-${hintsUsedRef.current[exerciseId]}`,
+          module?.id,
+        );
       }
       return next;
     });
@@ -507,6 +511,9 @@ export default function EvaluacionModuloScreen() {
               {hintsShown[ex.id] && (
                 <View style={[styles.hintBox, { backgroundColor: module.color + "0c", borderColor: module.color + "30" }]}>
                   <Text style={[styles.hintText, { color: colors.foreground }]}>💡 {ex.hint}</Text>
+                  <Text style={[styles.hintText, { color: module.color, fontWeight: "700", marginTop: 4 }]}>
+                    Si aciertas usando la pista, ganas 8 XP.
+                  </Text>
                 </View>
               )}
             </View>

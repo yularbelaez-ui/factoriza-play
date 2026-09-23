@@ -134,7 +134,14 @@ export default function EjercicioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { recordExerciseResult, completeLevel, startActivitySession, currentStudent, moduleProgress } = useApp();
+  const {
+    recordExerciseResult,
+    recordHintEvent,
+    completeLevel,
+    startActivitySession,
+    currentStudent,
+    moduleProgress,
+  } = useApp();
   const isWeb = Platform.OS === "web";
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
@@ -166,12 +173,6 @@ export default function EjercicioScreen() {
   // per-topic analytics (time spent, errors, hint usage).
   const startTimeRef = useRef(Date.now());
   const hintsUsedRef = useRef(0);
-  const toggleHint = () => {
-    setShowHint((prev) => {
-      if (!prev) hintsUsedRef.current += 1;
-      return !prev;
-    });
-  };
 
   const exerciseOrdinal = module?.exercises.findIndex((item) => item.id === exerciseId) ?? 0;
   const orderedOptions = useMemo(() => {
@@ -232,6 +233,20 @@ export default function EjercicioScreen() {
   const errorHint = ERROR_HINTS[exercise.errorCategory] ?? ERROR_HINTS["arithmetic"];
   const remediation = ERROR_TO_TOPIC[exercise.errorCategory] ?? null;
   const suggestedSteps = getSuggestedSteps(exercise.steps ?? [], exercise.correctAnswer);
+  const earnedXp = attempts > 1 ? 5 : hintsUsedRef.current > 0 ? 8 : 25;
+  const toggleHint = () => {
+    setShowHint((prev) => {
+      if (!prev) {
+        hintsUsedRef.current += 1;
+        void recordHintEvent(
+          exercise.id,
+          `${exercise.id}-hint-${hintsUsedRef.current}`,
+          module.id,
+        );
+      }
+      return !prev;
+    });
+  };
 
   const triggerShake = () => {
     shakeAnim.setValue(0);
@@ -466,6 +481,11 @@ export default function EjercicioScreen() {
               </Text>
             </>
           )}
+          <Text style={[styles.hintReward, { color: colors.accent }]}>
+            {attempts > 0
+              ? "Si aciertas después del error, todavía ganas 5 XP."
+              : "Si aciertas usando esta pista, ganas 8 XP."}
+          </Text>
         </View>
       )}
 
@@ -579,6 +599,9 @@ export default function EjercicioScreen() {
           <Text style={[styles.feedbackHint, { color: colors.foreground }]}>
             {errorHint.hint}
           </Text>
+          <Text style={[styles.retryReward, { color: colors.accent }]}>
+            Si lo resuelves en el siguiente intento, todavía ganas 5 XP.
+          </Text>
           <View
             style={[
               styles.tipBox,
@@ -645,7 +668,7 @@ export default function EjercicioScreen() {
           </Text>
           <View style={[styles.xpGain, { backgroundColor: colors.accent + "20" }]}>
             <Text style={[styles.xpGainText, { color: colors.accent }]}>
-              ⚡ +20 XP ganados
+              ⚡ +{earnedXp} XP ganados
             </Text>
           </View>
           <TouchableOpacity
@@ -722,6 +745,8 @@ const styles = StyleSheet.create({
   hintStepsTitle: { fontSize: 12, fontWeight: "700", marginTop: 4 },
   hintStep: { fontSize: 12, lineHeight: 18 },
   hintGuard: { fontSize: 11, lineHeight: 17, fontStyle: "italic", marginTop: 3 },
+  hintReward: { fontSize: 12, fontWeight: "700", marginTop: 4 },
+  retryReward: { fontSize: 13, fontWeight: "700", lineHeight: 19, marginBottom: 4 },
   options: { gap: 10, marginBottom: 14 },
   option: {
     flexDirection: "row",

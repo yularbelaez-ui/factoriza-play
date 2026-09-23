@@ -505,21 +505,17 @@ router.post("/students/:studentId/exercise", async (req, res) => {
         correctAnswer: correctAnswer ?? null,
       });
       const prerequisiteExercise = isPrerequisiteExercise(moduleId, exerciseId);
-      const exerciseBase = prerequisiteExercise
-        ? (correct ? (safeAttempts <= 1 ? 10 : 5) : 0)
-        : correct
-          ? safeAttempts <= 1 ? 25 : safeAttempts === 2 ? 20 : safeAttempts === 3 ? 15 : 10
-          : 5;
-      const correctionBonus = !prerequisiteExercise && correct && safeAttempts > 1 ? 15 : 0;
-      const hintEvents = correct
-        ? await tx.select({ id: xpEvents.id }).from(xpEvents).where(and(
-            eq(xpEvents.studentId, studentId),
-            eq(xpEvents.eventType, "hint"),
-            like(xpEvents.sourceId, `${exerciseId}:%`),
-          ))
-        : [];
-      const hintBonus = !prerequisiteExercise && correct && hintEvents.length > 0 ? 10 : 0;
-      const xpGain = exerciseBase + correctionBonus + hintBonus;
+      // Hints guide the student without making an incorrect answer profitable:
+      // a first correct answer with a hint is worth 8 XP, while a correction
+      // after an error is still worth 5 XP. The regular first-try reward is
+      // preserved for students who solve the exercise unaided.
+      const xpGain = correct
+        ? safeAttempts > 1
+          ? 5
+          : safeHints > 0
+            ? 8
+            : prerequisiteExercise ? 10 : 25
+        : 0;
       const alreadyCompleted = (student.completedExercises ?? []).includes(exerciseId);
       const newCompletedExercises = correct && !alreadyCompleted
         ? [...(student.completedExercises ?? []), exerciseId]
@@ -943,7 +939,9 @@ router.post("/students/:studentId/hint", async (req, res) => {
     await tx.execute(sql`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`);
     const [student] = await tx.select().from(students).where(eq(students.id, studentId)).limit(1);
     if (!student) return null;
-    const hintXp = isPrerequisiteExercise(moduleId, exerciseId) ? 0 : 3;
+    // The reward is assigned when the exercise is answered, so students do
+    // not accumulate XP by opening and closing a hint without completing it.
+    const hintXp = 0;
     const [event] = await tx.insert(xpEvents).values({
       studentId, eventType: "hint", sourceId: `${exerciseId}:${hintId}:${clientId}`, xp: hintXp,
     }).onConflictDoNothing().returning();
@@ -951,8 +949,8 @@ router.post("/students/:studentId/hint", async (req, res) => {
     if (event.xp === 0) return { student, duplicate: false };
     const dailyProgress = dailyProgressForXp(student, event.xp);
     const [updated] = await tx.update(students).set({
-      totalXP: sql`${students.totalXP} + 3`,
-      rankHistory: nextRankHistory(student, student.totalXP + 3),
+      totalXP: sql`${students.totalXP} + ${event.xp}`,
+      rankHistory: nextRankHistory(student, student.totalXP + event.xp),
       ...dailyProgress,
     }).where(eq(students.id, studentId)).returning();
     return { student: updated, duplicate: false };
