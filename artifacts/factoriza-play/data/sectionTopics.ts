@@ -1199,9 +1199,9 @@ const ALGEBRA_TOPICS: TopicContent[] = [
       },
       {
         id: "not-ex5",
-        question: "¿Qué significa la expresión 4ab?",
-        options: ["4 veces a veces b", "4 más a más b", "a elevado a b dividido 4", "4 dividido entre ab"],
-        correctAnswer: "4 veces a veces b",
+        question: "¿Qué representa la expresión 4ab?",
+        options: ["4 × a × b", "4 + a + b", "4 ÷ (a × b)", "aᵇ ÷ 4"],
+        correctAnswer: "4 × a × b",
         explanation: "En notación algebraica, letras juntas implican multiplicación: 4ab = 4 × a × b.",
       },
       {
