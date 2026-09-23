@@ -33,6 +33,7 @@ import {
   getPersonalizedStepTarget,
   isPersonalizedRouteCompleted,
   isPersonalizedRoutePrerequisitesCompleted,
+  buildPersonalizedRoute,
 } from "@/data/personalizedRoutes";
 
 // ── Mapa de categorías diagnóstico → tema ────────────────────────────
@@ -61,7 +62,7 @@ function stepColor(score: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentStudent, unlockedModules, logout, academicProgressVersion } = useApp();
+  const { currentStudent, logout, academicProgressVersion } = useApp();
   const isWeb = Platform.OS === "web";
   const [serverAcademicSummary, setServerAcademicSummary] = useState<AcademicSummary | null>(null);
 
@@ -140,7 +141,9 @@ export default function HomeScreen() {
 
   const profileCode = normalizeProfileCode(dp?.profile, dp?.level);
   const profileDetails = dp ? PROFILE_DETAILS[profileCode] : null;
-  const personalizedRoute = dp?.personalizedRoute;
+  const personalizedRoute = dp?.moduleResults?.length
+    ? buildPersonalizedRoute(dp.moduleResults)
+    : dp?.personalizedRoute;
   const routeId =
     dp?.profile === "C" && dp.route === "ruta-3"
       ? "ruta-4"

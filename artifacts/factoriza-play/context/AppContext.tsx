@@ -11,6 +11,7 @@ import { AppState } from "react-native";
 import { DiagnosticProfile } from "@/data/diagnostic";
 import { getRouteForProfile, normalizeProfileCode } from "@/data/learningRoutes";
 import {
+  buildPersonalizedRoute,
   isPersonalizedRoutePrerequisitesCompleted,
 } from "@/data/personalizedRoutes";
 import {
@@ -219,7 +220,9 @@ function isModuleCompleteForUnlock(moduleId: string, completedModules: string[])
 
 function computeUnlocked(student: StudentRecord | null): string[] {
   if (!student) return [];
-  const personalizedRoute = student.diagnosticProfile?.personalizedRoute;
+  const personalizedRoute = student.diagnosticProfile?.moduleResults?.length
+    ? buildPersonalizedRoute(student.diagnosticProfile.moduleResults)
+    : student.diagnosticProfile?.personalizedRoute;
   if (personalizedRoute) {
     const prerequisitesCompleted = isPersonalizedRoutePrerequisitesCompleted(
       personalizedRoute,

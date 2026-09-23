@@ -164,16 +164,31 @@ export function buildPersonalizedRoute(
 ): PersonalizedRoute {
   const resultMap = new Map(moduleResults.map((result) => [result.id, result]));
   const selectedIds = [
-    ...PREREQUISITE_MODULE_IDS.filter((id) => resultMap.get(id)?.needsStrengthening),
+    ...PREREQUISITE_MODULE_IDS.filter((id) => {
+      const result = resultMap.get(id);
+      return result?.topics.some((topic) => topic.score < threshold);
+    }),
     "factorizacion" as const,
   ];
   const modules = selectedIds.map((id) => {
     const definition = MODULE_DEFINITIONS[id];
     const result = resultMap.get(id);
+    const weakTopicIndexes = new Set(
+      result?.topics
+        .map((topic, index) => (topic.score < threshold ? index : -1))
+        .filter((index) => index >= 0) ?? [],
+    );
+    const topicIds = definition.topicIds.filter((_, index) => weakTopicIndexes.has(index));
+    const topicLabels = definition.topicLabels.filter((_, index) => weakTopicIndexes.has(index));
     return {
       ...definition,
+      description: topicLabels.length > 0
+        ? `Temas por reforzar: ${topicLabels.join(", ")}.`
+        : definition.description,
+      topicIds,
+      topicLabels,
       score: result?.score ?? 0,
-      needsStrengthening: result?.needsStrengthening ?? false,
+      needsStrengthening: topicLabels.length > 0,
     };
   });
   const steps = modules.map((module) => ({
