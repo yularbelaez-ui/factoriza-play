@@ -44,3 +44,9 @@ En estudiantes conectados, la invalidación de la nota debe ocurrir después de 
 **Why:** La consulta iniciada por el cambio local podía llegar antes del `INSERT` y dejar visible la nota anterior sin otra actualización posterior.
 
 **How to apply:** Incrementa una señal de versión académica al completar la sincronización del ejercicio y úsala como dependencia de la consulta del resumen académico.
+
+Una reflexión asociada a un módulo no debe modificar la nota académica hasta que haya al menos un resultado de ejercicio de ese módulo.
+
+**Why:** El avance de ruta o una reflexión de sesión puede llegar antes que los ejercicios; usarla sola como evidencia hacía variar la nota aunque el módulo estuviera sin practicar.
+
+**How to apply:** Antes de contar la reflexión en el resumen del tema, exigir evidencia de ejercicio del mismo módulo y mantener esta regla igual en el cálculo móvil y el API.

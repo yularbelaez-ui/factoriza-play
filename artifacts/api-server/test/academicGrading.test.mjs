@@ -38,6 +38,42 @@ test("renormalizes missing components and reports coverage", () => {
   assert.deepEqual(topic.missingComponents, ["correction", "transfer", "reflection"]);
 });
 
+test("a newly opened module with only a reflection does not change the grade", () => {
+  const diagnosticResults = [{ category: "naturales", score: 80 }];
+  const mobileModules = activeModules.map(({ id, prefix }) => ({
+    id,
+    evaluationExerciseIds: [`${prefix}-eval-1`],
+  }));
+  const baseline = calculateAcademicSummary({
+    records: [],
+    diagnosticResults,
+    activeModules,
+  });
+  const serverWithEmptyModule = calculateAcademicSummary({
+    records: [],
+    diagnosticResults,
+    reflections: [{ moduleId: "factor-comun", completed: true }],
+    activeModules,
+  });
+  const mobileWithEmptyModule = mobileGrading.calculateAcademicSummary({
+    records: [],
+    diagnosticResults,
+    reflections: [{ moduleId: "factor-comun", completed: true }],
+    activeModules: mobileModules,
+  });
+
+  assert.equal(serverWithEmptyModule.general.grade, baseline.general.grade);
+  assert.equal(mobileWithEmptyModule.general.grade, baseline.general.grade);
+  assert.equal(
+    serverWithEmptyModule.topics.find((topic) => topic.moduleId === "factor-comun")?.grade,
+    null,
+  );
+  assert.equal(
+    mobileWithEmptyModule.topics.find((topic) => topic.moduleId === "factor-comun")?.grade,
+    null,
+  );
+});
+
 test("does not create correction opportunities from attempts alone", () => {
   const topic = calculateTopicGrade("factor-comun", [
     { exerciseId: "fc-ex-1", moduleId: "factor-comun", correct: true, attempts: 2 },
@@ -161,8 +197,8 @@ test("general pools topic components and diagnostics, without numeric factorizac
     activeModules,
   });
   const initial = summary.general.components.find((component) => component.key === "initial");
-  assert.equal(initial?.opportunityCount, 3);
-  assert.equal(initial?.successCount, 2.5);
+  assert.equal(initial?.opportunityCount, 2);
+  assert.equal(initial?.successCount, 1.5);
   assert.equal(summary.pensamientoNumerico.components.find((component) => component.key === "initial")?.opportunityCount, 1);
   assert.deepEqual(summary.diagnosticGrades.patrones, undefined);
   assert.equal(summary.pensamientoNumerico.grade, 3);
@@ -178,10 +214,10 @@ test("includes algebraic thinking diagnostic evidence in the final grade", () =>
     records: [],
     diagnosticResults: [
       { category: "naturales", score: 100 },
-      { category: "variables", score: 0 },
-      { category: "propiedades", score: 0 },
-      { category: "terminos", score: 0 },
-      { category: "igualdad", score: 0 },
+      { category: "notacion_grado", score: 0 },
+      { category: "expresion_termino", score: 0 },
+      { category: "clasificacion_expresiones", score: 0 },
+      { category: "terminos_semejantes", score: 0 },
     ],
     activeModules,
   });

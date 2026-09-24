@@ -223,6 +223,7 @@ export function calculateTopicGrade(
     : null;
 
   const reflected = reflections.some((reflection) =>
+    moduleRecords.length > 0 &&
     reflection.completed !== false &&
     (reflection.moduleId === moduleId || reflection.activityId === moduleId),
   );

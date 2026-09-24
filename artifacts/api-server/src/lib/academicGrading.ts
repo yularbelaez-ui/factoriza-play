@@ -204,6 +204,7 @@ export function calculateTopicGrade(
   const transferSuccesses = transfer.filter((record) => record.correct).length;
   const transferProportion = transfer.length > 0 ? transferSuccesses / transfer.length : null;
   const reflected = reflections.some((reflection) =>
+    moduleRecords.length > 0 &&
     reflection.completed !== false &&
     (reflection.moduleId === moduleId || reflection.activityId === moduleId),
   );

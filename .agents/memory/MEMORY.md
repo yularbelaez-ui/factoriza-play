@@ -6,7 +6,7 @@
 - [Expo Go iOS con SDK 57](expo-go-ios-sdk57.md) — iPhone exige el SDK vigente y una sesión administrada de Replit para abrir el proyecto físico
 - [Evidencias y reflexiones docentes](factoriza-evidence-reflections.md) — fotos y reflexiones se vinculan al resultado idempotente y se organizan por estudiante, tema y ejercicio
 - [Conectores en producción](connectors-production-republish.md) — añadir o cambiar un conector exige volver a publicar para que la conexión llegue al despliegue
-- [Calificaciones académicas](factoriza-academic-grades.md) — notas 1.0–5.0 coexisten con XP; usan evidencia real 40/30/20/10 y excluyen Reconocimiento de patrones
+- [Calificaciones académicas](factoriza-academic-grades.md) — notas 1.0–5.0 coexisten con XP; una reflexión sin ejercicios no cambia la nota
 - [Racha diaria por XP](factoriza-daily-streak.md) — un día solo cuenta con mínimo 200 XP, calculado en America/Bogota y sin duplicar el día
 - [PDFKit en el API](pdfkit-runtime.md) — PDFKit debe quedar externalizado del bundle de esbuild para resolver sus fuentes estándar en runtime
 - [Cierre y avance de actividades](reflection-advance-flow.md) — la reflexión de sesión es obligatoria antes de marcar un tema o caso como completado y abrir el siguiente
