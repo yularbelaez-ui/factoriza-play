@@ -79,7 +79,7 @@ const MODULE_DEFINITIONS: Record<
 > = {
   aritmetica: {
     id: "aritmetica",
-    title: "Fortalecimiento algebraico",
+    title: "Fortalecimiento aritmético",
     description: "Naturales, decimales, enteros, irracionales, reales, potencias, fracciones y factores primos.",
     icon: "🧮",
     color: "#7c3aed",
@@ -126,7 +126,7 @@ const MODULE_DEFINITIONS: Record<
   },
   algebra: {
     id: "algebra",
-    title: "Pensamiento algebraico",
+    title: "Introducción al álgebra",
     description: "Notación, términos, clasificación de expresiones y términos semejantes.",
     icon: "✏️",
     color: "#2563eb",
@@ -158,10 +158,10 @@ const MODULE_DEFINITIONS: Record<
   },
   patrones: {
     id: "patrones",
-    title: "Reconocimiento de patrones",
+    title: "Operaciones algebraicas",
     description: "Suma, resta, multiplicación, división y productos notables.",
-    icon: "🔍",
-    color: "#0891b2",
+    icon: "⚙️",
+    color: "#059669",
     topicIds: ["s3-suma-resta", "s3-multiplicacion", "s3-division", "s3-productos"],
     topicLabels: [
       "Suma y resta algebraica",

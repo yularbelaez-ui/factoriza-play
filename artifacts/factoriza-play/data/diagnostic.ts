@@ -720,11 +720,11 @@ export function buildDiagnosticProfile(
     return {
       id,
       title: id === "aritmetica"
-        ? "Fortalecimiento algebraico"
+        ? "Fortalecimiento aritmético"
         : id === "algebra"
-          ? "Pensamiento algebraico"
+          ? "Introducción al álgebra"
           : id === "patrones"
-            ? "Reconocimiento de patrones"
+            ? "Operaciones algebraicas"
             : "Factorización",
       score,
       threshold: PERSONALIZED_ROUTE_THRESHOLD,

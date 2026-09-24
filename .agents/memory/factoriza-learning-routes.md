@@ -5,12 +5,12 @@ description: Regla pedagógica para clasificar el diagnóstico y orientar la pro
 
 La clasificación debe usar un umbral fijo de 75% por módulo diagnóstico:
 
-- **Aritmética / Fortalecimiento algebraico:** naturales, decimales, enteros, irracionales, reales, potencias, fracciones y factores primos.
+- **Fortalecimiento aritmético:** naturales, decimales, enteros, irracionales, reales, potencias, fracciones y factores primos.
 - **Introducción al álgebra / Pensamiento algebraico:** notación y grado, expresión y término, clasificación, y términos semejantes/valor numérico.
-- **Operaciones algebraicas / Reconocimiento de patrones:** suma y resta, multiplicación, división y productos notables.
+- **Operaciones algebraicas / Pensamiento algebraico:** suma y resta, multiplicación, división y productos notables.
 - **Factorización:** secuencia de casos posterior a los tres módulos diagnósticos.
 
-**Why:** El diagnóstico y la ruta deben hablar de los mismos bloques del curso; una categoría que no tiene un módulo equivalente produce rutas confusas y reportes difíciles de interpretar.
+**Why:** El diagnóstico y la ruta deben hablar de los mismos cuatro módulos; Introducción al álgebra y Operaciones algebraicas forman juntas el bloque de pensamiento algebraico, mientras que Reconocimiento de patrones es un caso interno de Factorización.
 
 **How to apply:** Conserva los identificadores de categoría nuevos al ajustar preguntas, reportes docentes o recomendaciones. Mantén el umbral fijo de 75% y agrega a la ruta solo los grupos con temas por debajo del umbral; Factorización sigue siendo la etapa posterior.
 

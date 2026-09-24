@@ -782,9 +782,9 @@ export default function DocenteScreen() {
                 (student.diagnosticProfile?.level === "básico" ? "A" : student.diagnosticProfile?.level === "intermedio" ? "B" : "C");
               const profileDetails = student.diagnosticProfile ? PROFILE_DETAILS[profileCode] : null;
               const competencyLabels: Record<string, string> = {
-                aritmetica: "fortalecimiento algebraico",
-                algebra: "pensamiento algebraico",
-                patrones: "reconocimiento de patrones",
+                aritmetica: "fortalecimiento aritmético",
+                algebra: "introducción al álgebra",
+                patrones: "operaciones algebraicas",
               };
               const weakCompetencies = (student.diagnosticProfile?.competencyResults ?? [])
                 .filter((result) => result.score < 75)

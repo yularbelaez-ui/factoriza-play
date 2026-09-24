@@ -128,8 +128,8 @@ export const PROFILE_DETAILS: Record<
 export const LEARNING_ROUTES: Record<LearningRouteCode, LearningRoute> = {
   "ruta-1": {
     id: "ruta-1",
-    title: "Ruta 1 · Fortalecimiento algebraico",
-    subtitle: "Construye las bases numéricas y algebraicas antes de avanzar.",
+    title: "Ruta 1 · Fortalecimiento aritmético",
+    subtitle: "Construye las bases aritméticas antes de avanzar.",
     color: "#dc2626",
     icon: "🧮",
     steps: [
@@ -193,7 +193,7 @@ export const LEARNING_ROUTES: Record<LearningRouteCode, LearningRoute> = {
   },
   "ruta-2": {
     id: "ruta-2",
-    title: "Ruta 2 · Pensamiento algebraico",
+    title: "Ruta 2 · Introducción al álgebra",
     subtitle: "Comprende la notación, los términos y las expresiones algebraicas.",
     color: "#2563eb",
     icon: "✏️",
@@ -230,10 +230,10 @@ export const LEARNING_ROUTES: Record<LearningRouteCode, LearningRoute> = {
   },
   "ruta-3": {
     id: "ruta-3",
-    title: "Ruta 3 · Reconocimiento de patrones",
+    title: "Ruta 3 · Operaciones algebraicas",
     subtitle: "Practica operaciones algebraicas y productos notables antes de factorizar.",
-    color: "#2563eb",
-    icon: "🔍",
+    color: "#059669",
+    icon: "⚙️",
     steps: [
       {
         id: "suma-resta",
